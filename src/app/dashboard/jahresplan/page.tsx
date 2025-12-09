@@ -76,7 +76,10 @@ export default function JahresplanPage() {
               </div>
             </div>
           ) : themenGrouped ? (
-            <KanbanBoard themenGrouped={themenGrouped} />
+            <KanbanBoard
+              themenGrouped={themenGrouped}
+              schulePictsBuchen={teacherData?.schule?.pictsBuchen}
+            />
           ) : (
             <div className="text-center py-12">
               <p className="text-muted-foreground">

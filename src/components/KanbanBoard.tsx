@@ -9,6 +9,7 @@ import { ExternalLink, BookOpen, Clock } from "lucide-react";
 
 interface KanbanBoardProps {
   themenGrouped: Record<Zeitraum, Thema[]>;
+  schulePictsBuchen?: string;
 }
 
 const ZEITRAUM_LABELS: Record<Zeitraum, string> = {
@@ -20,7 +21,7 @@ const ZEITRAUM_LABELS: Record<Zeitraum, string> = {
   "Zusatz": "Zusatz",
 };
 
-export default function KanbanBoard({ themenGrouped }: KanbanBoardProps) {
+export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: KanbanBoardProps) {
   const [selectedThema, setSelectedThema] = useState<Thema | null>(null);
 
   const zeitraumOrder: Zeitraum[] = [
@@ -214,9 +215,9 @@ export default function KanbanBoard({ themenGrouped }: KanbanBoardProps) {
                       Unterlagen öffnen
                     </a>
                   )}
-                  {selectedThema.pictsBuchen && (
+                  {schulePictsBuchen && (
                     <a
-                      href={selectedThema.pictsBuchen}
+                      href={schulePictsBuchen}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-sm text-primary hover:underline"

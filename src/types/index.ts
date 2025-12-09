@@ -44,6 +44,7 @@ export interface Schule {
   id: string;
   name: string;
   ort?: string;
+  pictsBuchen?: string;
   createdAt: Date;
 }
 
@@ -54,6 +55,7 @@ export interface Teacher {
   name: string;
   schuleId: string;
   stufe: Stufe;
+  schule?: Schule | null;
   createdAt: Date;
 }
 
