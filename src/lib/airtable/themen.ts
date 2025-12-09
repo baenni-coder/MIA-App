@@ -3,9 +3,16 @@ import { Thema, Stufe, Zeitraum } from "@/types";
 
 const THEMEN_TABLE = process.env.AIRTABLE_THEMEN_TABLE || "Themen";
 
-// Helper: Parse Stufen aus CSV-String
-const parseStufen = (stufen: string | undefined): Stufe[] => {
+// Helper: Parse Stufen aus CSV-String oder Array
+const parseStufen = (stufen: string | string[] | undefined): Stufe[] => {
   if (!stufen) return [];
+
+  // Wenn es schon ein Array ist (Airtable Format)
+  if (Array.isArray(stufen)) {
+    return stufen.map((s) => s.trim() as Stufe);
+  }
+
+  // Wenn es ein String ist (CSV Format)
   return stufen.split(",").map((s) => s.trim() as Stufe);
 };
 
