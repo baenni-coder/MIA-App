@@ -1,5 +1,6 @@
 import getBase from "./config";
 import { Kompetenz } from "@/types";
+import { getUnterrichtsideenByIds } from "./unterrichtsideen";
 
 const KOMPETENZEN_TABLE = process.env.AIRTABLE_KOMPETENZEN_TABLE || "Kompetenzen Lehrplan";
 
@@ -12,6 +13,8 @@ export const getKompetenzenByIds = async (ids: string[]): Promise<Map<string, Ko
   try {
     const base = getBase();
     const kompetenzenMap = new Map<string, Kompetenz>();
+    const allUnterrichtsideenIds = new Set<string>();
+    const kompetenzenWithIds: Array<{ kompetenz: Kompetenz; unterrichtsideenIds: string[] }> = [];
 
     // Batch-Load Kompetenzen
     // Airtable erlaubt bis zu 10 IDs in einem filterByFormula
@@ -42,22 +45,16 @@ export const getKompetenzenByIds = async (ids: string[]): Promise<Map<string, Ko
           const klassenstufeRaw = record.get("Klassenstufe");
           const klassenstufe = Array.isArray(klassenstufeRaw) ? klassenstufeRaw : [];
 
-          // Parse Unterrichtsideen (wenn vorhanden)
+          // Parse Unterrichtsideen IDs (Array von Record-IDs)
           const unterrichtsideenRaw = record.get("Unterrichtsideen");
-          let unterrichtsideen: Array<{ name: string; anzahl?: number }> = [];
+          let unterrichtsideenIds: string[] = [];
 
           if (Array.isArray(unterrichtsideenRaw)) {
-            // Annahme: Format ist Text mit "Name: Anzahl" oder nur "Name"
-            unterrichtsideen = unterrichtsideenRaw.map((item: any) => {
-              if (typeof item === "string") {
-                const parts = item.split(":");
-                return {
-                  name: parts[0]?.trim() || item,
-                  anzahl: parts[1] ? parseInt(parts[1]) : undefined,
-                };
-              }
-              return { name: String(item) };
-            });
+            // Prüfe, ob es IDs sind (starten mit "rec")
+            unterrichtsideenIds = unterrichtsideenRaw.filter(
+              (id: any) => typeof id === "string" && id.startsWith("rec")
+            );
+            unterrichtsideenIds.forEach((id) => allUnterrichtsideenIds.add(id));
           }
 
           const kompetenz: Kompetenz = {
@@ -71,13 +68,25 @@ export const getKompetenzenByIds = async (ids: string[]): Promise<Map<string, Ko
             klassenstufe,
             grundanspruch: record.get("Grundanspruch") as string | undefined,
             querverweisLP: record.get("Querverweis LP") as string | undefined,
-            unterrichtsideen,
           };
 
-          kompetenzenMap.set(record.id, kompetenz);
+          kompetenzenWithIds.push({ kompetenz, unterrichtsideenIds });
         }
       });
     }
+
+    // Lade alle Unterrichtsideen auf einmal
+    const unterrichtsideenMap = await getUnterrichtsideenByIds(Array.from(allUnterrichtsideenIds));
+
+    // Baue die Kompetenzen mit aufgelösten Unterrichtsideen
+    kompetenzenWithIds.forEach(({ kompetenz, unterrichtsideenIds }) => {
+      const unterrichtsideen = unterrichtsideenIds
+        .map((id) => unterrichtsideenMap.get(id))
+        .filter((u): u is import("@/types").Unterrichtsidee => u !== undefined);
+
+      kompetenz.unterrichtsideen = unterrichtsideen.length > 0 ? unterrichtsideen : undefined;
+      kompetenzenMap.set(kompetenz.id, kompetenz);
+    });
 
     return kompetenzenMap;
   } catch (error) {

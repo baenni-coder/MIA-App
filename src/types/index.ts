@@ -49,6 +49,14 @@ export interface Schule {
   createdAt: Date;
 }
 
+// Unterrichtsidee
+export interface Unterrichtsidee {
+  id: string;
+  name: string;
+  lehrmittel?: string;
+  anzahl?: number;
+}
+
 // Kompetenz
 export interface Kompetenz {
   id: string;
@@ -61,10 +69,7 @@ export interface Kompetenz {
   klassenstufe?: string[];
   grundanspruch?: string;
   querverweisLP?: string;
-  unterrichtsideen?: Array<{
-    name: string;
-    anzahl?: number;
-  }>;
+  unterrichtsideen?: Unterrichtsidee[];
 }
 
 // Lehrer
