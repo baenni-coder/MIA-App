@@ -55,13 +55,13 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
             <div className="mb-4">
               {/* Zeitraum Bild */}
               {ZEITRAUM_IMAGES[zeitraum] && (
-                <div className="w-full h-24 mb-3 flex items-center justify-center bg-background rounded-lg overflow-hidden">
+                <div className="w-full h-32 mb-3 bg-background rounded-lg overflow-hidden">
                   <Image
                     src={ZEITRAUM_IMAGES[zeitraum]!}
                     alt={ZEITRAUM_LABELS[zeitraum]}
-                    width={96}
-                    height={96}
-                    className="object-contain"
+                    width={320}
+                    height={128}
+                    className="w-full h-full object-contain"
                   />
                 </div>
               )}
@@ -277,14 +277,14 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
                 <DialogTitle className="text-2xl">
                   {selectedKompetenz.lpCode || selectedKompetenz.name}
                 </DialogTitle>
-                {selectedKompetenz.kompetenzbereich && (
-                  <DialogDescription className="text-base">
-                    <Badge variant="secondary" className="mt-2">
-                      {selectedKompetenz.kompetenzbereich}
-                    </Badge>
-                  </DialogDescription>
-                )}
               </DialogHeader>
+              {selectedKompetenz.kompetenzbereich && (
+                <div className="mt-2">
+                  <Badge variant="secondary">
+                    {selectedKompetenz.kompetenzbereich}
+                  </Badge>
+                </div>
+              )}
 
               <div className="space-y-4 mt-4">
                 {/* LP Code */}
@@ -363,13 +363,21 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
                     <h4 className="font-semibold mb-2">Unterrichtsideen</h4>
                     <div className="space-y-2">
                       {selectedKompetenz.unterrichtsideen.map((idee, idx) => (
-                        <div key={idx} className="flex items-center justify-between bg-muted px-3 py-2 rounded text-sm">
-                          <span>{idee.name}</span>
-                          {idee.anzahl && (
-                            <Badge variant="secondary" className="text-xs">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {idee.anzahl} Lektionen
-                            </Badge>
+                        <div key={idx} className="bg-muted px-3 py-2 rounded">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium">{idee.name}</span>
+                            {idee.anzahl && (
+                              <Badge variant="secondary" className="text-xs">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {idee.anzahl} Lektionen
+                              </Badge>
+                            )}
+                          </div>
+                          {idee.lehrmittel && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <BookOpen className="h-3 w-3" />
+                              {idee.lehrmittel}
+                            </div>
                           )}
                         </div>
                       ))}
