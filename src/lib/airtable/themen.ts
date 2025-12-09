@@ -22,23 +22,32 @@ export const getAllThemen = async (): Promise<Thema[]> => {
     const base = getBase();
     const records = await base(THEMEN_TABLE).select().all();
 
-    return records.map((record) => ({
-      id: record.id,
-      thema: record.get("Thema") as string,
-      beschreibung: record.get("Um was geht es?") as string | undefined,
-      lehrmittel: record.get("Lehrmittel") as string | undefined,
-      bildLehrmittel: record.get("Bild Lehrmittel") as string | undefined,
-      anzahlLektionen: record.get("Anzahl Lektionen") as number | undefined,
-      kompetenzenLehrplan: record.get("Kompetenzen Lehrplan") as string | undefined,
-      fileRouge: record.get("File rouge") as string | undefined,
-      unterlagen: record.get("Unterlagen zum Kapitel") as string | undefined,
-      schuljahr: parseStufen(record.get("Schuljahr") as string | undefined),
-      lektionsplanung: record.get("Lektionsplanung") as string | undefined,
-      zeitraum: record.get("Zeitraum der Bearbeitung") as Zeitraum | undefined,
-      startdatum: record.get("Startdatum") as string | undefined,
-      uebersichtPICTS: record.get("Übersicht PICTS Buchungen") as string | undefined,
-      pictsBuchen: record.get("PICTS buchen") as string | undefined,
-    }));
+    return records.map((record) => {
+      // Extrahiere Bild-URL aus Airtable Attachment
+      const bildAttachments = record.get("Bild Lehrmittel") as any;
+      let bildUrl: string | undefined;
+      if (Array.isArray(bildAttachments) && bildAttachments.length > 0) {
+        bildUrl = bildAttachments[0].url;
+      }
+
+      return {
+        id: record.id,
+        thema: record.get("Thema") as string,
+        beschreibung: record.get("Um was geht es?") as string | undefined,
+        lehrmittel: record.get("Lehrmittel") as string | undefined,
+        bildLehrmittel: bildUrl,
+        anzahlLektionen: record.get("Anzahl Lektionen") as number | undefined,
+        kompetenzenLehrplan: record.get("Kompetenzen Lehrplan") as string | undefined,
+        fileRouge: record.get("File rouge") as string | undefined,
+        unterlagen: record.get("Unterlagen zum Kapitel") as string | undefined,
+        schuljahr: parseStufen(record.get("Schuljahr") as string | string[] | undefined),
+        lektionsplanung: record.get("Lektionsplanung") as string | undefined,
+        zeitraum: record.get("Zeitraum der Bearbeitung") as Zeitraum | undefined,
+        startdatum: record.get("Startdatum") as string | undefined,
+        uebersichtPICTS: record.get("Übersicht PICTS Buchungen") as string | undefined,
+        pictsBuchen: record.get("PICTS buchen") as string | undefined,
+      };
+    });
   } catch (error) {
     console.error("Error fetching Themen from Airtable:", error);
     return [];
