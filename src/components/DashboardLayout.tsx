@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "./ui/button";
 import { LogOut, LayoutDashboard, CalendarRange } from "lucide-react";
 
@@ -24,7 +25,15 @@ export default function DashboardLayout({
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-bold text-primary">MIA-App</h1>
+            <Image
+              src="/logo.png"
+              alt="MIA-App"
+              width={120}
+              height={60}
+              className="object-contain cursor-pointer"
+              onClick={() => router.push("/dashboard")}
+              priority
+            />
             <nav className="hidden md:flex gap-4">
               <Button
                 variant="ghost"

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,13 +98,24 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Registrieren</CardTitle>
-          <CardDescription>
-            Erstellen Sie Ihren Lehrer-Account
-          </CardDescription>
-        </CardHeader>
+      <div className="w-full max-w-md space-y-6">
+        <div className="flex justify-center">
+          <Image
+            src="/logo.png"
+            alt="MIA-App Logo"
+            width={200}
+            height={100}
+            className="object-contain"
+            priority
+          />
+        </div>
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>Registrieren</CardTitle>
+            <CardDescription>
+              Erstellen Sie Ihren Lehrer-Account
+            </CardDescription>
+          </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
@@ -199,7 +211,8 @@ export default function RegisterPage() {
             </p>
           </CardFooter>
         </form>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
