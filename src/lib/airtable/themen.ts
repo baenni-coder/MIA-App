@@ -1,5 +1,6 @@
 import getBase from "./config";
 import { Thema, Stufe, Zeitraum } from "@/types";
+import { getKompetenzenByIds } from "./kompetenzen";
 
 const THEMEN_TABLE = process.env.AIRTABLE_THEMEN_TABLE || "Themen";
 
@@ -22,7 +23,15 @@ export const getAllThemen = async (): Promise<Thema[]> => {
     const base = getBase();
     const records = await base(THEMEN_TABLE).select().all();
 
-    return records.map((record) => {
+    // Sammle alle Kompetenzen-IDs
+    const allKompetenzIds = new Set<string>();
+    const themenWithKompetenzIds: Array<{
+      record: any;
+      kompetenzIds: string[];
+      bildUrl?: string;
+    }> = [];
+
+    records.forEach((record) => {
       // Extrahiere Bild-URL aus Airtable Attachment
       const bildAttachments = record.get("Bild Lehrmittel") as any;
       let bildUrl: string | undefined;
@@ -30,15 +39,31 @@ export const getAllThemen = async (): Promise<Thema[]> => {
         bildUrl = bildAttachments[0].url;
       }
 
-      // Parse Kompetenzen (kann String oder Array sein)
+      // Parse Kompetenzen IDs (Array von Record-IDs)
       const kompetenzenRaw = record.get("Kompetenzen Lehrplan");
-      let kompetenzen: string | undefined;
+      let kompetenzIds: string[] = [];
+
       if (Array.isArray(kompetenzenRaw)) {
-        // Wenn es ein Array ist, join mit Komma
-        kompetenzen = kompetenzenRaw.join(", ");
-      } else if (typeof kompetenzenRaw === "string") {
-        kompetenzen = kompetenzenRaw;
+        // Prüfe, ob es IDs sind (starten mit "rec")
+        kompetenzIds = kompetenzenRaw.filter(
+          (id) => typeof id === "string" && id.startsWith("rec")
+        );
+        kompetenzIds.forEach((id) => allKompetenzIds.add(id));
       }
+
+      themenWithKompetenzIds.push({ record, kompetenzIds, bildUrl });
+    });
+
+    // Lade alle Kompetenzen auf einmal
+    const kompetenzenMap = await getKompetenzenByIds(Array.from(allKompetenzIds));
+
+    // Baue die Themen mit aufgelösten Kompetenzen
+    return themenWithKompetenzIds.map(({ record, kompetenzIds, bildUrl }) => {
+      // Ersetze IDs durch Namen
+      const kompetenzen = kompetenzIds
+        .map((id) => kompetenzenMap.get(id) || null)
+        .filter((name): name is string => name !== null)
+        .join(", ");
 
       return {
         id: record.id,
@@ -47,7 +72,7 @@ export const getAllThemen = async (): Promise<Thema[]> => {
         lehrmittel: record.get("Lehrmittel") as string | undefined,
         bildLehrmittel: bildUrl,
         anzahlLektionen: record.get("Anzahl Lektionen") as number | undefined,
-        kompetenzenLehrplan: kompetenzen,
+        kompetenzenLehrplan: kompetenzen || undefined,
         fileRouge: record.get("File rouge") as string | undefined,
         unterlagen: record.get("Unterlagen zum Kapitel") as string | undefined,
         schuljahr: parseStufen(record.get("Schuljahr") as string | string[] | undefined),
