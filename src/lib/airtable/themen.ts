@@ -30,6 +30,16 @@ export const getAllThemen = async (): Promise<Thema[]> => {
         bildUrl = bildAttachments[0].url;
       }
 
+      // Parse Kompetenzen (kann String oder Array sein)
+      const kompetenzenRaw = record.get("Kompetenzen Lehrplan");
+      let kompetenzen: string | undefined;
+      if (Array.isArray(kompetenzenRaw)) {
+        // Wenn es ein Array ist, join mit Komma
+        kompetenzen = kompetenzenRaw.join(", ");
+      } else if (typeof kompetenzenRaw === "string") {
+        kompetenzen = kompetenzenRaw;
+      }
+
       return {
         id: record.id,
         thema: record.get("Thema") as string,
@@ -37,7 +47,7 @@ export const getAllThemen = async (): Promise<Thema[]> => {
         lehrmittel: record.get("Lehrmittel") as string | undefined,
         bildLehrmittel: bildUrl,
         anzahlLektionen: record.get("Anzahl Lektionen") as number | undefined,
-        kompetenzenLehrplan: record.get("Kompetenzen Lehrplan") as string | undefined,
+        kompetenzenLehrplan: kompetenzen,
         fileRouge: record.get("File rouge") as string | undefined,
         unterlagen: record.get("Unterlagen zum Kapitel") as string | undefined,
         schuljahr: parseStufen(record.get("Schuljahr") as string | string[] | undefined),

@@ -13,11 +13,31 @@ export const getAllSchulen = async (): Promise<Schule[]> => {
       id: record.id,
       name: record.get("Name") as string,
       ort: record.get("Ort") as string | undefined,
+      pictsBuchen: record.get("PICTS buchen") as string | undefined,
       createdAt: new Date(record.get("Created") as string || Date.now()),
     }));
   } catch (error) {
     console.error("Error fetching Schulen from Airtable:", error);
     return [];
+  }
+};
+
+// Schule nach ID laden
+export const getSchuleById = async (id: string): Promise<Schule | null> => {
+  try {
+    const base = getBase();
+    const record = await base(SCHULEN_TABLE).find(id);
+
+    return {
+      id: record.id,
+      name: record.get("Name") as string,
+      ort: record.get("Ort") as string | undefined,
+      pictsBuchen: record.get("PICTS buchen") as string | undefined,
+      createdAt: new Date(record.get("Created") as string || Date.now()),
+    };
+  } catch (error) {
+    console.error("Error fetching Schule by ID from Airtable:", error);
+    return null;
   }
 };
 

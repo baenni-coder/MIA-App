@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
+import { getSchuleById } from "@/lib/airtable/schulen";
 
 export async function POST(request: Request) {
   try {
@@ -54,7 +55,18 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json(teacherDoc.data());
+    const teacherData = teacherDoc.data();
+
+    // Fetch school data from Airtable if schuleId exists
+    let schuleData = null;
+    if (teacherData?.schuleId) {
+      schuleData = await getSchuleById(teacherData.schuleId);
+    }
+
+    return NextResponse.json({
+      ...teacherData,
+      schule: schuleData,
+    });
   } catch (error) {
     console.error("Error fetching teacher profile:", error);
     return NextResponse.json(
