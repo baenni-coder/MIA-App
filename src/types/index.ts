@@ -28,7 +28,8 @@ export interface Thema {
   lehrmittel?: string;
   bildLehrmittel?: string;
   anzahlLektionen?: number;
-  kompetenzenLehrplan?: string;
+  kompetenzenLehrplan?: string; // String für Anzeige
+  kompetenzen?: Kompetenz[]; // Array für klickbare Kompetenzen
   fileRouge?: string;
   unterlagen?: string;
   schuljahr: Stufe[];
@@ -46,6 +47,24 @@ export interface Schule {
   ort?: string;
   pictsBuchen?: string;
   createdAt: Date;
+}
+
+// Kompetenz
+export interface Kompetenz {
+  id: string;
+  name: string;
+  lpCode?: string;
+  kompetenzbereich?: string;
+  kompetenz?: string;
+  kompetenzstufe?: string;
+  zyklus?: string[];
+  klassenstufe?: string[];
+  grundanspruch?: string;
+  querverweisLP?: string;
+  unterrichtsideen?: Array<{
+    name: string;
+    anzahl?: number;
+  }>;
 }
 
 // Lehrer

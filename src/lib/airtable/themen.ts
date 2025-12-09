@@ -59,10 +59,14 @@ export const getAllThemen = async (): Promise<Thema[]> => {
 
     // Baue die Themen mit aufgelösten Kompetenzen
     return themenWithKompetenzIds.map(({ record, kompetenzIds, bildUrl }) => {
-      // Ersetze IDs durch Namen
-      const kompetenzen = kompetenzIds
-        .map((id) => kompetenzenMap.get(id) || null)
-        .filter((name): name is string => name !== null)
+      // Hole Kompetenz-Objekte
+      const kompetenzenObjekte = kompetenzIds
+        .map((id) => kompetenzenMap.get(id))
+        .filter((k): k is import("@/types").Kompetenz => k !== undefined);
+
+      // String-Repräsentation für Anzeige
+      const kompetenzenString = kompetenzenObjekte
+        .map((k) => k.lpCode || k.name)
         .join(", ");
 
       return {
@@ -72,7 +76,8 @@ export const getAllThemen = async (): Promise<Thema[]> => {
         lehrmittel: record.get("Lehrmittel") as string | undefined,
         bildLehrmittel: bildUrl,
         anzahlLektionen: record.get("Anzahl Lektionen") as number | undefined,
-        kompetenzenLehrplan: kompetenzen || undefined,
+        kompetenzenLehrplan: kompetenzenString || undefined,
+        kompetenzen: kompetenzenObjekte.length > 0 ? kompetenzenObjekte : undefined,
         fileRouge: record.get("File rouge") as string | undefined,
         unterlagen: record.get("Unterlagen zum Kapitel") as string | undefined,
         schuljahr: parseStufen(record.get("Schuljahr") as string | string[] | undefined),

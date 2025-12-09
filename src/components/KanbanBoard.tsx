@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Thema, Zeitraum } from "@/types";
+import Image from "next/image";
+import { Thema, Zeitraum, Kompetenz } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Badge } from "./ui/badge";
@@ -21,8 +22,18 @@ const ZEITRAUM_LABELS: Record<Zeitraum, string> = {
   "Zusatz": "Zusatz",
 };
 
+const ZEITRAUM_IMAGES: Record<Zeitraum, string | null> = {
+  "Sommerferien-Herbstferien": "/roboter_herbst.png",
+  "Herbstferien-Weihnachtsferien": "/roboter_weihnachten.png",
+  "Weihnachtsferien-Winterferien": "/roboter_winter.png",
+  "Winterferien-Frühlingsferien": "/roboter_sommer.png",
+  "Frühlingsferien-Sommerferien": "/roboter_sommer.png",
+  "Zusatz": null,
+};
+
 export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: KanbanBoardProps) {
   const [selectedThema, setSelectedThema] = useState<Thema | null>(null);
+  const [selectedKompetenz, setSelectedKompetenz] = useState<Kompetenz | null>(null);
 
   const zeitraumOrder: Zeitraum[] = [
     "Sommerferien-Herbstferien",
@@ -42,6 +53,18 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
             className="flex-shrink-0 w-80 bg-muted/30 rounded-lg p-4"
           >
             <div className="mb-4">
+              {/* Zeitraum Bild */}
+              {ZEITRAUM_IMAGES[zeitraum] && (
+                <div className="w-full h-24 mb-3 flex items-center justify-center bg-background rounded-lg overflow-hidden">
+                  <Image
+                    src={ZEITRAUM_IMAGES[zeitraum]!}
+                    alt={ZEITRAUM_LABELS[zeitraum]}
+                    width={96}
+                    height={96}
+                    className="object-contain"
+                  />
+                </div>
+              )}
               <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
                 {ZEITRAUM_LABELS[zeitraum]}
               </h3>
@@ -171,12 +194,24 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
                 )}
 
                 {/* Kompetenzen Lehrplan */}
-                {selectedThema.kompetenzenLehrplan && (
+                {selectedThema.kompetenzen && selectedThema.kompetenzen.length > 0 && (
                   <div>
                     <h4 className="font-semibold mb-2">Kompetenzen Lehrplan</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedThema.kompetenzenLehrplan}
-                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedThema.kompetenzen.map((kompetenz) => (
+                        <Badge
+                          key={kompetenz.id}
+                          variant="outline"
+                          className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedKompetenz(kompetenz);
+                          }}
+                        >
+                          {kompetenz.lpCode || kompetenz.name}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -227,6 +262,136 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
                     </a>
                   )}
                 </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Kompetenz Detail Dialog */}
+      <Dialog open={!!selectedKompetenz} onOpenChange={(open) => !open && setSelectedKompetenz(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          {selectedKompetenz && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-2xl">
+                  {selectedKompetenz.lpCode || selectedKompetenz.name}
+                </DialogTitle>
+                {selectedKompetenz.kompetenzbereich && (
+                  <DialogDescription className="text-base">
+                    <Badge variant="secondary" className="mt-2">
+                      {selectedKompetenz.kompetenzbereich}
+                    </Badge>
+                  </DialogDescription>
+                )}
+              </DialogHeader>
+
+              <div className="space-y-4 mt-4">
+                {/* LP Code */}
+                {selectedKompetenz.lpCode && (
+                  <div>
+                    <h4 className="font-semibold mb-2">LP Code</h4>
+                    <p className="text-sm font-mono bg-muted px-3 py-2 rounded">
+                      {selectedKompetenz.lpCode}
+                    </p>
+                  </div>
+                )}
+
+                {/* Kompetenz */}
+                {selectedKompetenz.kompetenz && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Kompetenz</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {selectedKompetenz.kompetenz}
+                    </p>
+                  </div>
+                )}
+
+                {/* Kompetenzstufe */}
+                {selectedKompetenz.kompetenzstufe && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Kompetenzstufe</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {selectedKompetenz.kompetenzstufe}
+                    </p>
+                  </div>
+                )}
+
+                {/* Zyklus */}
+                {selectedKompetenz.zyklus && selectedKompetenz.zyklus.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Zyklus</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedKompetenz.zyklus.map((z, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {z}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Klassenstufe */}
+                {selectedKompetenz.klassenstufe && selectedKompetenz.klassenstufe.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Klassenstufe</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedKompetenz.klassenstufe.map((k, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {k}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Grundanspruch */}
+                {selectedKompetenz.grundanspruch && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Grundanspruch</h4>
+                    <Badge
+                      variant={selectedKompetenz.grundanspruch === "ja" ? "default" : "secondary"}
+                    >
+                      {selectedKompetenz.grundanspruch}
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Unterrichtsideen */}
+                {selectedKompetenz.unterrichtsideen && selectedKompetenz.unterrichtsideen.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Unterrichtsideen</h4>
+                    <div className="space-y-2">
+                      {selectedKompetenz.unterrichtsideen.map((idee, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-muted px-3 py-2 rounded text-sm">
+                          <span>{idee.name}</span>
+                          {idee.anzahl && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {idee.anzahl} Lektionen
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Querverweis LP */}
+                {selectedKompetenz.querverweisLP && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Querverweis Lehrplan</h4>
+                    <a
+                      href={selectedKompetenz.querverweisLP}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Lehrplan öffnen
+                    </a>
+                  </div>
+                )}
               </div>
             </>
           )}
