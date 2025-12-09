@@ -53,9 +53,20 @@ export default function KanbanBoard({ themenGrouped }: KanbanBoardProps) {
               {themenGrouped[zeitraum].map((thema) => (
                 <Card
                   key={thema.id}
-                  className="hover:shadow-md transition-all cursor-pointer hover:border-primary/50"
+                  className="hover:shadow-md transition-all cursor-pointer hover:border-primary/50 overflow-hidden"
                   onClick={() => setSelectedThema(thema)}
                 >
+                  {/* Bild Lehrmittel */}
+                  {thema.bildLehrmittel && (
+                    <div className="w-full h-32 bg-muted overflow-hidden">
+                      <img
+                        src={thema.bildLehrmittel}
+                        alt={thema.lehrmittel || thema.thema}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
                   <CardHeader className="p-4 pb-3">
                     <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight">
                       {thema.thema}
@@ -67,17 +78,20 @@ export default function KanbanBoard({ themenGrouped }: KanbanBoardProps) {
                       </CardDescription>
                     )}
                   </CardHeader>
+
                   <CardContent className="p-4 pt-0 space-y-2">
+                    {/* Um was geht es? - Prominent auf der Karte */}
+                    {thema.beschreibung && (
+                      <p className="text-xs text-foreground line-clamp-3 leading-relaxed">
+                        {thema.beschreibung}
+                      </p>
+                    )}
+
                     {thema.anzahlLektionen && (
                       <Badge variant="secondary" className="text-xs flex items-center gap-1 w-fit">
                         <Clock className="h-3 w-3" />
                         {thema.anzahlLektionen} Lektionen
                       </Badge>
-                    )}
-                    {thema.beschreibung && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {thema.beschreibung}
-                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -98,6 +112,17 @@ export default function KanbanBoard({ themenGrouped }: KanbanBoardProps) {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           {selectedThema && (
             <>
+              {/* Bild im Dialog */}
+              {selectedThema.bildLehrmittel && (
+                <div className="w-full h-48 bg-muted overflow-hidden rounded-lg -mt-2 mb-4">
+                  <img
+                    src={selectedThema.bildLehrmittel}
+                    alt={selectedThema.lehrmittel || selectedThema.thema}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              )}
+
               <DialogHeader>
                 <DialogTitle className="text-2xl">{selectedThema.thema}</DialogTitle>
                 {selectedThema.lehrmittel && (
@@ -112,8 +137,24 @@ export default function KanbanBoard({ themenGrouped }: KanbanBoardProps) {
                 {/* Beschreibung */}
                 {selectedThema.beschreibung && (
                   <div>
-                    <h4 className="font-semibold mb-2">Beschreibung</h4>
-                    <p className="text-sm text-muted-foreground">{selectedThema.beschreibung}</p>
+                    <h4 className="font-semibold mb-2">Um was geht es?</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {selectedThema.beschreibung}
+                    </p>
+                  </div>
+                )}
+
+                {/* Schuljahr/Stufen */}
+                {selectedThema.schuljahr && selectedThema.schuljahr.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Schuljahr</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedThema.schuljahr.map((stufe) => (
+                        <Badge key={stufe} variant="outline" className="text-xs">
+                          {stufe}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -125,6 +166,16 @@ export default function KanbanBoard({ themenGrouped }: KanbanBoardProps) {
                       <Clock className="h-4 w-4 mr-1" />
                       {selectedThema.anzahlLektionen} Lektionen
                     </Badge>
+                  </div>
+                )}
+
+                {/* Kompetenzen Lehrplan */}
+                {selectedThema.kompetenzenLehrplan && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Kompetenzen Lehrplan</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedThema.kompetenzenLehrplan}
+                    </p>
                   </div>
                 )}
 
@@ -140,6 +191,7 @@ export default function KanbanBoard({ themenGrouped }: KanbanBoardProps) {
 
                 {/* Links */}
                 <div className="space-y-2">
+                  <h4 className="font-semibold mb-2">Links & Materialien</h4>
                   {selectedThema.fileRouge && (
                     <a
                       href={selectedThema.fileRouge}
