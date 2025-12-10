@@ -1,7 +1,7 @@
 import getBase from "./config";
 import { Unterrichtsidee } from "@/types";
 
-const UNTERRICHTSIDEEN_TABLE = process.env.AIRTABLE_UNTERRICHTSIDEEN_TABLE || "Unterrichtsideen";
+const UNTERRICHTSIDEEN_TABLE = process.env.AIRTABLE_UNTERRICHTSIDEEN_TABLE || "Themen";
 
 // Unterrichtsideen nach IDs laden
 export const getUnterrichtsideenByIds = async (ids: string[]): Promise<Map<string, Unterrichtsidee>> => {
@@ -26,12 +26,12 @@ export const getUnterrichtsideenByIds = async (ids: string[]): Promise<Map<strin
         .all();
 
       records.forEach(record => {
-        // Versuche verschiedene mögliche Feldnamen
+        // Für Unterrichtsideen aus Themen-Tabelle: Verwende "Thema" als Name
         const name =
+          record.get("Thema") ||
           record.get("Name") ||
           record.get("Unterrichtsideen") ||
           record.get("Titel") ||
-          record.get("Title") ||
           "";
 
         if (name) {
@@ -39,7 +39,7 @@ export const getUnterrichtsideenByIds = async (ids: string[]): Promise<Map<strin
             id: record.id,
             name: String(name),
             lehrmittel: record.get("Lehrmittel") as string | undefined,
-            anzahl: record.get("Anzahl Lektion") as number | undefined,
+            anzahl: record.get("Anzahl Lektionen") as number | undefined,
           };
 
           unterrichtsideenMap.set(record.id, unterrichtsidee);

@@ -106,6 +106,7 @@ export default function RegisterPage() {
             width={200}
             height={100}
             className="object-contain"
+            style={{ height: 'auto' }}
             priority
           />
         </div>
