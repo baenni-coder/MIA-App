@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -149,32 +149,39 @@ export default function RegisterPage() {
             <div className="space-y-2">
               <Label htmlFor="schule">Schule</Label>
               <Select
-                id="schule"
                 value={schuleId}
-                onChange={(e) => setSchuleId(e.target.value)}
+                onValueChange={(value) => setSchuleId(value)}
                 required
               >
-                <option value="">Schule auswählen...</option>
-                {schulen.map((schule) => (
-                  <option key={schule.id} value={schule.id}>
-                    {schule.name}
-                  </option>
-                ))}
+                <SelectTrigger>
+                  <SelectValue placeholder="Schule auswählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {schulen.map((schule) => (
+                    <SelectItem key={schule.id} value={schule.id}>
+                      {schule.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="stufe">Stufe</Label>
               <Select
-                id="stufe"
                 value={stufe}
-                onChange={(e) => setStufe(e.target.value as Stufe)}
+                onValueChange={(value) => setStufe(value as Stufe)}
                 required
               >
-                {STUFEN.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
+                <SelectTrigger>
+                  <SelectValue placeholder="Stufe auswählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {STUFEN.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
