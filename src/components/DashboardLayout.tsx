@@ -31,6 +31,7 @@ export default function DashboardLayout({
               width={120}
               height={60}
               className="object-contain cursor-pointer"
+              style={{ height: 'auto' }}
               onClick={() => router.push("/dashboard")}
               priority
             />
