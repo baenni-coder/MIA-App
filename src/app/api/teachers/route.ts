@@ -75,3 +75,29 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const { userId, stufe } = await request.json();
+
+    if (!userId || !stufe) {
+      return NextResponse.json(
+        { error: "userId and stufe are required" },
+        { status: 400 }
+      );
+    }
+
+    const adminDb = getAdminDb();
+    await adminDb.collection("teachers").doc(userId).update({
+      stufe,
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error updating teacher profile:", error);
+    return NextResponse.json(
+      { error: "Failed to update teacher profile" },
+      { status: 500 }
+    );
+  }
+}

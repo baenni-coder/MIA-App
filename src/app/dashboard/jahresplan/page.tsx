@@ -5,13 +5,28 @@ import { useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
 import KanbanBoard from "@/components/KanbanBoard";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Thema, Zeitraum, Teacher, Stufe } from "@/types";
+
+const STUFEN: Stufe[] = [
+  "KiGa",
+  "1. Klasse",
+  "2. Klasse",
+  "3. Klasse",
+  "4. Klasse",
+  "5. Klasse",
+  "6. Klasse",
+  "7. Klasse",
+  "8. Klasse",
+  "9. Klasse",
+];
 
 export default function JahresplanPage() {
   const { user } = useAuth();
   const [themenGrouped, setThemenGrouped] = useState<Record<Zeitraum, Thema[]> | null>(null);
   const [teacherData, setTeacherData] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedStufe, setSelectedStufe] = useState<Stufe | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -27,8 +42,11 @@ export default function JahresplanPage() {
           console.log("👨‍🏫 Teacher data:", data);
           setTeacherData(data);
 
+          // Verwende selectedStufe falls gesetzt, sonst die Stufe des Lehrers
+          const currentStufe = selectedStufe || data.stufe;
+
           // Dann Themen für die Stufe laden
-          const themenUrl = `/api/themen?stufe=${encodeURIComponent(data.stufe)}&grouped=true`;
+          const themenUrl = `/api/themen?stufe=${encodeURIComponent(currentStufe)}&grouped=true`;
           console.log("🔗 Fetching themen from:", themenUrl);
           return fetch(themenUrl);
         })
@@ -53,7 +71,7 @@ export default function JahresplanPage() {
           setLoading(false);
         });
     }
-  }, [user]);
+  }, [user, selectedStufe]);
 
   return (
     <ProtectedRoute>
@@ -63,10 +81,39 @@ export default function JahresplanPage() {
             <h2 className="text-3xl font-bold tracking-tight">Jahresplan</h2>
             <p className="text-muted-foreground mt-2">
               {teacherData
-                ? `Ihr MIA-Jahresplan für ${teacherData.stufe}`
+                ? `Ihr MIA-Jahresplan für ${selectedStufe || teacherData.stufe}`
                 : "Wird geladen..."}
             </p>
           </div>
+
+          {teacherData && (
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium">Ansicht für Stufe:</label>
+              <Select
+                value={selectedStufe || teacherData.stufe}
+                onValueChange={(value) => {
+                  setSelectedStufe(value as Stufe);
+                  setLoading(true);
+                }}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STUFEN.map((stufe) => (
+                    <SelectItem key={stufe} value={stufe}>
+                      {stufe}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedStufe && selectedStufe !== teacherData.stufe && (
+                <span className="text-sm text-muted-foreground">
+                  (Temporäre Ansicht)
+                </span>
+              )}
+            </div>
+          )}
 
           {loading ? (
             <div className="flex items-center justify-center py-12">

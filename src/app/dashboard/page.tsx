@@ -6,15 +6,32 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarRange, BookOpen, Users } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarRange, BookOpen, Users, Edit2, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Teacher } from "@/types";
+import { Teacher, Stufe } from "@/types";
+
+const STUFEN: Stufe[] = [
+  "KiGa",
+  "1. Klasse",
+  "2. Klasse",
+  "3. Klasse",
+  "4. Klasse",
+  "5. Klasse",
+  "6. Klasse",
+  "7. Klasse",
+  "8. Klasse",
+  "9. Klasse",
+];
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [teacherData, setTeacherData] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingStufe, setEditingStufe] = useState(false);
+  const [newStufe, setNewStufe] = useState<Stufe | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -30,6 +47,34 @@ export default function DashboardPage() {
         });
     }
   }, [user]);
+
+  const handleSaveStufe = async () => {
+    if (!user || !newStufe) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch("/api/teachers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.uid,
+          stufe: newStufe,
+        }),
+      });
+
+      if (response.ok) {
+        setTeacherData({ ...teacherData!, stufe: newStufe });
+        setEditingStufe(false);
+        setNewStufe(null);
+      } else {
+        console.error("Failed to update stufe");
+      }
+    } catch (error) {
+      console.error("Error updating stufe:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <ProtectedRoute>
@@ -60,7 +105,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/dashboard/lehrmittel")}>
               <CardHeader>
                 <BookOpen className="h-8 w-8 text-primary mb-2" />
                 <CardTitle>Lehrmittel</CardTitle>
@@ -69,13 +114,13 @@ export default function DashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="outline" className="w-full" disabled>
-                  Bald verfügbar
+                <Button variant="outline" className="w-full">
+                  Zu den Lehrmitteln
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-lg transition-shadow">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => teacherData?.schule?.pictsBuchen && window.open(teacherData.schule.pictsBuchen, '_blank')}>
               <CardHeader>
                 <Users className="h-8 w-8 text-primary mb-2" />
                 <CardTitle>PICTS Buchungen</CardTitle>
@@ -84,8 +129,8 @@ export default function DashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="outline" className="w-full" disabled>
-                  Bald verfügbar
+                <Button variant="outline" className="w-full">
+                  PICTS buchen
                 </Button>
               </CardContent>
             </Card>
@@ -95,8 +140,11 @@ export default function DashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Mein Profil</CardTitle>
+                <CardDescription>
+                  Passen Sie Ihre Profil-Einstellungen an
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Name:</span>
                   <span className="font-medium">{teacherData.name}</span>
@@ -105,9 +153,57 @@ export default function DashboardPage() {
                   <span className="text-muted-foreground">E-Mail:</span>
                   <span className="font-medium">{teacherData.email}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Stufe:</span>
-                  <span className="font-medium">{teacherData.stufe}</span>
+                  {editingStufe ? (
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={newStufe || teacherData.stufe}
+                        onValueChange={(value) => setNewStufe(value as Stufe)}
+                      >
+                        <SelectTrigger className="w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STUFEN.map((stufe) => (
+                            <SelectItem key={stufe} value={stufe}>
+                              {stufe}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleSaveStufe}
+                        disabled={saving || !newStufe}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingStufe(false);
+                          setNewStufe(null);
+                        }}
+                        disabled={saving}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{teacherData.stufe}</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEditingStufe(true)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
