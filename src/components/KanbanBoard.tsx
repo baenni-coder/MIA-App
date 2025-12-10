@@ -55,7 +55,7 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
             <div className="mb-4">
               {/* Zeitraum Bild */}
               {ZEITRAUM_IMAGES[zeitraum] && (
-                <div className="w-full h-32 mb-3 bg-background rounded-lg overflow-hidden flex items-center justify-center">
+                <div className="w-full h-80 mb-3 bg-background rounded-lg overflow-hidden flex items-center justify-center">
                   <img
                     src={ZEITRAUM_IMAGES[zeitraum]!}
                     alt={ZEITRAUM_LABELS[zeitraum]}
