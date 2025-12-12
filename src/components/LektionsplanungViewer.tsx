@@ -205,7 +205,7 @@ export default function LektionsplanungViewer({
             Lektionsplanung
           </DialogTitle>
           <DialogDescription className="text-base">
-            {themaName}
+            {themaName || 'Unbekanntes Thema'}
           </DialogDescription>
         </DialogHeader>
 
@@ -244,7 +244,7 @@ export default function LektionsplanungViewer({
             {/* Lektionen Übersicht */}
             <div className="mb-4">
               <Badge variant="secondary" className="text-sm">
-                {lektionen.length} {lektionen.length === 1 ? "Lektion" : "Lektionen"}
+                {`${lektionen.length} ${lektionen.length === 1 ? "Lektion" : "Lektionen"}`}
               </Badge>
             </div>
 
@@ -255,8 +255,8 @@ export default function LektionsplanungViewer({
                   <AccordionTrigger className="text-left">
                     <div className="flex items-center gap-2">
                       <BookOpen className="h-4 w-4" />
-                      <span className="font-semibold">{lektion.lektion}</span>
-                      {lektion.kiZusammenfassung && (
+                      <span className="font-semibold">{String(lektion.lektion || '')}</span>
+                      {lektion.kiZusammenfassung && typeof lektion.kiZusammenfassung === 'string' && (
                         <Badge variant="outline" className="ml-2 text-xs">
                           KI Zusammenfassung
                         </Badge>
@@ -266,7 +266,7 @@ export default function LektionsplanungViewer({
                   <AccordionContent>
                     <div className="space-y-4 pt-2">
                       {/* KI Zusammenfassung */}
-                      {lektion.kiZusammenfassung && (
+                      {lektion.kiZusammenfassung && typeof lektion.kiZusammenfassung === 'string' && (
                         <div className="bg-primary/5 border-l-4 border-primary px-4 py-3 rounded-r-lg">
                           <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
                             <Lightbulb className="h-4 w-4" />
@@ -279,7 +279,7 @@ export default function LektionsplanungViewer({
                       )}
 
                       {/* Aufgaben */}
-                      {lektion.aufgaben && (
+                      {lektion.aufgaben && typeof lektion.aufgaben === 'string' && (
                         <div>
                           <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
                             <CheckCircle2 className="h-4 w-4" />
@@ -292,7 +292,7 @@ export default function LektionsplanungViewer({
                       )}
 
                       {/* Vorwissen */}
-                      {lektion.vorwissen && (
+                      {lektion.vorwissen && typeof lektion.vorwissen === 'string' && (
                         <div>
                           <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
                             <Lightbulb className="h-4 w-4" />
@@ -345,7 +345,7 @@ export default function LektionsplanungViewer({
                       )}
 
                       {/* Einstieg */}
-                      {lektion.einstieg && (
+                      {lektion.einstieg && typeof lektion.einstieg === 'string' && (
                         <div>
                           <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
                             <Play className="h-4 w-4" />
@@ -358,7 +358,7 @@ export default function LektionsplanungViewer({
                       )}
 
                       {/* Hauptteil */}
-                      {lektion.hauptteil && (
+                      {lektion.hauptteil && typeof lektion.hauptteil === 'string' && (
                         <div>
                           <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
                             <Square className="h-4 w-4" />
@@ -371,7 +371,7 @@ export default function LektionsplanungViewer({
                       )}
 
                       {/* Abschluss */}
-                      {lektion.abschluss && (
+                      {lektion.abschluss && typeof lektion.abschluss === 'string' && (
                         <div>
                           <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
                             <CheckCircle2 className="h-4 w-4" />
@@ -384,7 +384,7 @@ export default function LektionsplanungViewer({
                       )}
 
                       {/* Stolpersteine */}
-                      {lektion.stolpersteine && (
+                      {lektion.stolpersteine && typeof lektion.stolpersteine === 'string' && (
                         <div className="bg-yellow-50 dark:bg-yellow-950 border-l-4 border-yellow-500 px-4 py-3 rounded-r-lg">
                           <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
                             <AlertTriangle className="h-4 w-4 text-yellow-600" />
