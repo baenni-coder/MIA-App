@@ -6,7 +6,9 @@ import { Thema, Zeitraum, Kompetenz } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Badge } from "./ui/badge";
-import { ExternalLink, BookOpen, Clock } from "lucide-react";
+import { Button } from "./ui/button";
+import { ExternalLink, BookOpen, Clock, FileText } from "lucide-react";
+import LektionsplanungViewer from "./LektionsplanungViewer";
 
 interface KanbanBoardProps {
   themenGrouped: Record<Zeitraum, Thema[]>;
@@ -34,6 +36,8 @@ const ZEITRAUM_IMAGES: Record<Zeitraum, string | null> = {
 export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: KanbanBoardProps) {
   const [selectedThema, setSelectedThema] = useState<Thema | null>(null);
   const [selectedKompetenz, setSelectedKompetenz] = useState<Kompetenz | null>(null);
+  const [lektionsplanungOpen, setLektionsplanungOpen] = useState(false);
+  const [lektionsplanungThema, setLektionsplanungThema] = useState<string>("");
 
   const zeitraumOrder: Zeitraum[] = [
     "Sommerferien-Herbstferien",
@@ -223,6 +227,24 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
                   </div>
                 )}
 
+                {/* Lektionsplanung Button */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold mb-2">Lektionsplanung</h4>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLektionsplanungThema(selectedThema.thema);
+                      setLektionsplanungOpen(true);
+                    }}
+                    variant="default"
+                    size="sm"
+                    className="w-full"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Lektionsplanung anzeigen
+                  </Button>
+                </div>
+
                 {/* Links */}
                 <div className="space-y-2">
                   <h4 className="font-semibold mb-2">Links & Materialien</h4>
@@ -403,6 +425,13 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Lektionsplanung Viewer Dialog */}
+      <LektionsplanungViewer
+        themaName={lektionsplanungThema}
+        open={lektionsplanungOpen}
+        onOpenChange={setLektionsplanungOpen}
+      />
     </>
   );
 }
