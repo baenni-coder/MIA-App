@@ -233,8 +233,10 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
                   <Button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setLektionsplanungThema(selectedThema.thema);
-                      setLektionsplanungOpen(true);
+                      if (selectedThema?.thema) {
+                        setLektionsplanungThema(selectedThema.thema);
+                        setLektionsplanungOpen(true);
+                      }
                     }}
                     variant="default"
                     size="sm"

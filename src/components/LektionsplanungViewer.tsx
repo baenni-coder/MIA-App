@@ -40,7 +40,7 @@ export default function LektionsplanungViewer({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open && themaName) {
+    if (open && themaName && typeof themaName === 'string') {
       loadLektionsplanung();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,9 +81,10 @@ export default function LektionsplanungViewer({
   };
 
   const exportAsPDF = async () => {
-    // Dynamisches Import von jsPDF
-    const { jsPDF } = await import("jspdf");
-    const doc = new jsPDF();
+    try {
+      // Dynamisches Import von jsPDF
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
 
     // Deckblatt
     doc.setFontSize(20);
@@ -181,15 +182,18 @@ export default function LektionsplanungViewer({
       }
     });
 
-    // Fußzeilen mit Seitenzahlen
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.text(`Seite ${i} von ${pageCount}`, 105, 290, { align: "center" });
-    }
+      // Fußzeilen mit Seitenzahlen
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.text(`Seite ${i} von ${pageCount}`, 105, 290, { align: "center" });
+      }
 
-    doc.save(`Lektionsplanung-${themaName.replace(/\s+/g, "-")}.pdf`);
+      doc.save(`Lektionsplanung-${themaName.replace(/\s+/g, "-")}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+    }
   };
 
   return (
@@ -301,13 +305,13 @@ export default function LektionsplanungViewer({
                       )}
 
                       {/* Material */}
-                      {lektion.material && lektion.material.length > 0 && (
+                      {lektion.material && Array.isArray(lektion.material) && lektion.material.length > 0 && (
                         <div>
                           <h4 className="font-semibold mb-2 text-sm">Material</h4>
                           <div className="flex flex-wrap gap-2">
                             {lektion.material.map((mat, idx) => (
                               <Badge key={idx} variant="secondary" className="text-xs">
-                                {mat}
+                                {String(mat)}
                               </Badge>
                             ))}
                           </div>
@@ -315,7 +319,7 @@ export default function LektionsplanungViewer({
                       )}
 
                       {/* Website/Tools */}
-                      {lektion.websiteTools && lektion.websiteTools.length > 0 && (
+                      {lektion.websiteTools && Array.isArray(lektion.websiteTools) && lektion.websiteTools.length > 0 && (
                         <div>
                           <h4 className="font-semibold mb-2 text-sm">Websites & Tools</h4>
                           <div className="space-y-2">
@@ -329,10 +333,10 @@ export default function LektionsplanungViewer({
                                     className="flex items-center gap-2 text-sm text-primary hover:underline"
                                   >
                                     <ExternalLink className="h-3 w-3" />
-                                    {tool.name}
+                                    {String(tool.name)}
                                   </a>
                                 ) : (
-                                  <span className="text-sm">{tool.name}</span>
+                                  <span className="text-sm">{String(tool.name)}</span>
                                 )}
                               </div>
                             ))}
