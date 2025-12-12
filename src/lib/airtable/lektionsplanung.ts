@@ -60,23 +60,31 @@ export const getLektionsplanungByThemaName = async (themaName: string): Promise<
       const toolLinks = record.get("Link (from Website oder Tool)") as string | string[] | undefined;
       const websiteTools = parseWebsiteTools(toolIds, toolNames, toolLinks);
 
+      // Helper: Sicher einen String extrahieren
+      const getString = (value: unknown): string | undefined => {
+        if (typeof value === 'string') return value || undefined;
+        if (Array.isArray(value) && value.length > 0) return String(value[0]);
+        if (value === null || value === undefined) return undefined;
+        return String(value);
+      };
+
       return {
         id: record.id,
-        eindeutigeBezeichnung: record.get("Eindeutige Lektionsbezeichnung") as string,
-        lektion: record.get("Lektion") as string,
+        eindeutigeBezeichnung: getString(record.get("Eindeutige Lektionsbezeichnung")) || '',
+        lektion: getString(record.get("Lektion")) || '',
         themaId: Array.isArray(record.get("Thema"))
           ? (record.get("Thema") as string[])[0]
           : (record.get("Thema") as string),
-        themaName: record.get("Thema (from Thema)") as string | undefined,
-        aufgaben: record.get("Aufgaben") as string | undefined,
-        vorwissen: record.get("Vorwissen") as string | undefined,
+        themaName: getString(record.get("Thema (from Thema)")),
+        aufgaben: getString(record.get("Aufgaben")),
+        vorwissen: getString(record.get("Vorwissen")),
         material: material.length > 0 ? material : undefined,
         websiteTools: websiteTools.length > 0 ? websiteTools : undefined,
-        einstieg: record.get("Einstieg") as string | undefined,
-        hauptteil: record.get("Hauptteil") as string | undefined,
-        abschluss: record.get("Abschluss") as string | undefined,
-        stolpersteine: record.get("Stolpersteine") as string | undefined,
-        kiZusammenfassung: record.get("KI Zusammenfassung Lektion") as string | undefined,
+        einstieg: getString(record.get("Einstieg")),
+        hauptteil: getString(record.get("Hauptteil")),
+        abschluss: getString(record.get("Abschluss")),
+        stolpersteine: getString(record.get("Stolpersteine")),
+        kiZusammenfassung: getString(record.get("KI Zusammenfassung Lektion")),
       };
     });
   } catch (error) {
@@ -103,23 +111,31 @@ export const getLektionsplanungById = async (id: string): Promise<Lektionsplanun
     const toolLinks = record.get("Link (from Website oder Tool)") as string | string[] | undefined;
     const websiteTools = parseWebsiteTools(toolIds, toolNames, toolLinks);
 
+    // Helper: Sicher einen String extrahieren
+    const getString = (value: unknown): string | undefined => {
+      if (typeof value === 'string') return value || undefined;
+      if (Array.isArray(value) && value.length > 0) return String(value[0]);
+      if (value === null || value === undefined) return undefined;
+      return String(value);
+    };
+
     return {
       id: record.id,
-      eindeutigeBezeichnung: record.get("Eindeutige Lektionsbezeichnung") as string,
-      lektion: record.get("Lektion") as string,
+      eindeutigeBezeichnung: getString(record.get("Eindeutige Lektionsbezeichnung")) || '',
+      lektion: getString(record.get("Lektion")) || '',
       themaId: Array.isArray(record.get("Thema"))
         ? (record.get("Thema") as string[])[0]
         : (record.get("Thema") as string),
-      themaName: record.get("Thema (from Thema)") as string | undefined,
-      aufgaben: record.get("Aufgaben") as string | undefined,
-      vorwissen: record.get("Vorwissen") as string | undefined,
+      themaName: getString(record.get("Thema (from Thema)")),
+      aufgaben: getString(record.get("Aufgaben")),
+      vorwissen: getString(record.get("Vorwissen")),
       material: material.length > 0 ? material : undefined,
       websiteTools: websiteTools.length > 0 ? websiteTools : undefined,
-      einstieg: record.get("Einstieg") as string | undefined,
-      hauptteil: record.get("Hauptteil") as string | undefined,
-      abschluss: record.get("Abschluss") as string | undefined,
-      stolpersteine: record.get("Stolpersteine") as string | undefined,
-      kiZusammenfassung: record.get("KI Zusammenfassung Lektion") as string | undefined,
+      einstieg: getString(record.get("Einstieg")),
+      hauptteil: getString(record.get("Hauptteil")),
+      abschluss: getString(record.get("Abschluss")),
+      stolpersteine: getString(record.get("Stolpersteine")),
+      kiZusammenfassung: getString(record.get("KI Zusammenfassung Lektion")),
     };
   } catch (error) {
     console.error("Error fetching Lektionsplanung by ID from Airtable:", error);
