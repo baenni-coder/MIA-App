@@ -5,9 +5,11 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 ## 🎯 Features
 
 - **Lehrer-Authentifizierung**: Firebase Authentication für sichere Anmeldung
-- **Schulverwaltung**: Admin-Dashboard zur Verwaltung von Schulen
-- **Jahresplan-Kanban**: Interaktives Kanban-Board mit Airtable-Integration
-- **Stufen-Filter**: Automatische Filterung der Themen nach Schulstufe
+- **Profil-Verwaltung**: Stufe ändern für nächstes Schuljahr
+- **Jahresplan-Kanban**: Interaktives Board mit Zeitraum-Bildern und Stufe-Auswahl
+- **Klickbare Kompetenzen**: Detail-Dialoge mit Lehrplan-Codes und Unterrichtsideen
+- **Lehrmittel-Übersicht**: Gruppierung aller Themen nach Lehrmittel
+- **Schulspezifische PICTS-Links**: Direkter Zugriff auf Schulbuchungen
 - **Responsive Design**: Optimiert für Desktop und Mobile mit Tailwind CSS
 
 ## 🛠 Tech Stack
@@ -19,8 +21,9 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **Datenbank**:
   - Airtable (Themen & Schulen)
   - Firebase Firestore (Lehrer-Profile)
-- **UI-Bibliothek**: shadcn/ui, Lucide Icons
+- **UI-Bibliothek**: shadcn/ui mit Radix UI Primitives, Lucide Icons
 - **Drag & Drop**: @dnd-kit (ready to implement)
+- **Select-Komponente**: @radix-ui/react-select für Dropdown-Menüs
 
 ## 📋 Voraussetzungen
 
@@ -64,6 +67,8 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
    AIRTABLE_BASE_ID=your_base_id
    AIRTABLE_THEMEN_TABLE=Themen
    AIRTABLE_SCHULEN_TABLE=Schulen
+   AIRTABLE_KOMPETENZEN_TABLE=Kompetenzen Lehrplan
+   AIRTABLE_UNTERRICHTSIDEEN_TABLE=Themen
    ```
 
 4. **Firebase Setup**
@@ -105,35 +110,45 @@ MIA-App/
 │   ├── app/                    # Next.js App Router
 │   │   ├── api/               # API Routes
 │   │   │   ├── schulen/       # Schulen CRUD
-│   │   │   ├── teachers/      # Lehrer-Profile
+│   │   │   ├── teachers/      # Lehrer-Profile (GET, POST, PUT)
 │   │   │   └── themen/        # Themen aus Airtable
 │   │   ├── dashboard/         # Lehrer-Dashboard
-│   │   │   ├── jahresplan/   # Kanban-Ansicht
-│   │   │   └── page.tsx      # Dashboard Übersicht
-│   │   ├── login/             # Login-Seite
-│   │   ├── register/          # Registrierung
+│   │   │   ├── jahresplan/   # Kanban-Board mit Stufe-Auswahl
+│   │   │   ├── lehrmittel/   # Lehrmittel-Übersicht
+│   │   │   └── page.tsx      # Dashboard mit Profil-Bearbeitung
+│   │   ├── login/             # Login-Seite mit Logo
+│   │   ├── register/          # Registrierung mit Logo
 │   │   └── page.tsx           # Landing Page
 │   ├── components/            # React Komponenten
 │   │   ├── ui/               # shadcn/ui Komponenten
-│   │   ├── DashboardLayout.tsx
-│   │   ├── KanbanBoard.tsx
-│   │   ├── ProtectedRoute.tsx
-│   │   └── providers/        # Context Provider
+│   │   │   ├── badge.tsx     # Kompetenzen-Badges
+│   │   │   ├── dialog.tsx    # Detail-Dialoge
+│   │   │   ├── select.tsx    # Radix UI Select
+│   │   │   └── ...           # Weitere UI-Komponenten
+│   │   ├── DashboardLayout.tsx  # Layout mit Logo
+│   │   ├── KanbanBoard.tsx      # Kanban mit Roboter-Bildern
+│   │   └── ProtectedRoute.tsx   # Auth-Schutz
 │   ├── contexts/             # React Contexts
 │   │   └── AuthContext.tsx   # Firebase Auth State
 │   ├── lib/                  # Utilities & Config
 │   │   ├── airtable/        # Airtable Integration
 │   │   │   ├── config.ts
 │   │   │   ├── schulen.ts
-│   │   │   └── themen.ts
+│   │   │   ├── themen.ts
+│   │   │   ├── kompetenzen.ts        # Batch-Loading
+│   │   │   └── unterrichtsideen.ts   # Nested Resolution
 │   │   ├── firebase/        # Firebase Config
 │   │   │   ├── admin.ts
-│   │   │   ├── auth.ts
 │   │   │   └── config.ts
 │   │   └── utils.ts         # Helper Functions
 │   └── types/               # TypeScript Types
-│       └── index.ts
+│       └── index.ts         # Typen für Thema, Kompetenz, etc.
 └── public/                  # Static Assets
+    ├── logo.png             # MIA-App Logo
+    ├── roboter_sommer.png   # Zeitraum-Bild Sommer
+    ├── roboter_herbst.png   # Zeitraum-Bild Herbst
+    ├── roboter_winter.png   # Zeitraum-Bild Winter
+    └── roboter_weihnachten.png  # Zeitraum-Bild Weihnachten
 ```
 
 ## 🔐 Authentifizierung
@@ -186,15 +201,58 @@ Die App verwendet **shadcn/ui** - eine moderne, accessible Komponenten-Bibliothe
 - TypeScript support
 - Accessibility features
 
+## ✅ Implementierte Features
+
+- [x] Lehrer-Authentifizierung mit Firebase
+- [x] Jahresplan Kanban-Board mit Zeitraum-Bildern
+- [x] Klickbare Kompetenzen mit Detail-Dialogen
+- [x] Unterrichtsideen-Auflösung
+- [x] Lehrmittel-Übersicht
+- [x] Schulspezifische PICTS-Links
+- [x] Profil-Bearbeitung (Stufe ändern)
+- [x] Temporäre Stufe-Auswahl im Jahresplan
+- [x] Logo-Integration
+
 ## 🔜 Nächste Schritte
 
-- [ ] Drag & Drop im Kanban-Board implementieren
+- [ ] Drag & Drop im Kanban-Board für Themen-Verschiebung
 - [ ] Admin-Dashboard für Schulverwaltung
-- [ ] PICTS Buchungs-Feature
-- [ ] Lehrmittel-Bibliothek
+- [ ] Persönliche Notizen zu Themen
 - [ ] Export-Funktionen (PDF, CSV)
 - [ ] Dark Mode
 - [ ] Multi-Tenancy für verschiedene Schulen
+- [ ] Kalenderansicht des Jahresplans
+- [ ] Benachrichtigungen für anstehende Themen
+
+## 🔧 Troubleshooting
+
+### Dev-Server findet @radix-ui/react-select nicht
+
+Wenn nach Installation die Fehlermeldung "Module not found: Can't resolve '@radix-ui/react-select'" erscheint:
+
+```bash
+# 1. Dev-Server stoppen (Ctrl+C im Terminal)
+# 2. Cache und node_modules löschen
+rm -rf .next node_modules
+# 3. Dependencies neu installieren
+npm install
+# 4. Dev-Server neu starten
+npm run dev
+```
+
+### Codespace startet nicht
+
+- Browser-Cache leeren mit `Ctrl+Shift+R` (Windows/Linux) oder `Cmd+Shift+R` (Mac)
+- Über GitHub.com → Codespaces → Codespace "Restart"
+- Falls nicht hilft: Codespace "Stop" → 30 Sekunden warten → "Start"
+
+### Build funktioniert, aber Dev-Server zeigt Fehler
+
+Dies ist ein Caching-Problem. Lösung:
+```bash
+rm -rf .next
+npm run dev
+```
 
 ## 📝 Lizenz
 

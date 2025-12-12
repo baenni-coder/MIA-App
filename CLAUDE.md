@@ -23,19 +23,26 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 src/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API Routes
-│   │   ├── themen/              # Themen-Endpunkte
-│   │   └── teachers/            # Lehrer-Endpunkte
+│   │   ├── schulen/             # Schulen-Endpunkte
+│   │   ├── teachers/            # Lehrer-Endpunkte (GET, POST, PUT)
+│   │   └── themen/              # Themen-Endpunkte
 │   ├── auth/                     # Auth-Seiten
 │   │   ├── login/
 │   │   └── register/
 │   ├── dashboard/                # Dashboard-Seiten
-│   │   └── jahresplan/          # Jahresplan Kanban-Board
+│   │   ├── jahresplan/          # Jahresplan mit Stufe-Auswahl
+│   │   ├── lehrmittel/          # Lehrmittel-Übersicht
+│   │   └── page.tsx             # Dashboard mit Profil-Bearbeitung
 │   ├── layout.tsx               # Root Layout
 │   └── page.tsx                 # Landing Page
 ├── components/                   # React Komponenten
 │   ├── ui/                      # shadcn/ui Basis-Komponenten
-│   ├── DashboardLayout.tsx      # Dashboard Layout
-│   ├── KanbanBoard.tsx          # Jahresplan Kanban-Board
+│   │   ├── badge.tsx            # Badge für Kompetenzen
+│   │   ├── dialog.tsx           # Dialoge für Details
+│   │   ├── select.tsx           # Radix UI Select-Komponente
+│   │   └── ...                  # Weitere UI-Komponenten
+│   ├── DashboardLayout.tsx      # Dashboard Layout mit Logo
+│   ├── KanbanBoard.tsx          # Kanban-Board mit Roboter-Bildern
 │   └── ProtectedRoute.tsx       # Auth-Schutz
 ├── contexts/                     # React Contexts
 │   └── AuthContext.tsx          # Authentication State
@@ -44,7 +51,8 @@ src/
 │   │   ├── config.ts            # Airtable Konfiguration
 │   │   ├── themen.ts            # Themen CRUD
 │   │   ├── schulen.ts           # Schulen CRUD
-│   │   └── kompetenzen.ts       # Kompetenzen Auflösung
+│   │   ├── kompetenzen.ts       # Kompetenzen mit Unterrichtsideen
+│   │   └── unterrichtsideen.ts  # Unterrichtsideen Auflösung
 │   └── firebase/                # Firebase Integration
 │       ├── config.ts            # Client-Side Config
 │       └── admin.ts             # Server-Side Admin SDK
@@ -93,9 +101,22 @@ src/
 - PICTS buchen (URL) - Schulspezifischer PICTS-Link
 - Created (date)
 
-**Tabelle: `Kompetenzen`**
+**Tabelle: `Kompetenzen Lehrplan`**
 - Name (string) - Bezeichnung der Kompetenz
-- Weitere Felder je nach Airtable-Setup
+- LP Code (string) - Lehrplan-Code (z.B. "MI.1.1.a")
+- Kompetenzbereich (string) - Kategorie der Kompetenz
+- Kompetenz (long text) - Detaillierte Beschreibung
+- Kompetenzstufe (string) - Stufe der Kompetenz
+- Zyklus (multiple select) - Zugeordnete Zyklen
+- Klassenstufe (multiple select) - Zugeordnete Klassenstufen
+- Grundanspruch (long text) - Minimale Anforderungen
+- Querverweis LP (string) - Verweise zu anderen Kompetenzen
+- Unterrichtsideen (linked records → Themen) - Verlinkte Unterrichtsideen
+
+**Tabelle: `Unterrichtsideen` (nutzt Themen-Tabelle)**
+- Thema (string) - Name der Unterrichtsidee
+- Lehrmittel (string) - Verwendetes Lehrmittel
+- Anzahl Lektionen (number) - Dauer der Unterrichtsidee
 
 ## Wichtige Features
 
@@ -105,34 +126,61 @@ src/
 - Geschützte Routen via ProtectedRoute-Component
 - Server-seitige Session-Validierung
 
-### 2. Jahresplan Kanban-Board
-- 6 Spalten für Zeiträume:
-  - Sommerferien - Herbstferien
-  - Herbstferien - Weihnachtsferien
-  - Weihnachtsferien - Winterferien
-  - Winterferien - Frühlingsferien
-  - Frühlingsferien - Sommerferien
+### 2. Dashboard
+- **Profil-Übersicht**: Anzeige von Name, Schule, Stufe
+- **Stufe-Bearbeitung**: Lehrpersonen können ihre Stufe für das nächste Schuljahr ändern
+- **Schnellzugriff**: Jahresplan, Lehrmittel, PICTS-Buchungen
+- **MIA-App Logo**: Branding in Header und Auth-Seiten
+
+### 3. Jahresplan Kanban-Board
+- **6 Spalten für Zeiträume** mit Roboter-Bildern:
+  - Sommerferien - Herbstferien (roboter_sommer.png)
+  - Herbstferien - Weihnachtsferien (roboter_herbst.png)
+  - Weihnachtsferien - Winterferien (roboter_weihnachten.png)
+  - Winterferien - Frühlingsferien (roboter_winter.png)
+  - Frühlingsferien - Sommerferien (roboter_sommer.png)
   - Zusatz
-- Filterung nach Klassenstufe des Lehrers
-- Klickbare Karten mit Detailansicht
-- Anzeige von:
-  - Thema
-  - Beschreibung ("Um was geht es?")
+- **Temporäre Stufe-Auswahl**: Dropdown zum Anschauen anderer Klassenstufen
+- **Klickbare Themen-Karten** mit Detailansicht:
+  - Thema, Beschreibung ("Um was geht es?")
   - Lehrmittel-Bild
   - Anzahl Lektionen
-  - Kompetenzen (aufgelöst aus verlinkten Records)
+  - Klickbare Kompetenzen-Badges
   - Links zu Unterlagen und PICTS-Buchung
 
-### 3. Schulspezifische PICTS-Links
+### 4. Klickbare Kompetenzen mit Detail-Dialog
+- **Kompetenzen als Badges**: Klickbar mit LP-Code oder Namen
+- **Kompetenz-Detail-Dialog** zeigt:
+  - LP Code (z.B. "MI.1.1.a")
+  - Kompetenzbereich (Badge)
+  - Kompetenz (Detailbeschreibung)
+  - Kompetenzstufe
+  - Zyklus und Klassenstufe
+  - Grundanspruch
+  - Querverweis LP
+  - **Unterrichtsideen**: Mit Lehrmittel und Lektionenanzahl
+- **Zwei-Dialog-System**: Thema-Dialog → Kompetenz-Dialog
+
+### 5. Lehrmittel-Übersicht
+- Gruppierung aller Themen nach Lehrmittel
+- Alphabetische Sortierung
+- Für jedes Lehrmittel:
+  - Lehrmittel-Bild
+  - Liste aller zugehörigen Themen
+  - Klassenstufen-Anzeige
+  - Links zu Unterlagen und Lektionsplanung
+
+### 6. Schulspezifische PICTS-Links
 - Jede Schule hat einen eigenen PICTS-Buchungslink
 - Link wird aus der Schulen-Tabelle geladen
+- PICTS-Karte im Dashboard öffnet den Link
 - Angezeigt in der Themen-Detailansicht
 
-### 4. Kompetenzen-Auflösung
-- Kompetenzen sind in Airtable als verlinkte Records gespeichert
-- Batch-Loading aller Kompetenzen für Performance
-- Automatische Auflösung von Record-IDs zu lesbaren Namen
-- Fehlertoleranz bei fehlenden Kompetenzen
+### 7. Daten-Auflösung mit Batch-Loading
+- **Kompetenzen**: Automatische Auflösung von Record-IDs zu vollständigen Objekten
+- **Unterrichtsideen**: Nested Resolution über verlinkte Records
+- **Performance-Optimierung**: Batch-Loading à 10 IDs pro Request
+- **Fehlertoleranz**: Graceful Handling bei fehlenden Daten
 
 ## Umgebungsvariablen
 
@@ -157,7 +205,8 @@ AIRTABLE_API_KEY=
 AIRTABLE_BASE_ID=
 AIRTABLE_THEMEN_TABLE=Themen
 AIRTABLE_SCHULEN_TABLE=Schulen
-AIRTABLE_KOMPETENZEN_TABLE=Kompetenzen
+AIRTABLE_KOMPETENZEN_TABLE=Kompetenzen Lehrplan
+AIRTABLE_UNTERRICHTSIDEEN_TABLE=Themen
 ```
 
 ## Entwicklung
@@ -191,14 +240,34 @@ npm start
 **Ursache**: Airtable gibt bei verlinkten Records nur Record-IDs zurück
 **Lösung**:
 - Separate `kompetenzen.ts` Datei mit `getKompetenzenByIds()`
-- Batch-Loading aller Kompetenzen
-- Auflösung von IDs zu Namen vor Rückgabe
+- Batch-Loading aller Kompetenzen (à 10 IDs pro Request)
+- Auflösung von IDs zu vollständigen Objekten
+- Nested Resolution für Unterrichtsideen
 
 ### Problem: Airtable Array-Felder
 **Ursache**: Airtable Multiple-Select und Linked Records kommen als Arrays
 **Lösung**:
 - Typ-Prüfung mit `Array.isArray()`
 - Flexible Parser-Funktionen (z.B. `parseStufen()`)
+
+### Problem: @radix-ui/react-select nicht gefunden beim Dev-Server
+**Ursache**: Webpack cached alte Version der select.tsx-Komponente
+**Lösung**:
+```bash
+# 1. Dev-Server stoppen (Ctrl+C)
+# 2. Cache und Dependencies neu aufbauen
+rm -rf .next node_modules
+npm install
+# 3. Dev-Server neu starten
+npm run dev
+```
+**Wichtig**: Nach Installation von `@radix-ui/react-select` immer Dev-Server neu starten!
+
+### Problem: Hydration Error mit Badge in DialogDescription
+**Ursache**: `<div>` (Badge) kann nicht in `<p>` (DialogDescription) sein
+**Lösung**:
+- Badge außerhalb von DialogDescription in separates `<div>` verschieben
+- HTML-Semantik beachten: Block-Elemente nicht in Inline-Elementen
 
 ## Deployment
 
@@ -214,10 +283,31 @@ npm start
 ## API Endpunkte
 
 ### GET `/api/teachers?userId={uid}`
-Lädt Lehrerprofil inkl. Schul-Informationen
+Lädt Lehrerprofil inkl. Schul-Informationen (mit PICTS-Link der Schule)
+
+**Response:**
+```json
+{
+  "userId": "firebase-uid",
+  "email": "lehrer@schule.ch",
+  "name": "Max Mustermann",
+  "schuleId": "recXXXXXXXXXXXXXX",
+  "stufe": "5. Klasse",
+  "role": "teacher",
+  "createdAt": "2024-12-10T...",
+  "schule": {
+    "id": "recXXXXXXXXXXXXXX",
+    "name": "Schule Beispiel",
+    "ort": "Zürich",
+    "pictsBuchen": "https://..."
+  }
+}
+```
 
 ### POST `/api/teachers`
 Erstellt neues Lehrerprofil
+
+**Request Body:**
 ```json
 {
   "userId": "firebase-uid",
@@ -228,8 +318,42 @@ Erstellt neues Lehrerprofil
 }
 ```
 
+### PUT `/api/teachers`
+Aktualisiert Lehrerprofil (z.B. Stufe ändern)
+
+**Request Body:**
+```json
+{
+  "userId": "firebase-uid",
+  "stufe": "6. Klasse"
+}
+```
+
 ### GET `/api/themen?stufe={stufe}&grouped=true`
 Lädt Themen nach Stufe, gruppiert nach Zeiträumen
+
+**Response:**
+```json
+{
+  "Sommerferien - Herbstferien": [
+    {
+      "id": "recXXX",
+      "thema": "...",
+      "kompetenzen": [
+        {
+          "id": "recYYY",
+          "lpCode": "MI.1.1.a",
+          "name": "...",
+          "unterrichtsideen": [...]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### GET `/api/schulen`
+Lädt alle Schulen für Registrierungs-Dropdown
 
 ## Tipps für weitere Entwicklung
 
