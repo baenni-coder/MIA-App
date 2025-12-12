@@ -52,7 +52,8 @@ src/
 │   │   ├── themen.ts            # Themen CRUD
 │   │   ├── schulen.ts           # Schulen CRUD
 │   │   ├── kompetenzen.ts       # Kompetenzen mit Unterrichtsideen
-│   │   └── unterrichtsideen.ts  # Unterrichtsideen Auflösung
+│   │   ├── unterrichtsideen.ts  # Unterrichtsideen Auflösung
+│   │   └── lektionsplanung.ts   # Lektionsplanung CRUD
 │   └── firebase/                # Firebase Integration
 │       ├── config.ts            # Client-Side Config
 │       └── admin.ts             # Server-Side Admin SDK
@@ -118,6 +119,22 @@ src/
 - Lehrmittel (string) - Verwendetes Lehrmittel
 - Anzahl Lektionen (number) - Dauer der Unterrichtsidee
 
+**Tabelle: `Lektionsplanung`**
+- Eindeutige Lektionsbezeichnung (string) - Eindeutiger Identifier
+- Lektion (string) - Lektionsnummer
+- Thema (linked record → Themen) - Referenz zum Thema
+- Aufgaben (long text) - Beschreibung der Aufgaben
+- Vorwissen (long text) - Benötigtes Vorwissen
+- Material (string) - Materialien (CSV)
+- Website oder Tool (linked records) - Verlinkte Tools/Websites
+- Name (from Website oder Tool) (lookup) - Tool-Namen
+- Link (from Website oder Tool) (lookup) - Tool-Links
+- Einstieg (long text) - Einstiegsphase der Lektion
+- Hauptteil (long text) - Hauptteil der Lektion
+- Abschluss (long text) - Abschlussphase der Lektion
+- Stolpersteine (long text) - Häufige Probleme/Hinweise
+- KI Zusammenfassung Lektion (long text) - KI-generierte Zusammenfassung
+
 ## Wichtige Features
 
 ### 1. Authentifizierung
@@ -182,6 +199,31 @@ src/
 - **Performance-Optimierung**: Batch-Loading à 10 IDs pro Request
 - **Fehlertoleranz**: Graceful Handling bei fehlenden Daten
 
+### 8. Lektionsplanung mit Export
+- **Lektionsplanung-Viewer** im Thema-Dialog:
+  - Button "Lektionsplanung anzeigen" in jedem Thema
+  - Automatisches Laden aller Lektionen zum Thema aus Airtable
+  - Akkordeon-Ansicht für strukturierte Darstellung
+- **Detaillierte Lektionsinhalte**:
+  - KI-Zusammenfassung der Lektion (hervorgehoben)
+  - Aufgaben und Lernziele
+  - Benötigtes Vorwissen
+  - Material-Liste als Badges
+  - Websites & Tools mit klickbaren Links
+  - Einstieg, Hauptteil, Abschluss (3-Phasen-Modell)
+  - Stolpersteine (Warnhinweise in gelb hervorgehoben)
+- **Export-Funktionen**:
+  - **Markdown-Export**: Strukturierte .md Datei für einfache Bearbeitung
+  - **PDF-Export**: Professionell formatiertes PDF mit:
+    - Deckblatt mit Thema und Datum
+    - Jede Lektion auf separater Seite
+    - Fußzeilen mit Seitenzahlen
+    - Automatischer Seitenumbruch bei zu langem Content
+- **Daten-Integration**:
+  - Verknüpfung von Lektionen mit Themen über Airtable Linked Records
+  - Lookup-Felder für Tool-Namen und Links
+  - CSV-Parsing für Material-Listen
+
 ## Umgebungsvariablen
 
 Kopiere `.env.example` zu `.env.local` und fülle folgende Werte:
@@ -207,6 +249,7 @@ AIRTABLE_THEMEN_TABLE=Themen
 AIRTABLE_SCHULEN_TABLE=Schulen
 AIRTABLE_KOMPETENZEN_TABLE=Kompetenzen Lehrplan
 AIRTABLE_UNTERRICHTSIDEEN_TABLE=Themen
+AIRTABLE_LEKTIONSPLANUNG_TABLE=Lektionsplanung
 ```
 
 ## Entwicklung
@@ -354,6 +397,39 @@ Lädt Themen nach Stufe, gruppiert nach Zeiträumen
 
 ### GET `/api/schulen`
 Lädt alle Schulen für Registrierungs-Dropdown
+
+### GET `/api/lektionsplanung?thema={themaName}`
+Lädt alle Lektionen für ein bestimmtes Thema
+
+**Response:**
+```json
+{
+  "lektionen": [
+    {
+      "id": "recXXX",
+      "eindeutigeBezeichnung": "Lektion 1 - 1 Mitten in der Medienwelt",
+      "lektion": "Lektion 1",
+      "themaId": "recYYY",
+      "themaName": "1 Mitten in der Medienwelt",
+      "aufgaben": "1A | Medien – deine täglichen Begleiter...",
+      "vorwissen": "...",
+      "material": ["Tablet", "Beamer"],
+      "websiteTools": [
+        {
+          "id": "recZZZ",
+          "name": "Code.org",
+          "link": "https://code.org/"
+        }
+      ],
+      "einstieg": "...",
+      "hauptteil": "...",
+      "abschluss": "...",
+      "stolpersteine": "...",
+      "kiZusammenfassung": "..."
+    }
+  ]
+}
+```
 
 ## Tipps für weitere Entwicklung
 

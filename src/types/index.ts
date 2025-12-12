@@ -90,3 +90,28 @@ export interface Admin {
   name: string;
   createdAt: Date;
 }
+
+// Website/Tool für Lektionsplanung
+export interface WebsiteTool {
+  id: string;
+  name: string;
+  link?: string;
+}
+
+// Lektionsplanung
+export interface Lektionsplanung {
+  id: string;
+  eindeutigeBezeichnung: string;
+  lektion: string;
+  themaId: string;
+  themaName?: string;
+  aufgaben?: string;
+  vorwissen?: string;
+  material?: string[];
+  websiteTools?: WebsiteTool[];
+  einstieg?: string;
+  hauptteil?: string;
+  abschluss?: string;
+  stolpersteine?: string;
+  kiZusammenfassung?: string;
+}
