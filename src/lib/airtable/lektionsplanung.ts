@@ -63,8 +63,15 @@ export const getLektionsplanungByThemaName = async (themaName: string): Promise<
       // Helper: Sicher einen String extrahieren
       const getString = (value: unknown): string | undefined => {
         if (typeof value === 'string') return value || undefined;
-        if (Array.isArray(value) && value.length > 0) return String(value[0]);
+        if (Array.isArray(value) && value.length > 0) {
+          // Wenn das erste Element ein String ist, verwende es
+          if (typeof value[0] === 'string') return value[0];
+          // Wenn es ein Objekt ist, ignoriere es
+          return undefined;
+        }
         if (value === null || value === undefined) return undefined;
+        // Objekte werden ignoriert, nicht zu String konvertiert
+        if (typeof value === 'object') return undefined;
         return String(value);
       };
 
@@ -114,8 +121,15 @@ export const getLektionsplanungById = async (id: string): Promise<Lektionsplanun
     // Helper: Sicher einen String extrahieren
     const getString = (value: unknown): string | undefined => {
       if (typeof value === 'string') return value || undefined;
-      if (Array.isArray(value) && value.length > 0) return String(value[0]);
+      if (Array.isArray(value) && value.length > 0) {
+        // Wenn das erste Element ein String ist, verwende es
+        if (typeof value[0] === 'string') return value[0];
+        // Wenn es ein Objekt ist, ignoriere es
+        return undefined;
+      }
       if (value === null || value === undefined) return undefined;
+      // Objekte werden ignoriert, nicht zu String konvertiert
+      if (typeof value === 'object') return undefined;
       return String(value);
     };
 
