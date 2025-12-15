@@ -312,6 +312,33 @@ npm run dev
 - Badge außerhalb von DialogDescription in separates `<div>` verschieben
 - HTML-Semantik beachten: Block-Elemente nicht in Inline-Elementen
 
+### Problem: React 19 Rendering-Fehler mit "[object Object]"
+**Ursache**: Airtable Lookup-Felder geben manchmal Arrays oder Objekte zurück statt Strings
+**Lösung**:
+- Robuste `getString()` Helper-Funktion in Airtable-Integration:
+```typescript
+const getString = (value: unknown): string | undefined => {
+  if (typeof value === 'string') return value || undefined;
+  if (Array.isArray(value) && value.length > 0) {
+    if (typeof value[0] === 'string') return value[0];
+    return undefined; // Ignoriere Objekte in Arrays
+  }
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === 'object') return undefined; // Objekte nicht zu String konvertieren
+  return String(value);
+};
+```
+- Type-Checks in UI: `typeof lektion.aufgaben === 'string'`
+- Array-Checks: `Array.isArray(lektion.material)`
+- Verhindert dass Objekte direkt als React-Children gerendert werden
+
+### Problem: Airtable Lookup-Felder als Arrays
+**Ursache**: Lookup-Felder in Airtable werden als Arrays zurückgegeben
+**Lösung**:
+- Ersten Wert aus Array extrahieren wenn es ein String ist
+- Objekte in Arrays ignorieren (nicht zu "[object Object]" konvertieren)
+- Graceful Fallbacks mit `undefined` statt fehlerhaften Werten
+
 ## Deployment
 
 ### Vercel (empfohlen)
