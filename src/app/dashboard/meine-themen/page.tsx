@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CustomTheme } from "@/types";
-import { Loader2, Plus, Edit, Trash2, Send } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Send, BookOpen } from "lucide-react";
 
 export default function MeineThemenPage() {
   const router = useRouter();
@@ -224,7 +224,19 @@ export default function MeineThemenPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                      {/* Lektionen verwalten */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          router.push(`/dashboard/thema/${theme.id}/lektionen`)
+                        }
+                      >
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        Lektionen
+                      </Button>
+
                       {/* Bearbeiten: Immer möglich */}
                       <Button
                         variant="outline"
