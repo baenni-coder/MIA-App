@@ -4,7 +4,7 @@ import { getSchuleById } from "@/lib/airtable/schulen";
 
 export async function POST(request: Request) {
   try {
-    const { userId, email, name, schuleId, stufe } = await request.json();
+    const { userId, email, name, schuleId, stufe, role } = await request.json();
 
     if (!userId || !email || !name || !schuleId || !stufe) {
       return NextResponse.json(
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       name,
       schuleId,
       stufe,
-      role: "teacher",
+      role: role || "teacher", // Standardmäßig "teacher", kann aber überschrieben werden
       createdAt: new Date().toISOString(),
     });
 
@@ -78,19 +78,30 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { userId, stufe } = await request.json();
+    const { userId, stufe, role } = await request.json();
 
-    if (!userId || !stufe) {
+    if (!userId) {
       return NextResponse.json(
-        { error: "userId and stufe are required" },
+        { error: "userId is required" },
         { status: 400 }
       );
     }
 
     const adminDb = getAdminDb();
-    await adminDb.collection("teachers").doc(userId).update({
-      stufe,
-    });
+    const updateData: Record<string, any> = {};
+
+    // Nur Felder aktualisieren, die übergeben wurden
+    if (stufe) updateData.stufe = stufe;
+    if (role) updateData.role = role;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: "At least one field (stufe or role) is required" },
+        { status: 400 }
+      );
+    }
+
+    await adminDb.collection("teachers").doc(userId).update(updateData);
 
     return NextResponse.json({ success: true });
   } catch (error) {

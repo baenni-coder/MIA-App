@@ -1,0 +1,51 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isValidImage() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    function isSizeValid(maxSizeMB) {
+      return request.resource.size < maxSizeMB * 1024 * 1024;
+    }
+
+    // ============================================
+    // Theme Images
+    // ============================================
+
+    // Pfad: themes/{userId}/{filename}
+    match /themes/{userId}/{filename} {
+      // Lesen: Jeder (öffentlich)
+      allow read: if true;
+
+      // Schreiben: Nur eigener User, max 10MB, nur Bilder
+      allow write: if isAuthenticated()
+                   && isOwner(userId)
+                   && isValidImage()
+                   && isSizeValid(10);
+
+      // Löschen: Nur eigener User
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // ============================================
+    // Andere Dateien (falls benötigt)
+    // ============================================
+
+    // Default: Kein Zugriff
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
