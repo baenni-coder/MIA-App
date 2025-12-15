@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "./ui/button";
+import NotificationBell from "./NotificationBell";
 import { LogOut, LayoutDashboard, CalendarRange } from "lucide-react";
 
 export default function DashboardLayout({
@@ -55,6 +56,7 @@ export default function DashboardLayout({
             </nav>
           </div>
           <div className="flex items-center gap-4">
+            <NotificationBell />
             <span className="text-sm text-muted-foreground hidden md:inline">
               {user?.email}
             </span>
