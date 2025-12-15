@@ -8,6 +8,13 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **Profil-Verwaltung**: Stufe ändern für nächstes Schuljahr
 - **Jahresplan-Kanban**: Interaktives Board mit Zeitraum-Bildern und Stufe-Auswahl
 - **Klickbare Kompetenzen**: Detail-Dialoge mit Lehrplan-Codes und Unterrichtsideen
+- **Lektionsplanung mit Export**:
+  - Strukturierte Darstellung aller Lektionen eines Themas
+  - KI-Zusammenfassungen, Aufgaben, Material, Websites & Tools
+  - 3-Phasen-Modell (Einstieg, Hauptteil, Abschluss)
+  - Stolpersteine-Hinweise
+  - **PDF-Export** mit professionellem Layout
+  - **Markdown-Export** für einfache Bearbeitung
 - **Lehrmittel-Übersicht**: Gruppierung aller Themen nach Lehrmittel
 - **Schulspezifische PICTS-Links**: Direkter Zugriff auf Schulbuchungen
 - **Responsive Design**: Optimiert für Desktop und Mobile mit Tailwind CSS
@@ -19,11 +26,14 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **Styling**: Tailwind CSS + shadcn/ui
 - **Authentifizierung**: Firebase Auth (Client & Admin SDK)
 - **Datenbank**:
-  - Airtable (Themen & Schulen)
+  - Airtable (Themen, Schulen, Kompetenzen, Lektionsplanung)
   - Firebase Firestore (Lehrer-Profile)
 - **UI-Bibliothek**: shadcn/ui mit Radix UI Primitives, Lucide Icons
+- **UI-Komponenten**:
+  - @radix-ui/react-select für Dropdown-Menüs
+  - @radix-ui/react-accordion für Lektionsplanung
+- **Export**: jsPDF für PDF-Generierung
 - **Drag & Drop**: @dnd-kit (ready to implement)
-- **Select-Komponente**: @radix-ui/react-select für Dropdown-Menüs
 
 ## 📋 Voraussetzungen
 
@@ -69,6 +79,7 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
    AIRTABLE_SCHULEN_TABLE=Schulen
    AIRTABLE_KOMPETENZEN_TABLE=Kompetenzen Lehrplan
    AIRTABLE_UNTERRICHTSIDEEN_TABLE=Themen
+   AIRTABLE_LEKTIONSPLANUNG_TABLE=Lektionsplanung
    ```
 
 4. **Firebase Setup**
@@ -82,8 +93,10 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 5. **Airtable Setup**
 
    - Ihre Airtable-Base sollte folgende Tabellen enthalten:
-     - **Themen**: Mit den Feldern aus `Themen-Grid view.csv`
-     - **Schulen**: Mit Feldern `Name`, `Ort`, `Created`
+     - **Themen**: Mit den Feldern aus `airtableinhalte/Themen-Grid view.csv`
+     - **Schulen**: Mit Feldern `Name`, `Ort`, `PICTS buchen`, `Created`
+     - **Kompetenzen Lehrplan**: LP-Codes, Beschreibungen, Unterrichtsideen
+     - **Lektionsplanung**: Lektionen mit Aufgaben, Material, Einstieg/Hauptteil/Abschluss
    - Erstellen Sie einen API-Key in Ihren [Airtable Account Settings](https://airtable.com/account)
    - Finden Sie die Base-ID in der URL: `https://airtable.com/appXXXXXXXXXXXXXX/...`
 
