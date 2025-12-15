@@ -1,0 +1,152 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // Helper Functions
+    // ============================================
+
+    // Prüft ob User authentifiziert ist
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Prüft ob User der Besitzer ist
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Holt Teacher Profil
+    function getTeacher(userId) {
+      return get(/databases/$(database)/documents/teachers/$(userId));
+    }
+
+    // Prüft ob User PICTS-Admin ist
+    function isPICTSAdmin(userId) {
+      let teacher = getTeacher(userId);
+      return teacher.data.role == "picts_admin" || teacher.data.role == "super_admin";
+    }
+
+    // Prüft ob User Super-Admin ist
+    function isSuperAdmin(userId) {
+      let teacher = getTeacher(userId);
+      return teacher.data.role == "super_admin";
+    }
+
+    // Prüft ob User PICTS-Admin der angegebenen Schule ist
+    function isPICTSAdminOfSchule(userId, schuleId) {
+      let teacher = getTeacher(userId);
+      return (teacher.data.role == "picts_admin" || teacher.data.role == "super_admin")
+             && teacher.data.schuleId == schuleId;
+    }
+
+    // ============================================
+    // Teachers Collection
+    // ============================================
+
+    match /teachers/{userId} {
+      // Lesen: Nur eigenes Profil
+      allow read: if isAuthenticated() && isOwner(userId);
+
+      // Erstellen: Jeder authentifizierte User kann sein Profil erstellen
+      allow create: if isAuthenticated() && isOwner(userId)
+                    && request.resource.data.role == "teacher"; // Standardrolle
+
+      // Aktualisieren: Eigenes Profil, aber role nur durch Super-Admin
+      allow update: if isAuthenticated() && (
+        // Normale Updates (stufe, etc.)
+        (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["role"])) ||
+        // Role-Updates nur durch Super-Admin
+        (isSuperAdmin(request.auth.uid))
+      );
+
+      // Löschen: Nur Super-Admin
+      allow delete: if isAuthenticated() && isSuperAdmin(request.auth.uid);
+    }
+
+    // ============================================
+    // Custom Themes Collection
+    // ============================================
+
+    match /custom_themes/{themeId} {
+      // Lesen: Ersteller, systemweite Themen, oder PICTS-Admin der Schule
+      allow read: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        resource.data.isSystemWide == true ||
+        isPICTSAdminOfSchule(request.auth.uid, resource.data.schuleId)
+      );
+
+      // Erstellen: Jeder authentifizierte User
+      allow create: if isAuthenticated()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.isSystemWide == false
+                    && request.resource.data.status in ["draft", "pending_review"];
+
+      // Aktualisieren:
+      // - Ersteller kann sein eigenes Thema bearbeiten
+      // - PICTS-Admin kann Status ändern (für Review)
+      allow update: if isAuthenticated() && (
+        // Ersteller kann bearbeiten
+        (resource.data.createdBy == request.auth.uid
+         && request.resource.data.createdBy == resource.data.createdBy) ||
+        // PICTS-Admin kann reviewen
+        isPICTSAdminOfSchule(request.auth.uid, resource.data.schuleId)
+      );
+
+      // Löschen: Nur Ersteller (nur draft) oder Super-Admin
+      allow delete: if isAuthenticated() && (
+        (resource.data.createdBy == request.auth.uid && resource.data.status == "draft") ||
+        isSuperAdmin(request.auth.uid)
+      );
+    }
+
+    // ============================================
+    // Custom Lektionen Collection
+    // ============================================
+
+    match /custom_lektionen/{lektionId} {
+      // Helper: Prüft ob User Zugriff auf das zugehörige Theme hat
+      function canAccessTheme(themeId) {
+        let theme = get(/databases/$(database)/documents/custom_themes/$(themeId));
+        return theme.data.createdBy == request.auth.uid ||
+               theme.data.isSystemWide == true ||
+               isPICTSAdminOfSchule(request.auth.uid, theme.data.schuleId);
+      }
+
+      // Lesen: Wenn User das zugehörige Theme lesen darf
+      allow read: if isAuthenticated() && canAccessTheme(resource.data.themeId);
+
+      // Erstellen: Wenn User das zugehörige Theme erstellt hat
+      allow create: if isAuthenticated()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && exists(/databases/$(database)/documents/custom_themes/$(request.resource.data.themeId))
+                    && get(/databases/$(database)/documents/custom_themes/$(request.resource.data.themeId)).data.createdBy == request.auth.uid;
+
+      // Aktualisieren: Nur Ersteller
+      allow update: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+
+      // Löschen: Nur Ersteller
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // ============================================
+    // Notifications Collection
+    // ============================================
+
+    match /notifications/{notificationId} {
+      // Lesen: Nur Empfänger
+      allow read: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+
+      // Erstellen: Jeder authentifizierte User (für System-Notifications)
+      allow create: if isAuthenticated();
+
+      // Aktualisieren: Nur Empfänger (für read-Status)
+      allow update: if isAuthenticated()
+                    && resource.data.recipientId == request.auth.uid
+                    && request.resource.data.recipientId == resource.data.recipientId;
+
+      // Löschen: Nur Empfänger
+      allow delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+    }
+  }
+}
