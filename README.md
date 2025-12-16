@@ -2,13 +2,16 @@
 
 Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medien, Informatik und Anwendungskompetenzen (MIA)**.
 
+**🆕 NEU (Dezember 2024):** Lehrpersonen können jetzt eigene Themen mit Lektionsplanung erstellen! PICTS-Admins können diese Themen prüfen und freigeben. Genehmigte Themen werden systemweit für alle Schulen sichtbar.
+
 ## 🎯 Features
 
+### Basis-Features
 - **Lehrer-Authentifizierung**: Firebase Authentication für sichere Anmeldung
 - **Profil-Verwaltung**: Stufe ändern für nächstes Schuljahr
 - **Jahresplan-Kanban**: Interaktives Board mit Zeitraum-Bildern und Stufe-Auswahl
 - **Klickbare Kompetenzen**: Detail-Dialoge mit Lehrplan-Codes und Unterrichtsideen
-- **Lektionsplanung mit Export**:
+- **Lektionsplanung mit Export** (für Airtable-Themen):
   - Strukturierte Darstellung aller Lektionen eines Themas
   - KI-Zusammenfassungen, Aufgaben, Material, Websites & Tools
   - 3-Phasen-Modell (Einstieg, Hauptteil, Abschluss)
@@ -19,6 +22,47 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **Schulspezifische PICTS-Links**: Direkter Zugriff auf Schulbuchungen
 - **Responsive Design**: Optimiert für Desktop und Mobile mit Tailwind CSS
 
+### 🆕 Neue Features: Custom Themes & Lektionen
+
+#### Für Lehrpersonen
+- **Eigene Themen erstellen** (`/dashboard/thema-erstellen`):
+  - Vollständiges Formular mit allen Thema-Feldern
+  - Bild-Upload mit Drag & Drop (max 10MB)
+  - Multi-Select für Klassenstufen
+  - Kompetenzen-Auswahl aus Airtable
+  - Als Entwurf speichern oder direkt zur Prüfung einreichen
+- **Themen verwalten** (`/dashboard/meine-themen`):
+  - Übersicht aller eigenen Themen
+  - Status-Badges (Draft, Pending, Approved, Rejected)
+  - Bearbeiten, Löschen, Lektionen verwalten
+  - Feedback bei Ablehnung einsehen
+- **Lektionen erstellen**:
+  - Eigene Lektionsplanung für Custom Themes
+  - 3-Phasen-Modell: Einstieg, Hauptteil, Abschluss
+  - Material als Tags, Websites & Tools
+  - Stolpersteine-Hinweise
+
+#### Für PICTS-Admins
+- **Admin Dashboard** (`/dashboard/admin`):
+  - Nur für PICTS-Admins und Super-Admins
+  - Tabs: "Zu prüfen" | "Freigegeben" | "Abgelehnt"
+  - Filtert Themen nach eigener Schule
+- **Review-Workflow**:
+  - Themen freigeben → Systemweit sichtbar
+  - Themen ablehnen → Mit Feedback an Teacher
+  - Vollständige Thema-Details anzeigen
+- **Notification System**:
+  - Bell-Icon im Header mit Badge
+  - Automatische Benachrichtigungen bei neuen Einreichungen
+  - In-App Notifications mit Klick-Navigation
+
+#### Integration
+- **Automatische Zusammenführung**:
+  - Custom Themes erscheinen im Jahresplan-Kanban
+  - Nur genehmigte Themen werden angezeigt
+  - Gleiche Darstellung wie Airtable-Themen
+  - Kompetenzen automatisch aufgelöst
+
 ## 🛠 Tech Stack
 
 - **Framework**: Next.js 15 mit App Router
@@ -26,14 +70,17 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **Styling**: Tailwind CSS + shadcn/ui
 - **Authentifizierung**: Firebase Auth (Client & Admin SDK)
 - **Datenbank**:
-  - Airtable (Themen, Schulen, Kompetenzen, Lektionsplanung)
-  - Firebase Firestore (Lehrer-Profile)
+  - **Airtable**: System-Themen, Schulen, Kompetenzen, Lektionsplanung
+  - **Firebase Firestore**: Lehrerprofile, Custom Themes, Custom Lektionen, Notifications
+- **Storage**: Firebase Storage (Bilder für Custom Themes)
 - **UI-Bibliothek**: shadcn/ui mit Radix UI Primitives, Lucide Icons
 - **UI-Komponenten**:
   - @radix-ui/react-select für Dropdown-Menüs
   - @radix-ui/react-accordion für Lektionsplanung
+  - Native HTML Checkboxes (ohne Radix UI)
 - **Export**: jsPDF für PDF-Generierung
 - **Drag & Drop**: @dnd-kit (ready to implement)
+- **Permissions**: Rollen-basiertes System (teacher, picts_admin, super_admin)
 
 ## 📋 Voraussetzungen
 
@@ -122,25 +169,44 @@ MIA-App/
 ├── src/
 │   ├── app/                    # Next.js App Router
 │   │   ├── api/               # API Routes
+│   │   │   ├── auth/          # Auth-Endpunkte (check-admin)
+│   │   │   ├── custom-themes/ # Custom Theme CRUD + Review
+│   │   │   ├── custom-lektionen/ # Custom Lektionen CRUD
+│   │   │   ├── notifications/ # Notifications
+│   │   │   ├── upload-image/  # Firebase Storage Upload
 │   │   │   ├── schulen/       # Schulen CRUD
 │   │   │   ├── teachers/      # Lehrer-Profile (GET, POST, PUT)
-│   │   │   └── themen/        # Themen aus Airtable
+│   │   │   ├── themen/        # Themen (Airtable + Firestore)
+│   │   │   └── lektionsplanung/ # Lektionsplanung (Airtable)
 │   │   ├── dashboard/         # Lehrer-Dashboard
-│   │   │   ├── jahresplan/   # Kanban-Board mit Stufe-Auswahl
-│   │   │   ├── lehrmittel/   # Lehrmittel-Übersicht
-│   │   │   └── page.tsx      # Dashboard mit Profil-Bearbeitung
-│   │   ├── login/             # Login-Seite mit Logo
-│   │   ├── register/          # Registrierung mit Logo
+│   │   │   ├── admin/         # Admin Dashboard (Review)
+│   │   │   ├── jahresplan/    # Kanban-Board mit Stufe-Auswahl
+│   │   │   ├── lehrmittel/    # Lehrmittel-Übersicht
+│   │   │   ├── thema-erstellen/ # Custom Theme erstellen
+│   │   │   ├── thema-bearbeiten/[id]/ # Custom Theme bearbeiten
+│   │   │   ├── meine-themen/  # Übersicht Custom Themes
+│   │   │   ├── thema/[id]/lektionen/ # Lektionen-Verwaltung
+│   │   │   └── page.tsx       # Dashboard mit Profil-Bearbeitung
+│   │   ├── auth/              # Auth-Seiten
+│   │   │   ├── login/
+│   │   │   └── register/
 │   │   └── page.tsx           # Landing Page
 │   ├── components/            # React Komponenten
 │   │   ├── ui/               # shadcn/ui Komponenten
 │   │   │   ├── badge.tsx     # Kompetenzen-Badges
-│   │   │   ├── dialog.tsx    # Detail-Dialoge
+│   │   │   ├── checkbox.tsx  # Native HTML Checkbox
+│   │   │   ├── dialog.tsx    # Detail-Dialoge (inkl. DialogFooter)
 │   │   │   ├── select.tsx    # Radix UI Select
+│   │   │   ├── textarea.tsx  # Textarea
 │   │   │   └── ...           # Weitere UI-Komponenten
-│   │   ├── DashboardLayout.tsx  # Layout mit Logo
+│   │   ├── AdminThemeReview.tsx # Admin Review Dialog
+│   │   ├── CustomThemeForm.tsx  # Formular für Custom Themes
+│   │   ├── DashboardLayout.tsx  # Layout mit Logo & Notifications
 │   │   ├── KanbanBoard.tsx      # Kanban mit Roboter-Bildern
-│   │   └── ProtectedRoute.tsx   # Auth-Schutz
+│   │   ├── LektionEditor.tsx    # Editor für Custom Lektionen
+│   │   ├── NotificationBell.tsx # Notification Bell mit Badge
+│   │   ├── ProtectedRoute.tsx   # Auth-Schutz
+│   │   └── ThemeStatusBadge.tsx # Status Badge
 │   ├── contexts/             # React Contexts
 │   │   └── AuthContext.tsx   # Firebase Auth State
 │   ├── lib/                  # Utilities & Config
@@ -149,19 +215,31 @@ MIA-App/
 │   │   │   ├── schulen.ts
 │   │   │   ├── themen.ts
 │   │   │   ├── kompetenzen.ts        # Batch-Loading
-│   │   │   └── unterrichtsideen.ts   # Nested Resolution
+│   │   │   ├── unterrichtsideen.ts   # Nested Resolution
+│   │   │   └── lektionsplanung.ts    # Lektionsplanung CRUD
 │   │   ├── firebase/        # Firebase Config
 │   │   │   ├── admin.ts
 │   │   │   └── config.ts
+│   │   ├── firestore/       # Firestore Helper Functions
+│   │   │   ├── permissions.ts       # Rollen-basierte Permissions
+│   │   │   ├── custom-themes.ts     # Custom Themes CRUD
+│   │   │   ├── custom-lektionen.ts  # Custom Lektionen CRUD
+│   │   │   └── notifications.ts     # Notifications CRUD
+│   │   ├── storage/         # Firebase Storage
+│   │   │   └── upload.ts    # Image Upload & Validation
 │   │   └── utils.ts         # Helper Functions
 │   └── types/               # TypeScript Types
-│       └── index.ts         # Typen für Thema, Kompetenz, etc.
-└── public/                  # Static Assets
-    ├── logo.png             # MIA-App Logo
-    ├── roboter_sommer.png   # Zeitraum-Bild Sommer
-    ├── roboter_herbst.png   # Zeitraum-Bild Herbst
-    ├── roboter_winter.png   # Zeitraum-Bild Winter
-    └── roboter_weihnachten.png  # Zeitraum-Bild Weihnachten
+│       └── index.ts         # Typen für Thema, Kompetenz, Custom Theme, etc.
+├── public/                  # Static Assets
+│   ├── logo.png             # MIA-App Logo
+│   ├── roboter_sommer.png   # Zeitraum-Bild Sommer
+│   ├── roboter_herbst.png   # Zeitraum-Bild Herbst
+│   ├── roboter_winter.png   # Zeitraum-Bild Winter
+│   └── roboter_weihnachten.png  # Zeitraum-Bild Weihnachten
+├── firebase.json            # Firebase Config (Rules Deployment)
+├── .firebaserc              # Firebase Project ID
+├── firestore.rules          # Firestore Security Rules
+└── storage.rules            # Firebase Storage Security Rules
 ```
 
 ## 🔐 Authentifizierung
@@ -191,19 +269,49 @@ MIA-App/
   - `name`
   - `schuleId` (Referenz zu Airtable)
   - `stufe` (KiGa, 1.-9. Klasse)
-  - `role` (teacher)
+  - `role` (teacher | picts_admin | super_admin)
   - `createdAt`
+
+- **custom_themes**: Benutzerdefinierte Themen
+  - `thema`, `beschreibung`, `lehrmittel`
+  - `bildLehrmittel` (Firebase Storage URL)
+  - `anzahlLektionen`, `schuljahr`, `zeitraum`
+  - `kompetenzenIds` (Airtable Record IDs)
+  - `status` (draft | pending_review | approved | rejected)
+  - `isSystemWide` (true wenn approved)
+  - `createdBy`, `createdByName`, `schuleId`
+  - `reviewedBy`, `reviewedByName`, `reviewedAt`, `reviewNotes`
+  - `createdAt`, `updatedAt`
+
+- **custom_lektionen**: Benutzerdefinierte Lektionen
+  - `customThemeId` (Referenz zu Custom Theme)
+  - `lektionNummer`, `aufgaben`, `vorwissen`
+  - `material` (Array), `websiteTools` (Array)
+  - `einstieg`, `hauptteil`, `abschluss`, `stolpersteine`
+  - `createdAt`, `updatedAt`
+
+- **notifications**: In-App Benachrichtigungen
+  - `recipientId`, `recipientName`
+  - `type` (theme_submitted | theme_approved | theme_rejected)
+  - `title`, `message`, `actionUrl`
+  - `relatedThemeId`, `relatedThemeName`
+  - `isRead`, `createdAt`
 
 ### Airtable Tables
 
-- **Themen**: MIA-Unterrichtsthemen
+- **Themen**: System-MIA-Unterrichtsthemen
   - Alle Felder aus `Themen-Grid view.csv`
   - Zuordnung zu Stufen und Zeiträumen
+  - Kompetenzen, Lektionsplanung
 
 - **Schulen**: Registrierte Schulen
-  - `Name`
-  - `Ort`
-  - `Created`
+  - `Name`, `Ort`, `PICTS buchen`, `Created`
+
+- **Kompetenzen Lehrplan**: Lehrplan-Kompetenzen
+  - LP-Codes, Beschreibungen, Unterrichtsideen
+
+- **Lektionsplanung**: Systemweite Lektionen
+  - Aufgaben, Material, 3-Phasen-Modell, Stolpersteine
 
 ## 🎨 UI-Komponenten
 
@@ -216,6 +324,7 @@ Die App verwendet **shadcn/ui** - eine moderne, accessible Komponenten-Bibliothe
 
 ## ✅ Implementierte Features
 
+### Basis-Features
 - [x] Lehrer-Authentifizierung mit Firebase
 - [x] Jahresplan Kanban-Board mit Zeitraum-Bildern
 - [x] Klickbare Kompetenzen mit Detail-Dialogen
@@ -225,17 +334,44 @@ Die App verwendet **shadcn/ui** - eine moderne, accessible Komponenten-Bibliothe
 - [x] Profil-Bearbeitung (Stufe ändern)
 - [x] Temporäre Stufe-Auswahl im Jahresplan
 - [x] Logo-Integration
+- [x] Lektionsplanung mit PDF/Markdown Export (Airtable-Themen)
+
+### Custom Themes & Lektionen (NEU ✨)
+- [x] Rollen-System (teacher, picts_admin, super_admin)
+- [x] Custom Themes erstellen & bearbeiten
+- [x] Image Upload zu Firebase Storage
+- [x] Custom Lektionen Editor
+- [x] Status-Management (draft → pending_review → approved/rejected)
+- [x] Admin Dashboard mit Review-Workflow
+- [x] In-App Notifications System
+- [x] Integration Custom Themes in Jahresplan
+- [x] Permission System für Zugriffskontrolle
+- [x] Firebase Security Rules (Firestore + Storage)
 
 ## 🔜 Nächste Schritte
 
-- [ ] Drag & Drop im Kanban-Board für Themen-Verschiebung
-- [ ] Admin-Dashboard für Schulverwaltung
-- [ ] Persönliche Notizen zu Themen
-- [ ] Export-Funktionen (PDF, CSV)
+### UI/UX Verbesserungen
+- [ ] Hintergrund für Startseite erstellen
+- [ ] Navigation im Dashboard erweitern (Sidebar/Menu)
+- [ ] Custom Theme Badge im Kanban-Board
 - [ ] Dark Mode
-- [ ] Multi-Tenancy für verschiedene Schulen
+
+### Funktionale Erweiterungen
+- [ ] Lektionsplanung-Viewer für Custom Lektionen
+- [ ] Export-Funktionen (PDF, Markdown) für Custom Lektionen
+- [ ] Batch-Operations für Custom Lektionen
+- [ ] Benutzer-Verwaltung für Super Admins
+- [ ] Airtable Export für genehmigte Custom Themes
+- [ ] Drag & Drop im Kanban-Board für Themen-Verschiebung
 - [ ] Kalenderansicht des Jahresplans
-- [ ] Benachrichtigungen für anstehende Themen
+- [ ] Persönliche Notizen zu Themen
+
+### Performance & Qualität
+- [ ] React Query für API-Caching
+- [ ] Toast Notifications für Errors
+- [ ] Skeleton Screens statt Spinner
+- [ ] Unit & E2E Tests
+- [ ] Monitoring & Analytics
 
 ## 🔧 Troubleshooting
 
