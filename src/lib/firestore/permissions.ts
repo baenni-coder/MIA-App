@@ -1,10 +1,10 @@
 import { getAdminDb } from "@/lib/firebase/admin";
-import { UserRole } from "@/types";
+import { UserRole, Teacher } from "@/types";
 
 /**
  * Lädt ein Teacher-Profil aus Firestore
  */
-export async function getTeacherProfile(userId: string) {
+export async function getTeacherProfile(userId: string): Promise<Teacher | null> {
   try {
     const adminDb = getAdminDb();
     const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
@@ -13,10 +13,16 @@ export async function getTeacherProfile(userId: string) {
       return null;
     }
 
+    const data = teacherDoc.data();
     return {
       id: teacherDoc.id,
-      ...teacherDoc.data(),
-    };
+      email: data?.email || "",
+      name: data?.name || "",
+      schuleId: data?.schuleId || "",
+      stufe: data?.stufe,
+      role: data?.role || "teacher",
+      createdAt: data?.createdAt?.toDate() || new Date(),
+    } as Teacher;
   } catch (error) {
     console.error("Error fetching teacher profile:", error);
     return null;
