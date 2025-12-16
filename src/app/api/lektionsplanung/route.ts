@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLektionsplanungByThemaName } from "@/lib/airtable/lektionsplanung";
+import { getLektionenByThemaName } from "@/lib/data-sources/lektionen-adapter";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Lade Lektionsplanung für das Thema
-    const lektionen = await getLektionsplanungByThemaName(themaName);
+    // Verwendet Firestore Cache wenn aktiviert, sonst Airtable
+    const lektionen = await getLektionenByThemaName(themaName);
 
     return NextResponse.json({ lektionen }, { status: 200 });
   } catch (error) {

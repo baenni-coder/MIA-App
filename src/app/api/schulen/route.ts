@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { getAllSchulen, createSchule, updateSchule, deleteSchule } from "@/lib/airtable/schulen";
+import { getSchulen } from "@/lib/data-sources/schulen-adapter";
+import { createSchule, updateSchule, deleteSchule } from "@/lib/airtable/schulen";
 
 export async function GET() {
   try {
-    const schulen = await getAllSchulen();
+    // Verwendet Firestore Cache wenn aktiviert, sonst Airtable
+    const schulen = await getSchulen();
     return NextResponse.json(schulen);
   } catch (error) {
     return NextResponse.json(

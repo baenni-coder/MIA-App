@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAllThemen, getThemenByStufe, getThemenGroupedByZeitraum } from "@/lib/airtable/themen";
+import { getThemes, getThemesByStufe, getThemesGroupedByZeitraum } from "@/lib/data-sources/themes-adapter";
 import { getCustomThemesByStufe } from "@/lib/firestore/custom-themes";
 import { getKompetenzenByIds } from "@/lib/airtable/kompetenzen";
 import { Stufe, Thema, Zeitraum, CustomTheme } from "@/types";
@@ -42,12 +42,13 @@ async function convertCustomThemeToThema(customTheme: CustomTheme): Promise<Them
 }
 
 /**
- * Kombiniert Airtable Themen und Custom Themes
+ * Kombiniert System Themen (Airtable/Firestore Cache) und Custom Themes
  */
 async function getCombinedThemenByStufe(stufe: Stufe): Promise<Thema[]> {
   // Lade beide Quellen parallel
-  const [airtableThemen, customThemes] = await Promise.all([
-    getThemenByStufe(stufe),
+  // getThemesByStufe verwendet automatisch Firestore Cache wenn aktiviert
+  const [systemThemen, customThemes] = await Promise.all([
+    getThemesByStufe(stufe),
     getCustomThemesByStufe(stufe),
   ]);
 
@@ -56,7 +57,7 @@ async function getCombinedThemenByStufe(stufe: Stufe): Promise<Thema[]> {
   const customThemenConverted = await Promise.all(customThemenPromises);
 
   // Kombiniere beide Listen
-  return [...airtableThemen, ...customThemenConverted];
+  return [...systemThemen, ...customThemenConverted];
 }
 
 /**
@@ -103,8 +104,8 @@ export async function GET(request: Request) {
       return NextResponse.json(themen);
     }
 
-    // Ohne Stufe: nur Airtable Themen (wie bisher)
-    const allThemen = await getAllThemen();
+    // Ohne Stufe: alle System Themen (Firestore Cache oder Airtable)
+    const allThemen = await getThemes();
     return NextResponse.json(allThemen);
   } catch (error) {
     console.error("Error fetching Themen:", error);
