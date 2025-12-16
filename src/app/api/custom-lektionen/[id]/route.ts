@@ -12,7 +12,7 @@ import {
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentifizierung prüfen
@@ -29,7 +29,8 @@ export async function PUT(
     const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    const lektionId = params.id;
+    const { id } = await params;
+    const lektionId = id;
 
     // Lektion laden
     const lektion = await getCustomLektionById(lektionId);
@@ -72,7 +73,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentifizierung prüfen
@@ -89,7 +90,8 @@ export async function DELETE(
     const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    const lektionId = params.id;
+    const { id } = await params;
+    const lektionId = id;
 
     // Lektion laden
     const lektion = await getCustomLektionById(lektionId);
