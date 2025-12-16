@@ -22,7 +22,7 @@ import { ThemeStatus } from "@/types";
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentifizierung prüfen
@@ -39,7 +39,8 @@ export async function PUT(
     const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    const themeId = params.id;
+    const { id } = await params;
+    const themeId = id;
 
     // Theme laden
     const theme = await getCustomThemeById(themeId);
