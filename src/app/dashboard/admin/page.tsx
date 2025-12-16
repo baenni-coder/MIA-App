@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CustomTheme, ThemeStatus } from "@/types";
 import { Loader2, Eye } from "lucide-react";
-import { getTeacherProfile } from "@/lib/firestore/permissions";
 
 type Tab = "pending_review" | "approved" | "rejected" | "all";
 
@@ -41,15 +40,21 @@ export default function AdminDashboardPage() {
     if (!user) return;
 
     try {
-      const profile = await getTeacherProfile(user.uid);
-      if (!profile) {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/auth/check-admin", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
         router.push("/dashboard");
         return;
       }
 
-      const hasAccess =
-        profile.role === "picts_admin" || profile.role === "super_admin";
-      if (!hasAccess) {
+      const data = await response.json();
+
+      if (!data.isAdmin) {
         alert("Sie haben keinen Zugriff auf das Admin-Dashboard");
         router.push("/dashboard");
         return;
