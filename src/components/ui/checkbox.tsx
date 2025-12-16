@@ -9,7 +9,7 @@ export interface CheckboxProps
 }
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ className, onCheckedChange, checked, ...props }, ref) => {
+  ({ className, onCheckedChange, checked, id, ...props }, ref) => {
     const [isChecked, setIsChecked] = React.useState(checked || false);
 
     React.useEffect(() => {
@@ -27,23 +27,36 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
       }
     };
 
+    const handleDivClick = () => {
+      if (!props.disabled) {
+        const newChecked = !isChecked;
+        setIsChecked(newChecked);
+        if (onCheckedChange) {
+          onCheckedChange(newChecked);
+        }
+      }
+    };
+
     return (
       <div className="relative inline-flex items-center">
         <input
           type="checkbox"
           className="sr-only peer"
           ref={ref}
+          id={id}
           checked={isChecked}
           onChange={handleChange}
           {...props}
         />
         <div
+          onClick={handleDivClick}
           className={cn(
             "h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background",
             "peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2",
             "peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-            "peer-checked:bg-primary peer-checked:text-primary-foreground peer-checked:border-primary",
-            "flex items-center justify-center cursor-pointer",
+            isChecked && "bg-primary text-primary-foreground border-primary",
+            !props.disabled && "cursor-pointer",
+            "flex items-center justify-center",
             className
           )}
         >
