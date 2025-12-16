@@ -4,6 +4,8 @@
 
 Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresplans für "Medien, Informatik und Anwendungskompetenzen (MIA)". Die App ermöglicht es Lehrern, sich anzumelden, ihre Schule und Klassenstufe auszuwählen und einen personalisierten Jahresplan in einem Kanban-Board-Format anzuzeigen.
 
+**NEU (2024-12)**: Lehrpersonen können jetzt eigene Themen mit Lektionsplanung erstellen. PICTS-Admins können diese Themen prüfen und freigeben. Genehmigte Themen werden systemweit für alle Schulen sichtbar.
+
 ## Tech Stack
 
 - **Framework**: Next.js 15 mit App Router
@@ -11,8 +13,9 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Styling**: Tailwind CSS + shadcn/ui Komponenten
 - **Authentifizierung**: Firebase Authentication (Client + Admin SDK)
 - **Datenbank**:
-  - Firebase Firestore (Lehrerprofile)
-  - Airtable (Themen, Schulen, Kompetenzen)
+  - Firebase Firestore (Lehrerprofile, Custom Themes, Custom Lektionen, Notifications)
+  - Airtable (System-Themen, Schulen, Kompetenzen, Lektionsplanung)
+- **Storage**: Firebase Storage (Lehrmittel-Bilder für Custom Themes)
 - **Deployment**: Optimiert für Vercel
 
 ## Architektur
@@ -23,27 +26,53 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 src/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API Routes
+│   │   ├── auth/                # Auth-Endpunkte
+│   │   │   └── check-admin/     # Admin-Status prüfen
+│   │   ├── custom-themes/       # Custom Theme CRUD
+│   │   │   ├── [id]/           # Single Theme, Update, Delete
+│   │   │   │   └── review/      # Theme Review (Approve/Reject)
+│   │   │   └── route.ts         # List & Create
+│   │   ├── custom-lektionen/    # Custom Lektionen CRUD
+│   │   │   ├── [id]/           # Update, Delete
+│   │   │   └── route.ts         # List & Create (auch Batch)
+│   │   ├── notifications/       # Notifications
+│   │   │   ├── [id]/           # Mark single as read
+│   │   │   └── route.ts         # List & Mark all read
+│   │   ├── upload-image/        # Image Upload zu Firebase Storage
 │   │   ├── schulen/             # Schulen-Endpunkte
 │   │   ├── teachers/            # Lehrer-Endpunkte (GET, POST, PUT)
-│   │   └── themen/              # Themen-Endpunkte
+│   │   ├── themen/              # Themen-Endpunkte (Airtable + Firestore)
+│   │   └── lektionsplanung/     # Lektionsplanung (Airtable)
 │   ├── auth/                     # Auth-Seiten
 │   │   ├── login/
 │   │   └── register/
 │   ├── dashboard/                # Dashboard-Seiten
+│   │   ├── admin/               # Admin Dashboard (Review Workflow)
 │   │   ├── jahresplan/          # Jahresplan mit Stufe-Auswahl
 │   │   ├── lehrmittel/          # Lehrmittel-Übersicht
+│   │   ├── thema-erstellen/     # Custom Theme erstellen
+│   │   ├── thema-bearbeiten/[id]/ # Custom Theme bearbeiten
+│   │   ├── meine-themen/        # Übersicht eigene Custom Themes
+│   │   ├── thema/[id]/lektionen/ # Lektionen-Verwaltung
 │   │   └── page.tsx             # Dashboard mit Profil-Bearbeitung
 │   ├── layout.tsx               # Root Layout
 │   └── page.tsx                 # Landing Page
 ├── components/                   # React Komponenten
 │   ├── ui/                      # shadcn/ui Basis-Komponenten
 │   │   ├── badge.tsx            # Badge für Kompetenzen
-│   │   ├── dialog.tsx           # Dialoge für Details
+│   │   ├── checkbox.tsx         # Checkbox (native HTML)
+│   │   ├── dialog.tsx           # Dialoge für Details (inkl. DialogFooter)
 │   │   ├── select.tsx           # Radix UI Select-Komponente
+│   │   ├── textarea.tsx         # Textarea für Formulare
 │   │   └── ...                  # Weitere UI-Komponenten
-│   ├── DashboardLayout.tsx      # Dashboard Layout mit Logo
+│   ├── AdminThemeReview.tsx     # Admin Review Dialog
+│   ├── CustomThemeForm.tsx      # Formular für Custom Themes
+│   ├── DashboardLayout.tsx      # Dashboard Layout mit Logo & Notifications
 │   ├── KanbanBoard.tsx          # Kanban-Board mit Roboter-Bildern
-│   └── ProtectedRoute.tsx       # Auth-Schutz
+│   ├── LektionEditor.tsx        # Editor für Custom Lektionen
+│   ├── NotificationBell.tsx     # Notification Bell mit Badge
+│   ├── ProtectedRoute.tsx       # Auth-Schutz
+│   └── ThemeStatusBadge.tsx     # Status Badge (draft, pending, approved, rejected)
 ├── contexts/                     # React Contexts
 │   └── AuthContext.tsx          # Authentication State
 ├── lib/                          # Utility Libraries
@@ -54,9 +83,16 @@ src/
 │   │   ├── kompetenzen.ts       # Kompetenzen mit Unterrichtsideen
 │   │   ├── unterrichtsideen.ts  # Unterrichtsideen Auflösung
 │   │   └── lektionsplanung.ts   # Lektionsplanung CRUD
-│   └── firebase/                # Firebase Integration
-│       ├── config.ts            # Client-Side Config
-│       └── admin.ts             # Server-Side Admin SDK
+│   ├── firebase/                # Firebase Integration
+│   │   ├── config.ts            # Client-Side Config
+│   │   └── admin.ts             # Server-Side Admin SDK
+│   ├── firestore/               # Firestore Helper Functions
+│   │   ├── permissions.ts       # Rollen-basierte Permissions
+│   │   ├── custom-themes.ts     # Custom Themes CRUD
+│   │   ├── custom-lektionen.ts  # Custom Lektionen CRUD
+│   │   └── notifications.ts     # Notifications CRUD
+│   └── storage/                 # Firebase Storage
+│       └── upload.ts            # Image Upload & Validation
 ├── middleware.ts                 # Next.js Middleware
 └── types/                        # TypeScript Typen
     └── index.ts                 # Zentrale Type Definitions
@@ -73,8 +109,74 @@ src/
   name: string
   schuleId: string          // Airtable Record ID
   stufe: Stufe              // z.B. "1. Klasse", "5. Klasse"
-  role: "teacher"
+  role: UserRole            // "teacher" | "picts_admin" | "super_admin"
   createdAt: string
+}
+```
+
+**Collection: `custom_themes`**
+```typescript
+{
+  thema: string             // Name des Themas
+  beschreibung: string      // "Um was geht es?"
+  lehrmittel?: string       // Optional: Name des Lehrmittels
+  bildLehrmittel?: string   // Firebase Storage URL
+  anzahlLektionen: number   // Anzahl der Lektionen
+  schuljahr: Stufe[]        // Array von Klassenstufen
+  zeitraum: Zeitraum        // Kanban-Spalte
+  kompetenzenIds: string[]  // Airtable Record IDs
+  kompetenzen?: Kompetenz[] // Aufgelöste Kompetenzen (nicht gespeichert)
+  fileRouge?: string        // Optional: Roter Faden
+  unterlagen?: string       // Optional: URL zu Unterlagen
+  createdBy: string         // User ID des Erstellers
+  createdByName: string     // Name des Erstellers
+  schuleId: string          // Schul-ID (Airtable)
+  status: ThemeStatus       // "draft" | "pending_review" | "approved" | "rejected"
+  isSystemWide: boolean     // true wenn approved und für alle sichtbar
+  reviewedBy?: string       // User ID des Reviewers
+  reviewedByName?: string   // Name des Reviewers
+  reviewedAt?: Date         // Zeitpunkt des Reviews
+  reviewNotes?: string      // Feedback bei Ablehnung
+  airtableId?: string       // Falls nach Airtable exportiert
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+**Collection: `custom_lektionen`**
+```typescript
+{
+  customThemeId: string     // Referenz zum Custom Theme
+  lektionNummer: string     // z.B. "Lektion 1"
+  aufgaben: string          // Aufgabenbeschreibung
+  vorwissen?: string        // Benötigtes Vorwissen
+  material: string[]        // Liste von Materialien
+  websiteTools: Array<{     // Websites & Tools
+    name: string
+    link: string
+  }>
+  einstieg?: string         // Einstiegsphase
+  hauptteil?: string        // Hauptteil
+  abschluss?: string        // Abschlussphase
+  stolpersteine?: string    // Hinweise zu häufigen Problemen
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+**Collection: `notifications`**
+```typescript
+{
+  recipientId: string       // User ID des Empfängers
+  recipientName: string     // Name des Empfängers
+  type: NotificationType    // "theme_submitted" | "theme_approved" | "theme_rejected"
+  title: string             // Notification Titel
+  message: string           // Notification Text
+  actionUrl?: string        // URL zum Klicken
+  relatedThemeId?: string   // Referenz zum Theme
+  relatedThemeName?: string // Name des Themes
+  isRead: boolean           // Gelesen Status
+  createdAt: Date
 }
 ```
 
@@ -199,7 +301,101 @@ src/
 - **Performance-Optimierung**: Batch-Loading à 10 IDs pro Request
 - **Fehlertoleranz**: Graceful Handling bei fehlenden Daten
 
-### 8. Lektionsplanung mit Export
+### 8. Rollen-basiertes Permissions-System
+- **3 Rollen**: `teacher`, `picts_admin`, `super_admin`
+- **Teacher**: Kann eigene Custom Themes erstellen und bearbeiten
+- **PICTS Admin**: Kann Themen der eigenen Schule reviewen und freigeben
+- **Super Admin**: Kann Admins ernennen und alle Themen verwalten
+- **Permission Checks**:
+  - `canReadCustomTheme()` - Lesen erlaubt?
+  - `canEditCustomTheme()` - Bearbeiten erlaubt?
+  - `canDeleteCustomTheme()` - Löschen erlaubt?
+  - `canReviewCustomTheme()` - Review erlaubt?
+
+### 9. Custom Themes erstellen & verwalten
+- **Thema-Erstellung** (`/dashboard/thema-erstellen`):
+  - Formular mit allen Thema-Feldern
+  - Multi-Select für Klassenstufen mit nativen Checkboxen
+  - Zeitraum-Auswahl für Kanban-Spalte
+  - Kompetenzen-Auswahl (Airtable IDs)
+  - Bild-Upload mit Drag & Drop (max 10MB, JPEG/PNG/WEBP)
+  - Zwei Submit-Optionen: "Als Entwurf speichern" oder "Zur Prüfung einreichen"
+- **Thema-Bearbeitung** (`/dashboard/thema-bearbeiten/[id]`):
+  - Gleiche Features wie Erstellung
+  - Auch nach Freigabe editierbar (geht zurück zu "pending_review")
+  - Abgelehnte Themen können überarbeitet und neu eingereicht werden
+- **Meine Themen** (`/dashboard/meine-themen`):
+  - Übersicht aller eigenen Custom Themes
+  - Status-Badges (Draft, Pending, Approved, Rejected)
+  - Bearbeiten, Löschen, Lektionen verwalten
+  - Feedback bei Ablehnung sichtbar
+
+### 10. Custom Lektionen Editor
+- **Lektionen-Verwaltung** (`/dashboard/thema/[id]/lektionen`):
+  - Liste aller Lektionen zum Thema
+  - Lektion hinzufügen, bearbeiten, löschen
+- **Lektions-Editor**:
+  - Lektionsnummer
+  - Aufgaben & Lernziele
+  - Benötigtes Vorwissen
+  - Material als Tags (hinzufügen/entfernen)
+  - Websites & Tools mit Name + Link
+  - 3-Phasen-Modell: Einstieg, Hauptteil, Abschluss
+  - Stolpersteine (Hinweise für Lehrpersonen)
+
+### 11. Admin Dashboard & Review-Workflow
+- **Admin Dashboard** (`/dashboard/admin`):
+  - Nur für `picts_admin` und `super_admin` zugänglich
+  - Tabs: "Zu prüfen" | "Freigegeben" | "Abgelehnt"
+  - Filtert Themen nach Schule des Admins
+- **Review-Dialog**:
+  - Vollständige Thema-Details anzeigen
+  - Kompetenzen und Lektionen einsehen
+  - "Freigeben" Button → Status: approved, isSystemWide: true
+  - "Ablehnen" Button → Feedback-Feld erforderlich
+- **Workflow**:
+  1. Teacher erstellt Theme → Status: `draft`
+  2. Teacher reicht ein → Status: `pending_review`, Notification an PICTS-Admins
+  3. Admin reviewt → `approved` oder `rejected`
+  4. Bei Approval: Theme wird systemweit sichtbar
+  5. Bei Rejection: Teacher erhält Notification mit Feedback
+  6. Teacher kann Theme überarbeiten und neu einreichen
+
+### 12. In-App Notifications
+- **Notification Bell** (im Dashboard Header):
+  - Badge mit Anzahl ungelesener Notifications
+  - Auto-Refresh alle 30 Sekunden
+  - Dropdown mit Notification-Liste
+  - Klick auf Notification → Navigation zur Action-URL
+- **Notification-Typen**:
+  - `theme_submitted`: PICTS-Admins werden informiert bei neuer Einreichung
+  - `theme_approved`: Teacher wird informiert bei Freigabe
+  - `theme_rejected`: Teacher wird informiert bei Ablehnung (mit Feedback)
+- **Mark as Read**: Einzeln oder alle auf einmal
+
+### 13. Integration Custom Themes in Jahresplan
+- **Automatische Zusammenführung**:
+  - `/api/themen` kombiniert Airtable-Themen + Firestore Custom Themes
+  - Nur `approved` und `isSystemWide: true` Themen werden angezeigt
+  - Custom Themes erscheinen im gleichen Kanban-Board
+  - Kompetenzen werden automatisch aufgelöst
+  - Gruppierung nach Zeitraum funktioniert für beide Quellen
+- **Kennzeichnung**:
+  - `isCustom: true` Feld im Thema-Objekt
+  - Ermöglicht spätere UI-Differenzierung (z.B. Badge "Eigenes Thema")
+
+### 14. Firebase Storage Integration
+- **Image Upload**:
+  - Drag & Drop oder File-Select
+  - Client-seitige Validierung: max 10MB, JPEG/PNG/WEBP
+  - Server-seitige Validierung: File-Type, File-Size
+  - Automatische Komprimierung für große Bilder
+  - Unique Dateinamen: `theme-images/{userId}/{timestamp}-{originalName}`
+- **Storage Security Rules**:
+  - Nur authentifizierte User können hochladen
+  - Bilder sind öffentlich lesbar (für Jahresplan-Anzeige)
+
+### 15. Lektionsplanung mit Export (Airtable-Themen)
 - **Lektionsplanung-Viewer** im Thema-Dialog:
   - Button "Lektionsplanung anzeigen" in jedem Thema
   - Automatisches Laden aller Lektionen zum Thema aus Airtable
@@ -426,7 +622,7 @@ Lädt Themen nach Stufe, gruppiert nach Zeiträumen
 Lädt alle Schulen für Registrierungs-Dropdown
 
 ### GET `/api/lektionsplanung?thema={themaName}`
-Lädt alle Lektionen für ein bestimmtes Thema
+Lädt alle Lektionen für ein bestimmtes Thema (Airtable)
 
 **Response:**
 ```json
@@ -458,6 +654,188 @@ Lädt alle Lektionen für ein bestimmtes Thema
 }
 ```
 
+### GET `/api/custom-themes?createdBy={userId}&status={status}`
+Lädt Custom Themes mit optionalen Filtern
+
+**Query Parameters:**
+- `createdBy` - User ID des Erstellers
+- `schuleId` - Schul-ID
+- `status` - Status Filter (draft, pending_review, approved, rejected)
+
+**Response:**
+```json
+[
+  {
+    "id": "firestore-doc-id",
+    "thema": "Mein Custom Theme",
+    "beschreibung": "...",
+    "bildLehrmittel": "https://storage.googleapis.com/...",
+    "anzahlLektionen": 8,
+    "schuljahr": ["5. Klasse", "6. Klasse"],
+    "zeitraum": "Sommerferien-Herbstferien",
+    "kompetenzenIds": ["recXXX", "recYYY"],
+    "status": "approved",
+    "isSystemWide": true,
+    "createdBy": "user-id",
+    "createdByName": "Max Mustermann",
+    "createdAt": "2024-12-10T...",
+    "updatedAt": "2024-12-12T..."
+  }
+]
+```
+
+### POST `/api/custom-themes`
+Erstellt ein neues Custom Theme
+
+**Request Body:**
+```json
+{
+  "thema": "Mein Custom Theme",
+  "beschreibung": "...",
+  "lehrmittel": "Connected",
+  "bildLehrmittel": "https://storage.googleapis.com/...",
+  "anzahlLektionen": 8,
+  "schuljahr": ["5. Klasse"],
+  "zeitraum": "Sommerferien-Herbstferien",
+  "kompetenzenIds": ["recXXX"],
+  "status": "draft"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "firestore-doc-id"
+}
+```
+
+### PUT `/api/custom-themes/[id]`
+Aktualisiert ein Custom Theme
+
+**Request Body:** Gleich wie POST (partial updates möglich)
+
+### DELETE `/api/custom-themes/[id]`
+Löscht ein Custom Theme (nur Ersteller oder Admin)
+
+### PUT `/api/custom-themes/[id]/review`
+Reviewt ein Custom Theme (nur PICTS-Admin)
+
+**Request Body:**
+```json
+{
+  "action": "approve" | "reject",
+  "reviewNotes": "Optional feedback bei reject"
+}
+```
+
+### GET `/api/custom-lektionen?themeId={customThemeId}`
+Lädt alle Custom Lektionen für ein Custom Theme
+
+**Response:**
+```json
+[
+  {
+    "id": "firestore-doc-id",
+    "customThemeId": "theme-id",
+    "lektionNummer": "Lektion 1",
+    "aufgaben": "...",
+    "material": ["Tablet", "Beamer"],
+    "websiteTools": [{"name": "...", "link": "..."}],
+    "einstieg": "...",
+    "hauptteil": "...",
+    "abschluss": "..."
+  }
+]
+```
+
+### POST `/api/custom-lektionen`
+Erstellt Custom Lektion(en)
+
+**Request Body (einzeln):**
+```json
+{
+  "customThemeId": "theme-id",
+  "lektionNummer": "Lektion 1",
+  "aufgaben": "...",
+  "material": ["Tablet"],
+  "websiteTools": [{"name": "Code.org", "link": "https://code.org"}],
+  "einstieg": "...",
+  "hauptteil": "...",
+  "abschluss": "..."
+}
+```
+
+**Request Body (batch):**
+```json
+{
+  "customThemeId": "theme-id",
+  "lektionen": [
+    { "lektionNummer": "Lektion 1", ... },
+    { "lektionNummer": "Lektion 2", ... }
+  ]
+}
+```
+
+### PUT `/api/custom-lektionen/[id]`
+Aktualisiert eine Custom Lektion
+
+### DELETE `/api/custom-lektionen/[id]`
+Löscht eine Custom Lektion
+
+### GET `/api/notifications?recipientId={userId}`
+Lädt Notifications für einen User
+
+**Response:**
+```json
+[
+  {
+    "id": "firestore-doc-id",
+    "type": "theme_submitted",
+    "title": "Neues Thema zur Prüfung",
+    "message": "Max Mustermann hat das Thema 'Mein Theme' eingereicht",
+    "actionUrl": "/dashboard/admin",
+    "isRead": false,
+    "createdAt": "2024-12-10T..."
+  }
+]
+```
+
+### PUT `/api/notifications/[id]`
+Markiert Notification als gelesen
+
+### POST `/api/notifications`
+Markiert alle Notifications als gelesen (für einen User)
+
+**Request Body:**
+```json
+{
+  "recipientId": "user-id"
+}
+```
+
+### POST `/api/upload-image`
+Lädt Bild zu Firebase Storage hoch
+
+**Request:** `multipart/form-data` mit `file` field
+
+**Response:**
+```json
+{
+  "url": "https://storage.googleapis.com/..."
+}
+```
+
+### GET `/api/auth/check-admin?userId={uid}`
+Prüft Admin-Status eines Users (Server-side)
+
+**Response:**
+```json
+{
+  "isAdmin": true,
+  "role": "picts_admin"
+}
+```
+
 ## Tipps für weitere Entwicklung
 
 ### Neue Airtable-Tabelle hinzufügen
@@ -475,6 +853,145 @@ npx shadcn@latest add [component-name]
 1. Seite in `src/app/dashboard/` erstellen
 2. `<ProtectedRoute>` Component verwenden
 3. `<DashboardLayout>` für konsistentes Layout
+
+## Firebase Deployment
+
+### Security Rules deployen
+
+1. **Firebase CLI installieren** (falls noch nicht geschehen):
+```bash
+npm install -g firebase-tools
+```
+
+2. **Login**:
+```bash
+firebase login
+```
+
+3. **Projekt initialisiert** (bereits vorhanden):
+- `firebase.json` - Konfiguration
+- `.firebaserc` - Projekt ID
+- `firestore.rules` - Firestore Security Rules
+- `storage.rules` - Firebase Storage Security Rules
+
+4. **Rules deployen**:
+```bash
+# Beide Rules zusammen
+firebase deploy --only firestore:rules,storage:rules
+
+# Oder einzeln
+firebase deploy --only firestore:rules
+firebase deploy --only storage:rules
+```
+
+### Ersten Super Admin ernennen
+
+**Manuell in Firebase Console:**
+1. Öffne Firebase Console → Firestore Database
+2. Navigiere zu Collection `teachers`
+3. Finde deinen User-Eintrag
+4. Bearbeite das Feld `role` → setze auf `"super_admin"`
+5. Speichern
+
+**Alternativ mit Admin SDK** (einmalig ausführen):
+```typescript
+// Script: scripts/make-super-admin.ts
+import { getAdminDb } from "@/lib/firebase/admin";
+
+async function makeSuperAdmin(email: string) {
+  const adminDb = getAdminDb();
+  const snapshot = await adminDb
+    .collection("teachers")
+    .where("email", "==", email)
+    .get();
+
+  if (snapshot.empty) {
+    console.log("User nicht gefunden");
+    return;
+  }
+
+  const doc = snapshot.docs[0];
+  await doc.ref.update({ role: "super_admin" });
+  console.log("Super Admin Rolle gesetzt für:", email);
+}
+
+makeSuperAdmin("deine-email@schule.ch");
+```
+
+## Nächste Schritte & Roadmap
+
+### UI/UX Verbesserungen
+- [ ] **Hintergrund für Startseite** erstellen
+  - Hero-Section mit MIA-App Branding
+  - Features-Übersicht
+  - Call-to-Action für Login/Registrierung
+
+- [ ] **Navigation im Dashboard erweitern**
+  - Sidebar oder Top-Menu mit Links zu:
+    - Dashboard (Profil)
+    - Jahresplan
+    - Lehrmittel
+    - **NEU:** Thema erstellen
+    - **NEU:** Meine Themen
+    - **NEU:** Admin Dashboard (nur für Admins)
+  - Mobile-Responsive Navigation
+
+- [ ] **Custom Theme Badge im Kanban-Board**
+  - Badge "Eigenes Thema" für Custom Themes
+  - Visuell von Airtable-Themen unterscheidbar
+
+### Funktionale Erweiterungen
+- [ ] **Lektionsplanung für Custom Themes**
+  - Lektionsplanung-Viewer auch für Custom Lektionen
+  - Export-Funktionen (Markdown, PDF) für Custom Lektionen
+  - Integration in Thema-Detail-Dialog
+
+- [ ] **Batch-Operations für Custom Lektionen**
+  - Multiple Lektionen auf einmal erstellen
+  - Template-System für wiederkehrende Strukturen
+  - Copy/Paste zwischen Themen
+
+- [ ] **Erweiterte Admin-Features**
+  - Benutzer-Verwaltung für Super Admins
+  - PICTS-Admin Ernennung direkt in der App
+  - Statistiken (Anzahl Themen, Reviews, etc.)
+
+- [ ] **Airtable Export**
+  - Button im Admin Dashboard
+  - Genehmigte Custom Themes nach Airtable exportieren
+  - Bi-direktionale Synchronisation
+
+### Performance & Qualität
+- [ ] **Caching-Strategie**
+  - React Query für API-Calls
+  - Optimistic Updates
+  - Background Refresh
+
+- [ ] **Error Handling verbessern**
+  - Toast Notifications für Errors
+  - Bessere Error Messages
+  - Retry-Mechanismus
+
+- [ ] **Loading States**
+  - Skeleton Screens statt Spinner
+  - Progressive Loading
+  - Optimistic UI Updates
+
+### Testing & Monitoring
+- [ ] **Unit Tests** für kritische Funktionen
+  - Permission System
+  - API Routes
+  - Firestore Helper Functions
+
+- [ ] **E2E Tests** für User Workflows
+  - Theme erstellen und einreichen
+  - Review Workflow
+  - Notification System
+
+- [ ] **Monitoring & Analytics**
+  - Firebase Analytics
+  - Error Tracking (Sentry)
+  - Performance Monitoring
 
 ## Kontakt & Support
 
