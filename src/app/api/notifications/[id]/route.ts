@@ -8,7 +8,7 @@ import { markNotificationAsRead } from "@/lib/firestore/notifications";
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentifizierung prüfen
@@ -24,7 +24,8 @@ export async function PUT(
     const adminAuth = getAdminAuth();
     await adminAuth.verifyIdToken(token);
 
-    const notificationId = params.id;
+    const { id } = await params;
+    const notificationId = id;
 
     // Markiere als gelesen
     await markNotificationAsRead(notificationId);

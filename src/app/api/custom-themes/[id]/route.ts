@@ -19,7 +19,7 @@ import { getTeacherProfile } from "@/lib/firestore/permissions";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentifizierung prüfen
@@ -36,7 +36,8 @@ export async function GET(
     const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    const themeId = params.id;
+    const { id } = await params;
+    const themeId = id;
 
     // Theme laden (mit aufgelösten Kompetenzen)
     const resolveKompetenzen =
@@ -77,7 +78,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentifizierung prüfen
@@ -94,7 +95,8 @@ export async function PUT(
     const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    const themeId = params.id;
+    const { id } = await params;
+    const themeId = id;
 
     // Theme laden
     const theme = await getCustomThemeById(themeId);
@@ -160,7 +162,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentifizierung prüfen
@@ -177,7 +179,8 @@ export async function DELETE(
     const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    const themeId = params.id;
+    const { id } = await params;
+    const themeId = id;
 
     // Theme laden
     const theme = await getCustomThemeById(themeId);
