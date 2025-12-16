@@ -38,6 +38,9 @@ export interface Thema {
   startdatum?: string;
   uebersichtPICTS?: string;
   pictsBuchen?: string;
+  // Custom Theme Felder (wenn aus Firestore)
+  isCustom?: boolean;
+  customThemeId?: string;
 }
 
 // Schule
