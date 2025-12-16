@@ -236,3 +236,135 @@ export interface Notification {
   message: string;
   actionUrl?: string; // Link zum Thema
 }
+
+// ============================================
+// System Cache (Airtable → Firestore Mirror)
+// ============================================
+
+// System Theme (Cache von Airtable Themen)
+export interface SystemTheme {
+  id: string; // Firestore Doc ID (gleich wie airtableId)
+  airtableId: string; // Original Airtable Record ID
+
+  // Basis-Daten (wie Thema Interface)
+  thema: string;
+  beschreibung?: string;
+  lehrmittel?: string;
+  bildLehrmittel?: string;
+  anzahlLektionen?: number;
+  schuljahr: Stufe[];
+  zeitraum?: Zeitraum;
+
+  // Kompetenzen (als IDs, werden bei Bedarf aufgelöst)
+  kompetenzenIds: string[]; // Airtable Record IDs
+
+  // Optional
+  fileRouge?: string;
+  unterlagen?: string;
+  lektionsplanung?: string;
+  startdatum?: string;
+  uebersichtPICTS?: string;
+  pictsBuchen?: string;
+
+  // Sync Metadata
+  lastSyncedAt: Date;
+  isActive: boolean; // false wenn in Airtable gelöscht
+}
+
+// System Schule (Cache von Airtable Schulen)
+export interface SystemSchule {
+  id: string; // Firestore Doc ID (gleich wie airtableId)
+  airtableId: string; // Original Airtable Record ID
+
+  name: string;
+  ort?: string;
+  pictsBuchen?: string;
+
+  // Sync Metadata
+  lastSyncedAt: Date;
+  isActive: boolean;
+}
+
+// System Kompetenz (Cache von Airtable Kompetenzen)
+export interface SystemKompetenz {
+  id: string; // Firestore Doc ID (gleich wie airtableId)
+  airtableId: string; // Original Airtable Record ID
+
+  name: string;
+  lpCode?: string;
+  kompetenzbereich?: string;
+  kompetenz?: string;
+  kompetenzstufe?: string;
+  zyklus?: string[];
+  klassenstufe?: string[];
+  grundanspruch?: string;
+  querverweisLP?: string;
+
+  // Unterrichtsideen (als IDs, werden bei Bedarf aufgelöst)
+  unterrichtsideenIds: string[]; // Airtable Record IDs
+
+  // Sync Metadata
+  lastSyncedAt: Date;
+  isActive: boolean;
+}
+
+// System Lektion (Cache von Airtable Lektionsplanung)
+export interface SystemLektion {
+  id: string; // Firestore Doc ID (gleich wie airtableId)
+  airtableId: string; // Original Airtable Record ID
+
+  eindeutigeBezeichnung: string;
+  lektion: string;
+  themaId: string; // Airtable Thema Record ID
+  themaName?: string;
+
+  // Lektions-Inhalt
+  aufgaben?: string;
+  vorwissen?: string;
+  material?: string[];
+  websiteTools?: WebsiteTool[];
+  einstieg?: string;
+  hauptteil?: string;
+  abschluss?: string;
+  stolpersteine?: string;
+  kiZusammenfassung?: string;
+
+  // Sync Metadata
+  lastSyncedAt: Date;
+  isActive: boolean;
+}
+
+// Sync Status
+export type SyncStatus = "idle" | "syncing" | "error" | "success";
+
+// Sync Metadata (global state)
+export interface SyncMetadata {
+  lastFullSync?: Date;
+  lastIncrementalSync?: Date;
+  syncStatus: SyncStatus;
+  errorMessage?: string;
+  recordCounts: {
+    themes: number;
+    schulen: number;
+    kompetenzen: number;
+    lektionen: number;
+  };
+  lastSyncDuration?: number; // in milliseconds
+}
+
+// Sync Log Entry
+export interface SyncLog {
+  id: string;
+  timestamp: Date;
+  type: "full_sync" | "incremental_sync" | "manual_sync";
+  status: "success" | "error";
+  duration: number; // milliseconds
+  recordsProcessed: {
+    themes: { added: number; updated: number; deleted: number };
+    schulen: { added: number; updated: number; deleted: number };
+    kompetenzen: { added: number; updated: number; deleted: number };
+    lektionen: { added: number; updated: number; deleted: number };
+  };
+  errors?: string[];
+  triggeredBy?: string; // User ID (bei manual sync)
+}
