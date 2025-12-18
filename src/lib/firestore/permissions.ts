@@ -2,6 +2,22 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { UserRole, Teacher } from "@/types";
 
 /**
+ * Konvertiert Firestore Timestamp zu Date
+ */
+const timestampToDate = (timestamp: any): Date => {
+  if (timestamp?.toDate) {
+    return timestamp.toDate();
+  }
+  if (timestamp instanceof Date) {
+    return timestamp;
+  }
+  if (typeof timestamp === 'string') {
+    return new Date(timestamp);
+  }
+  return new Date();
+};
+
+/**
  * Lädt ein Teacher-Profil aus Firestore
  */
 export async function getTeacherProfile(userId: string): Promise<Teacher | null> {
@@ -21,7 +37,7 @@ export async function getTeacherProfile(userId: string): Promise<Teacher | null>
       schuleId: data?.schuleId || "",
       stufe: data?.stufe,
       role: data?.role || "teacher",
-      createdAt: data?.createdAt?.toDate() || new Date(),
+      createdAt: timestampToDate(data?.createdAt),
     } as Teacher;
   } catch (error) {
     console.error("Error fetching teacher profile:", error);
