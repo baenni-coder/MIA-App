@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -12,12 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { CustomTheme } from "@/types";
 import { Loader2, Plus, Edit, Trash2, Send, BookOpen } from "lucide-react";
 
-// Next.js 15: Seite als dynamisch markieren (wegen useSearchParams)
-export const dynamic = 'force-dynamic';
-
 export default function MeineThemenPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [themes, setThemes] = useState<CustomTheme[]>([]);
   const [loading, setLoading] = useState(true);
