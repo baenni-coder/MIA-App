@@ -368,16 +368,16 @@ export default function AdminSyncPage() {
                           {formatDuration(log.duration)}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {log.recordsCached.themes}
+                          {log.recordsCached?.themes || 0}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {log.recordsCached.schulen}
+                          {log.recordsCached?.schulen || 0}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {log.recordsCached.kompetenzen}
+                          {log.recordsCached?.kompetenzen || 0}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {log.recordsCached.lektionen}
+                          {log.recordsCached?.lektionen || 0}
                         </TableCell>
                         <TableCell className="text-sm">
                           {log.triggeredBy || "System"}
