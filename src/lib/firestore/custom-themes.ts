@@ -1,6 +1,7 @@
 import { getAdminDb } from "@/lib/firebase/admin";
 import { CustomTheme, ThemeStatus, Stufe, Zeitraum } from "@/types";
 import { getKompetenzenByIds } from "@/lib/airtable/kompetenzen";
+import * as admin from "firebase-admin";
 
 const CUSTOM_THEMES_COLLECTION = "custom_themes";
 
@@ -132,7 +133,8 @@ export async function getCustomThemes(filters?: {
 }): Promise<CustomTheme[]> {
   try {
     const adminDb = getAdminDb();
-    let query = adminDb.collection(CUSTOM_THEMES_COLLECTION);
+    let query: admin.firestore.Query | admin.firestore.CollectionReference =
+      adminDb.collection(CUSTOM_THEMES_COLLECTION);
 
     // Filter anwenden
     if (filters?.createdBy) {
