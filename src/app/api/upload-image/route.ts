@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     // Optional: Komprimieren
     if (shouldCompress) {
       try {
-        buffer = await compressImage(buffer, 1200, 85) as Buffer;
+        buffer = Buffer.from(await compressImage(buffer, 1200, 85));
       } catch (compressError) {
         console.warn("Compression failed, using original:", compressError);
         // Bei Fehler: Original verwenden
