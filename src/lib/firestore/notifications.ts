@@ -1,6 +1,7 @@
 import { getAdminDb } from "@/lib/firebase/admin";
 import { Notification, NotificationType, UserRole } from "@/types";
 import { getTeacherProfile } from "./permissions";
+import * as admin from "firebase-admin";
 
 const NOTIFICATIONS_COLLECTION = "notifications";
 
@@ -132,7 +133,7 @@ export async function getNotificationsByRecipient(
 ): Promise<Notification[]> {
   try {
     const adminDb = getAdminDb();
-    let query = adminDb
+    let query: admin.firestore.Query = adminDb
       .collection(NOTIFICATIONS_COLLECTION)
       .where("recipientId", "==", recipientId)
       .orderBy("createdAt", "desc");

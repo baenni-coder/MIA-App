@@ -11,6 +11,7 @@ import {
   Zeitraum,
   WebsiteTool,
 } from "@/types";
+import * as admin from "firebase-admin";
 
 // Collection Names
 const SYSTEM_THEMES_COLLECTION = "system_themes";
@@ -67,7 +68,7 @@ export async function upsertSystemThemes(themes: Omit<SystemTheme, "id">[]): Pro
 export async function getSystemThemes(stufe?: Stufe): Promise<SystemTheme[]> {
   try {
     const adminDb = getAdminDb();
-    let query = adminDb
+    let query: admin.firestore.Query = adminDb
       .collection(SYSTEM_THEMES_COLLECTION)
       .where("isActive", "==", true);
 
