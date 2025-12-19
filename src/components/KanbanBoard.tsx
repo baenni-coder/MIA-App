@@ -28,7 +28,7 @@ const ZEITRAUM_IMAGES: Record<Zeitraum, string | null> = {
   "Sommerferien-Herbstferien": "/roboter_herbst.png",
   "Herbstferien-Weihnachtsferien": "/roboter_weihnachten.png",
   "Weihnachtsferien-Winterferien": "/roboter_winter.png",
-  "Winterferien-Frühlingsferien": "/roboter_sommer.png",
+  "Winterferien-Frühlingsferien": "/roboter_frühling.png",
   "Frühlingsferien-Sommerferien": "/roboter_sommer.png",
   "Zusatz": null,
 };
