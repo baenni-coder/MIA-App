@@ -23,10 +23,10 @@ export default function Home() {
             <Image src="/logo.png" alt="MIA-App" width={120} height={60} className="object-contain" priority />
           </div>
           <div className="flex gap-3">
-            <Link href="/auth/login">
+            <Link href="/login">
               <Button variant="ghost">Anmelden</Button>
             </Link>
-            <Link href="/auth/register">
+            <Link href="/register">
               <Button>Registrieren</Button>
             </Link>
           </div>
@@ -48,12 +48,12 @@ export default function Home() {
             Kanban-Board, Custom Themes und Admin-Freigaben
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link href="/auth/register">
+            <Link href="/register">
               <Button size="lg" className="text-lg px-8 py-6">
                 Jetzt starten
               </Button>
             </Link>
-            <Link href="/auth/login">
+            <Link href="/login">
               <Button size="lg" variant="outline" className="text-lg px-8 py-6">
                 Anmelden
               </Button>
@@ -263,7 +263,7 @@ export default function Home() {
           <p className="text-lg text-muted-foreground mb-8">
             Erstelle deinen Account und starte noch heute mit der Planung
           </p>
-          <Link href="/auth/register">
+          <Link href="/register">
             <Button size="lg" className="text-lg px-12 py-6">
               Kostenlos registrieren
             </Button>
