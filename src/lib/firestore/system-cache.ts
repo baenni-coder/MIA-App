@@ -606,12 +606,27 @@ export async function getSyncMetadata(): Promise<SyncMetadata> {
 }
 
 /**
+ * Entfernt alle undefined Felder aus einem Objekt
+ * Firestore akzeptiert keine undefined Werte
+ */
+function removeUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
+  const cleaned: any = {};
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] !== undefined) {
+      cleaned[key] = obj[key];
+    }
+  });
+  return cleaned;
+}
+
+/**
  * Sync Metadata aktualisieren
  */
 export async function updateSyncMetadata(metadata: Partial<SyncMetadata>): Promise<void> {
   try {
     const adminDb = getAdminDb();
-    await adminDb.collection(SYNC_METADATA_COLLECTION).doc("global").set(metadata, { merge: true });
+    const cleanedMetadata = removeUndefined(metadata);
+    await adminDb.collection(SYNC_METADATA_COLLECTION).doc("global").set(cleanedMetadata, { merge: true });
   } catch (error) {
     console.error("Error updating sync metadata:", error);
     throw error;
@@ -628,10 +643,11 @@ export async function updateSyncMetadata(metadata: Partial<SyncMetadata>): Promi
 export async function createSyncLog(log: Omit<SyncLog, "id">): Promise<string> {
   try {
     const adminDb = getAdminDb();
-    const docRef = await adminDb.collection(SYNC_LOGS_COLLECTION).add({
+    const cleanedLog = removeUndefined({
       ...log,
       timestamp: new Date(),
     });
+    const docRef = await adminDb.collection(SYNC_LOGS_COLLECTION).add(cleanedLog);
     return docRef.id;
   } catch (error) {
     console.error("Error creating sync log:", error);
