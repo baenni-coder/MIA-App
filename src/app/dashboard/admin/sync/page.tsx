@@ -51,6 +51,12 @@ export default function AdminSyncPage() {
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [syncProgress, setSyncProgress] = useState<{
+    step: string;
+    current: number;
+    total: number;
+    status: "pending" | "running" | "success" | "error";
+  } | null>(null);
 
   useEffect(() => {
     checkAdminAccess();
@@ -115,7 +121,24 @@ export default function AdminSyncPage() {
           lastSyncDuration: data.metadata.lastSyncDuration,
           lastSyncError: data.metadata.errorMessage,
         });
-        setLogs(data.recentLogs || []);
+        setLogs(
+          (data.recentLogs || []).map((log: any) => ({
+            id: log.id,
+            triggeredBy: log.triggeredBy,
+            triggeredAt: new Date(log.timestamp),
+            status: log.status,
+            duration: log.duration,
+            recordsCached: log.recordsProcessed
+              ? {
+                  themes: log.recordsProcessed.themes?.added + log.recordsProcessed.themes?.updated || 0,
+                  schulen: log.recordsProcessed.schulen?.added + log.recordsProcessed.schulen?.updated || 0,
+                  kompetenzen: log.recordsProcessed.kompetenzen?.added + log.recordsProcessed.kompetenzen?.updated || 0,
+                  lektionen: log.recordsProcessed.lektionen?.added + log.recordsProcessed.lektionen?.updated || 0,
+                }
+              : { themes: 0, schulen: 0, kompetenzen: 0, lektionen: 0 },
+            error: log.errors?.join("; "),
+          }))
+        );
       }
     } catch (error) {
       console.error("Error loading sync status:", error);
@@ -129,25 +152,154 @@ export default function AdminSyncPage() {
     setError(null);
     setSuccess(null);
 
+    const token = await user.getIdToken();
+    const startTime = Date.now();
+    const results = {
+      schulen: { added: 0, updated: 0, deleted: 0 },
+      themen: { added: 0, updated: 0, deleted: 0 },
+      kompetenzen: { added: 0, updated: 0, deleted: 0 },
+      lektionen: { added: 0, updated: 0, deleted: 0 },
+    };
+
     try {
-      const token = await user.getIdToken();
-      const response = await fetch("/api/admin/sync", {
+      // Update Sync Status zu "syncing"
+      await fetch("/api/admin/sync/status", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ syncStatus: "syncing" }),
+      });
+
+      // 1. Sync Schulen
+      setSyncProgress({ step: "Schulen", current: 1, total: 4, status: "running" });
+      const schulenResponse = await fetch("/api/admin/sync/schulen", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.ok) {
-        setSuccess("✅ Sync wurde gestartet! Der Prozess läuft im Hintergrund.");
-        // Warte 2 Sekunden und lade dann Status neu
-        setTimeout(() => {
-          loadSyncStatus();
-        }, 2000);
-      } else {
-        const data = await response.json();
-        setError(`❌ Sync Fehler: ${data.error || "Unbekannter Fehler"}`);
+      if (!schulenResponse.ok) {
+        throw new Error("Schulen Sync fehlgeschlagen");
       }
+
+      const schulenData = await schulenResponse.json();
+      results.schulen = {
+        added: schulenData.added || 0,
+        updated: schulenData.updated || 0,
+        deleted: schulenData.deleted || 0,
+      };
+      setSyncProgress({ step: "Schulen", current: 1, total: 4, status: "success" });
+
+      // 2. Sync Themen
+      setSyncProgress({ step: "Themen", current: 2, total: 4, status: "running" });
+      const themenResponse = await fetch("/api/admin/sync/themen", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!themenResponse.ok) {
+        throw new Error("Themen Sync fehlgeschlagen");
+      }
+
+      const themenData = await themenResponse.json();
+      results.themen = {
+        added: themenData.added || 0,
+        updated: themenData.updated || 0,
+        deleted: themenData.deleted || 0,
+      };
+      setSyncProgress({ step: "Themen", current: 2, total: 4, status: "success" });
+
+      // 3. Sync Kompetenzen
+      setSyncProgress({ step: "Kompetenzen", current: 3, total: 4, status: "running" });
+      const kompetenzenResponse = await fetch("/api/admin/sync/kompetenzen", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!kompetenzenResponse.ok) {
+        throw new Error("Kompetenzen Sync fehlgeschlagen");
+      }
+
+      const kompetenzenData = await kompetenzenResponse.json();
+      results.kompetenzen = {
+        added: kompetenzenData.added || 0,
+        updated: kompetenzenData.updated || 0,
+        deleted: kompetenzenData.deleted || 0,
+      };
+      setSyncProgress({ step: "Kompetenzen", current: 3, total: 4, status: "success" });
+
+      // 4. Sync Lektionen
+      setSyncProgress({ step: "Lektionen", current: 4, total: 4, status: "running" });
+      const lektionenResponse = await fetch("/api/admin/sync/lektionen", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!lektionenResponse.ok) {
+        throw new Error("Lektionen Sync fehlgeschlagen");
+      }
+
+      const lektionenData = await lektionenResponse.json();
+      results.lektionen = {
+        added: lektionenData.added || 0,
+        updated: lektionenData.updated || 0,
+        deleted: lektionenData.deleted || 0,
+      };
+      setSyncProgress({ step: "Lektionen", current: 4, total: 4, status: "success" });
+
+      const duration = Date.now() - startTime;
+
+      // Update Sync Metadata
+      await fetch("/api/admin/sync/status", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          syncStatus: "completed",
+          lastSyncedAt: new Date().toISOString(),
+          lastSyncDuration: duration,
+          recordCounts: {
+            themes: results.themen.added + results.themen.updated,
+            schulen: results.schulen.added + results.schulen.updated,
+            kompetenzen: results.kompetenzen.added + results.kompetenzen.updated,
+            lektionen: results.lektionen.added + results.lektionen.updated,
+          },
+        }),
+      });
+
+      setSuccess(
+        `✅ Sync erfolgreich abgeschlossen in ${(duration / 1000).toFixed(1)}s!\n` +
+          `   Schulen: +${results.schulen.added} ~${results.schulen.updated} -${results.schulen.deleted}\n` +
+          `   Themen: +${results.themen.added} ~${results.themen.updated} -${results.themen.deleted}\n` +
+          `   Kompetenzen: +${results.kompetenzen.added} ~${results.kompetenzen.updated} -${results.kompetenzen.deleted}\n` +
+          `   Lektionen: +${results.lektionen.added} ~${results.lektionen.updated} -${results.lektionen.deleted}`
+      );
+
+      setTimeout(() => {
+        loadSyncStatus();
+        setSyncProgress(null);
+      }, 2000);
     } catch (error: any) {
+      console.error("Sync error:", error);
       setError(`❌ Sync Fehler: ${error.message}`);
+
+      // Update Status zu Error
+      await fetch("/api/admin/sync/status", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          syncStatus: "error",
+          errorMessage: error.message,
+        }),
+      });
+
+      setSyncProgress(null);
     } finally {
       setSyncing(false);
     }
@@ -252,9 +404,43 @@ export default function AdminSyncPage() {
             </div>
           )}
           {success && (
-            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded">
+            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded whitespace-pre-line">
               {success}
             </div>
+          )}
+
+          {/* Sync Progress */}
+          {syncProgress && (
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="pt-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {syncProgress.status === "running" && (
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                      )}
+                      {syncProgress.status === "success" && (
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      )}
+                      <span className="font-medium text-blue-900">
+                        {syncProgress.step} synchronisieren...
+                      </span>
+                    </div>
+                    <span className="text-sm text-blue-700">
+                      Schritt {syncProgress.current} von {syncProgress.total}
+                    </span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${(syncProgress.current / syncProgress.total) * 100}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Status Card */}
@@ -376,16 +562,16 @@ export default function AdminSyncPage() {
                           {formatDuration(log.duration)}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {log.recordsCached.themes}
+                          {log.recordsCached?.themes || 0}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {log.recordsCached.schulen}
+                          {log.recordsCached?.schulen || 0}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {log.recordsCached.kompetenzen}
+                          {log.recordsCached?.kompetenzen || 0}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {log.recordsCached.lektionen}
+                          {log.recordsCached?.lektionen || 0}
                         </TableCell>
                         <TableCell className="text-sm">
                           {log.triggeredBy || "System"}

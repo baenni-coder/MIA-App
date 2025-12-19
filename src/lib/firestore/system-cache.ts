@@ -48,10 +48,11 @@ export async function upsertSystemThemes(themes: Omit<SystemTheme, "id">[]): Pro
 
     themes.forEach((theme) => {
       const docRef = adminDb.collection(SYSTEM_THEMES_COLLECTION).doc(theme.airtableId);
-      batch.set(docRef, {
+      const cleanedTheme = removeUndefined({
         ...theme,
         lastSyncedAt: new Date(),
-      }, { merge: true });
+      });
+      batch.set(docRef, cleanedTheme, { merge: true });
     });
 
     await batch.commit();
@@ -187,10 +188,11 @@ export async function upsertSystemSchulen(schulen: Omit<SystemSchule, "id">[]): 
 
     schulen.forEach((schule) => {
       const docRef = adminDb.collection(SYSTEM_SCHULEN_COLLECTION).doc(schule.airtableId);
-      batch.set(docRef, {
+      const cleanedSchule = removeUndefined({
         ...schule,
         lastSyncedAt: new Date(),
-      }, { merge: true });
+      });
+      batch.set(docRef, cleanedSchule, { merge: true });
     });
 
     await batch.commit();
@@ -296,10 +298,11 @@ export async function upsertSystemKompetenzen(kompetenzen: Omit<SystemKompetenz,
 
     kompetenzen.forEach((kompetenz) => {
       const docRef = adminDb.collection(SYSTEM_KOMPETENZEN_COLLECTION).doc(kompetenz.airtableId);
-      batch.set(docRef, {
+      const cleanedKompetenz = removeUndefined({
         ...kompetenz,
         lastSyncedAt: new Date(),
-      }, { merge: true });
+      });
+      batch.set(docRef, cleanedKompetenz, { merge: true });
     });
 
     await batch.commit();
@@ -433,10 +436,11 @@ export async function upsertSystemLektionen(lektionen: Omit<SystemLektion, "id">
 
     lektionen.forEach((lektion) => {
       const docRef = adminDb.collection(SYSTEM_LEKTIONEN_COLLECTION).doc(lektion.airtableId);
-      batch.set(docRef, {
+      const cleanedLektion = removeUndefined({
         ...lektion,
         lastSyncedAt: new Date(),
-      }, { merge: true });
+      });
+      batch.set(docRef, cleanedLektion, { merge: true });
     });
 
     await batch.commit();
@@ -606,12 +610,27 @@ export async function getSyncMetadata(): Promise<SyncMetadata> {
 }
 
 /**
+ * Entfernt alle undefined Felder aus einem Objekt
+ * Firestore akzeptiert keine undefined Werte
+ */
+function removeUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
+  const cleaned: any = {};
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] !== undefined) {
+      cleaned[key] = obj[key];
+    }
+  });
+  return cleaned;
+}
+
+/**
  * Sync Metadata aktualisieren
  */
 export async function updateSyncMetadata(metadata: Partial<SyncMetadata>): Promise<void> {
   try {
     const adminDb = getAdminDb();
-    await adminDb.collection(SYNC_METADATA_COLLECTION).doc("global").set(metadata, { merge: true });
+    const cleanedMetadata = removeUndefined(metadata);
+    await adminDb.collection(SYNC_METADATA_COLLECTION).doc("global").set(cleanedMetadata, { merge: true });
   } catch (error) {
     console.error("Error updating sync metadata:", error);
     throw error;
@@ -628,10 +647,11 @@ export async function updateSyncMetadata(metadata: Partial<SyncMetadata>): Promi
 export async function createSyncLog(log: Omit<SyncLog, "id">): Promise<string> {
   try {
     const adminDb = getAdminDb();
-    const docRef = await adminDb.collection(SYNC_LOGS_COLLECTION).add({
+    const cleanedLog = removeUndefined({
       ...log,
       timestamp: new Date(),
     });
+    const docRef = await adminDb.collection(SYNC_LOGS_COLLECTION).add(cleanedLog);
     return docRef.id;
   } catch (error) {
     console.error("Error creating sync log:", error);
