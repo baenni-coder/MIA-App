@@ -128,3 +128,34 @@ export const getThemenGroupedByZeitraum = async (
 
   return grouped;
 };
+
+/**
+ * Lädt nur die Bild-URLs für Themen (schnelle Abfrage)
+ * Verwendet für den Firestore Cache Fallback, da Airtable-URLs temporär sind
+ *
+ * @returns Map von Thema-ID zu Bild-URL
+ */
+export const getThemenImageUrls = async (): Promise<Map<string, string>> => {
+  try {
+    const base = getBase();
+    const records = await base(THEMEN_TABLE)
+      .select({
+        fields: ["Bild Lehrmittel"], // Nur Bilder laden für Performance
+      })
+      .all();
+
+    const imageMap = new Map<string, string>();
+
+    records.forEach((record) => {
+      const bildAttachments = record.get("Bild Lehrmittel") as any;
+      if (Array.isArray(bildAttachments) && bildAttachments.length > 0) {
+        imageMap.set(record.id, bildAttachments[0].url);
+      }
+    });
+
+    return imageMap;
+  } catch (error) {
+    console.error("Error fetching Themen image URLs from Airtable:", error);
+    return new Map();
+  }
+};
