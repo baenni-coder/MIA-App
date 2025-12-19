@@ -169,3 +169,77 @@ export async function compressImage(
     return buffer;
   }
 }
+
+/**
+ * Lädt ein Bild von einer URL herunter und lädt es zu Firebase Storage hoch
+ * Verwendet für den Airtable-zu-Firestore Sync, da Airtable-URLs temporär sind
+ *
+ * @param sourceUrl - URL des Bildes (z.B. Airtable Attachment URL)
+ * @param storagePath - Zielpfad im Storage (z.B. "system-images/thema-id.jpg")
+ * @returns Firebase Storage URL (permanent) oder null bei Fehler
+ */
+export async function downloadAndUploadImage(
+  sourceUrl: string,
+  storagePath: string
+): Promise<string | null> {
+  try {
+    // Überprüfe ob es bereits eine Firebase Storage URL ist
+    if (sourceUrl.includes("storage.googleapis.com")) {
+      return sourceUrl; // Bereits in Firebase Storage, nichts zu tun
+    }
+
+    // Hole das Bild
+    const response = await fetch(sourceUrl, {
+      headers: {
+        // Manche Airtable URLs brauchen User-Agent
+        "User-Agent": "MIA-App/1.0",
+      },
+    });
+
+    if (!response.ok) {
+      console.warn(`Failed to download image from ${sourceUrl}: ${response.status}`);
+      return null;
+    }
+
+    // Bestimme den Content-Type
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+
+    // Lese den Buffer
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Überprüfe die Größe (max 10MB)
+    if (buffer.length > 10 * 1024 * 1024) {
+      console.warn(`Image too large (${buffer.length} bytes), skipping: ${sourceUrl}`);
+      return null;
+    }
+
+    // Lade zu Firebase Storage hoch
+    const storageUrl = await uploadImage(buffer, storagePath, contentType);
+
+    return storageUrl;
+  } catch (error) {
+    console.error(`Error downloading/uploading image from ${sourceUrl}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Generiert einen Storage-Pfad für ein System-Thema Bild
+ *
+ * @param themaId - Airtable Record ID des Themas
+ * @param originalUrl - Original URL (für Dateiendung)
+ * @returns Storage-Pfad
+ */
+export function generateSystemImagePath(themaId: string, originalUrl?: string): string {
+  // Extrahiere Dateiendung aus URL wenn möglich
+  let extension = "jpg";
+  if (originalUrl) {
+    const match = originalUrl.match(/\.(jpg|jpeg|png|webp|gif)/i);
+    if (match) {
+      extension = match[1].toLowerCase();
+    }
+  }
+
+  return `system-images/${themaId}.${extension}`;
+}
