@@ -360,6 +360,7 @@ export default function AdminSyncPage() {
       case "syncing":
         return <Badge className="bg-blue-500">Synchronisiert...</Badge>;
       case "completed":
+      case "success":
         return <Badge className="bg-green-500">Abgeschlossen</Badge>;
       case "error":
         return <Badge variant="destructive">Fehler</Badge>;
