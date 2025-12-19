@@ -107,7 +107,14 @@ export default function AdminSyncPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setMetadata(data.metadata);
+        setMetadata({
+          syncStatus: data.metadata.syncStatus,
+          lastSyncedAt: data.metadata.lastFullSync
+            ? new Date(data.metadata.lastFullSync)
+            : undefined,
+          lastSyncDuration: data.metadata.lastSyncDuration,
+          lastSyncError: data.metadata.errorMessage,
+        });
         setLogs(data.recentLogs || []);
       }
     } catch (error) {
@@ -201,6 +208,7 @@ export default function AdminSyncPage() {
       case "syncing":
         return <Badge className="bg-blue-500">Synchronisiert...</Badge>;
       case "completed":
+      case "success":
         return <Badge className="bg-green-500">Abgeschlossen</Badge>;
       case "error":
         return <Badge variant="destructive">Fehler</Badge>;
