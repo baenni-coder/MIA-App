@@ -36,7 +36,30 @@ export interface SyncResult {
 }
 
 /**
+ * Helper: Promise mit Timeout
+ */
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+  let timeoutId: NodeJS.Timeout;
+
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(errorMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timeoutId!);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId!);
+    throw error;
+  }
+}
+
+/**
  * Hauptfunktion: Vollständiger Sync von Airtable zu Firestore
+ * OPTIMIERT: Parallel Execution + Timeout Handling
  */
 export async function syncAirtableToFirestore(triggeredBy?: string): Promise<SyncResult> {
   const startTime = Date.now();
@@ -60,38 +83,58 @@ export async function syncAirtableToFirestore(triggeredBy?: string): Promise<Syn
     });
 
     console.log("🔄 Starting Airtable → Firestore sync...");
+    console.log("⚡ Running parallel sync for better performance...");
 
-    // 1. Sync Schulen (zuerst, da andere darauf referenzieren könnten)
-    console.log("📚 Syncing Schulen...");
-    const schulenResult = await syncSchulen();
+    // OPTIMIERUNG: Sync Schulen, Themen und Kompetenzen PARALLEL
+    // (keine Abhängigkeiten untereinander)
+    // Timeout nach 8 Sekunden (Vercel hat 10s Limit)
+    const [schulenResult, themenResult, kompetenzenResult] = await withTimeout(
+      Promise.all([
+        syncSchulen().catch((error) => {
+          console.error("Error syncing Schulen:", error);
+          return { added: 0, updated: 0, deleted: 0, errors: [error.message] };
+        }),
+        syncThemen().catch((error) => {
+          console.error("Error syncing Themen:", error);
+          return { added: 0, updated: 0, deleted: 0, errors: [error.message] };
+        }),
+        syncKompetenzen().catch((error) => {
+          console.error("Error syncing Kompetenzen:", error);
+          return { added: 0, updated: 0, deleted: 0, errors: [error.message] };
+        }),
+      ]),
+      8000, // 8 Sekunden Timeout
+      "Sync Phase 1 timeout after 8 seconds"
+    );
+
+    console.log("✅ Phase 1 (parallel) completed");
+
     result.recordsProcessed.schulen = schulenResult;
-    if (schulenResult.errors) {
-      result.errors.push(...schulenResult.errors);
-    }
-
-    // 2. Sync Themen
-    console.log("📖 Syncing Themen...");
-    const themenResult = await syncThemen();
     result.recordsProcessed.themes = themenResult;
-    if (themenResult.errors) {
-      result.errors.push(...themenResult.errors);
-    }
-
-    // 3. Sync Kompetenzen (benötigt für Themen-Details)
-    console.log("🎯 Syncing Kompetenzen...");
-    const kompetenzenResult = await syncKompetenzen();
     result.recordsProcessed.kompetenzen = kompetenzenResult;
-    if (kompetenzenResult.errors) {
-      result.errors.push(...kompetenzenResult.errors);
-    }
 
-    // 4. Sync Lektionen (benötigt Themen)
+    if (schulenResult.errors) result.errors.push(...schulenResult.errors);
+    if (themenResult.errors) result.errors.push(...themenResult.errors);
+    if (kompetenzenResult.errors) result.errors.push(...kompetenzenResult.errors);
+
+    // Phase 2: Sync Lektionen (braucht Themen, daher sequenziell)
+    // Timeout nach 5 Sekunden für Lektionen
     console.log("📝 Syncing Lektionen...");
-    const lektionenResult = await syncLektionen();
+    const lektionenResult = await withTimeout(
+      syncLektionen(),
+      5000, // 5 Sekunden Timeout
+      "Sync Phase 2 (Lektionen) timeout after 5 seconds"
+    ).catch((error) => {
+      console.error("Error syncing Lektionen:", error);
+      return { added: 0, updated: 0, deleted: 0, errors: [error.message] };
+    });
+
     result.recordsProcessed.lektionen = lektionenResult;
     if (lektionenResult.errors) {
       result.errors.push(...lektionenResult.errors);
     }
+
+    console.log("✅ Phase 2 (lektionen) completed");
 
     // Berechne Gesamtdauer
     result.duration = Date.now() - startTime;
