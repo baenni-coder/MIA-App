@@ -94,9 +94,16 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
                   )}
 
                   <CardHeader className="p-4 pb-3">
-                    <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight">
-                      {thema.thema}
-                    </CardTitle>
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-sm font-semibold line-clamp-2 leading-tight flex-1">
+                        {thema.thema}
+                      </CardTitle>
+                      {thema.isCustom && (
+                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-300 shrink-0">
+                          ✨ Eigenes
+                        </Badge>
+                      )}
+                    </div>
                     {thema.lehrmittel && (
                       <CardDescription className="text-xs flex items-center gap-1 mt-1">
                         <BookOpen className="h-3 w-3" />
