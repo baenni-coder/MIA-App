@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSyncMetadata, getRecentSyncLogs } from "@/lib/firestore/system-cache";
+import { getSyncMetadata, getRecentSyncLogs, updateSyncMetadata } from "@/lib/firestore/system-cache";
 import { getAdminDb } from "@/lib/firebase/admin";
 
 /**
@@ -81,6 +81,68 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error in sync status API:", error);
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT /api/admin/sync/status
+ * Update Sync Metadata
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    // 1. Authentifizierung prüfen
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    const adminDb = getAdminDb();
+    const adminAuth = await import("@/lib/firebase/admin").then((m) => m.getAdminAuth());
+
+    let userId: string;
+    try {
+      const decodedToken = await adminAuth.verifyIdToken(token);
+      userId = decodedToken.uid;
+    } catch (error) {
+      console.error("Token verification failed:", error);
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    // 2. User Role prüfen
+    const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
+
+    if (!teacherDoc.exists) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const teacher = teacherDoc.data();
+    const userRole = teacher?.role;
+
+    // Nur Super Admins dürfen Status updaten
+    if (userRole !== "super_admin") {
+      return NextResponse.json(
+        { error: "Forbidden: Super Admin access required" },
+        { status: 403 }
+      );
+    }
+
+    // 3. Parse Body
+    const body = await request.json();
+
+    // 4. Update Metadata
+    await updateSyncMetadata(body);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error updating sync status:", error);
     return NextResponse.json(
       {
         error: "Internal server error",
