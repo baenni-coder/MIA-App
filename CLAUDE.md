@@ -43,9 +43,8 @@ src/
 │   │   ├── teachers/            # Lehrer-Endpunkte (GET, POST, PUT)
 │   │   ├── themen/              # Themen-Endpunkte (Airtable + Firestore)
 │   │   └── lektionsplanung/     # Lektionsplanung (Airtable)
-│   ├── auth/                     # Auth-Seiten
-│   │   ├── login/
-│   │   └── register/
+│   ├── login/                    # Login-Seite
+│   ├── register/                 # Registrierungs-Seite
 │   ├── dashboard/                # Dashboard-Seiten
 │   │   ├── admin/               # Admin Dashboard (Review Workflow)
 │   │   ├── jahresplan/          # Jahresplan mit Stufe-Auswahl
