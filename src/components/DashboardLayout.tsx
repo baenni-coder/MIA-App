@@ -20,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  GraduationCap,
 } from "lucide-react";
 
 interface NavItem {
@@ -92,6 +93,11 @@ export default function DashboardLayout({
       label: "Lehrmittel",
       icon: <BookOpen className="h-5 w-5" />,
       path: "/dashboard/lehrmittel",
+    },
+    {
+      label: "Lehrplan",
+      icon: <GraduationCap className="h-5 w-5" />,
+      path: "/dashboard/lehrplan",
     },
     {
       label: "Thema erstellen",

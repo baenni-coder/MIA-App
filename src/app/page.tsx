@@ -37,15 +37,17 @@ export default function Home() {
       <section className="py-20 px-4 bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto max-w-6xl text-center">
           <Badge variant="secondary" className="mb-4">
-            ✨ Neu: Eigene Themen mit Lektionsplanung erstellen
+            Neu: Eigene Themen mit Lektionsplanung erstellen
           </Badge>
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 pb-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent leading-tight">
             Jahresplanung für MIA
           </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Die umfassende Plattform für{" "}
-            <span className="font-semibold text-foreground">Medien, Informatik und Anwendungskompetenzen</span> – mit
-            Kanban-Board, Custom Themes und Admin-Freigaben
+          <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
+            Die umfassende Plattform für
+            <br />
+            <span className="font-semibold text-foreground">Medien, Informatik und Anwendungskompetenzen</span>
+            <br />
+            <span className="text-lg">Mit Planungen für jedes Schuljahr, Lehrplanübersicht und eigenen Unterrichtseinheiten</span>
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Link href="/register">
