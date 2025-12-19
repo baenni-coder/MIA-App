@@ -368,3 +368,24 @@ export interface SyncLog {
   errors?: string[];
   triggeredBy?: string; // User ID (bei manual sync)
 }
+
+// ============================================
+// Temporäre Typen (für Formulare)
+// ============================================
+
+// Temporäre Lektion (noch nicht gespeichert, ohne ID)
+export interface TempLektion {
+  tempId: string; // Temporäre ID für React Keys
+  lektion: string; // "Lektion 1", "Lektion 2"
+  eindeutigeBezeichnung: string;
+  aufgaben?: string;
+  vorwissen?: string;
+  material: string[];
+  websiteTools: WebsiteTool[];
+  einstieg?: string;
+  hauptteil?: string;
+  abschluss?: string;
+  stolpersteine?: string;
+  kiZusammenfassung?: string;
+  order: number;
+}

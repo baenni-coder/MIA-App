@@ -5,9 +5,26 @@ import {
   getCustomThemes,
   getCustomThemesByStufe,
 } from "@/lib/firestore/custom-themes";
+import { createMultipleCustomLektionen } from "@/lib/firestore/custom-lektionen";
 import { getTeacherProfile } from "@/lib/firestore/permissions";
 import { notifyThemeSubmitted } from "@/lib/firestore/notifications";
-import { ThemeStatus, Stufe, Zeitraum } from "@/types";
+import { ThemeStatus, Stufe, Zeitraum, WebsiteTool } from "@/types";
+
+// Interface für Lektionen aus dem Request Body
+interface LektionInput {
+  lektion: string;
+  eindeutigeBezeichnung: string;
+  aufgaben?: string;
+  vorwissen?: string;
+  material?: string[];
+  websiteTools?: WebsiteTool[];
+  einstieg?: string;
+  hauptteil?: string;
+  abschluss?: string;
+  stolpersteine?: string;
+  kiZusammenfassung?: string;
+  order: number;
+}
 
 /**
  * GET /api/custom-themes
@@ -144,7 +161,21 @@ export async function POST(request: NextRequest) {
       fileRouge,
       unterlagen,
       submitForReview,
-    } = body;
+      lektionen, // NEU: Array von Lektionen
+    } = body as {
+      thema: string;
+      beschreibung: string;
+      lehrmittel?: string;
+      bildLehrmittel?: string;
+      anzahlLektionen: number;
+      schuljahr: Stufe[];
+      zeitraum: Zeitraum;
+      kompetenzenIds?: string[];
+      fileRouge?: string;
+      unterlagen?: string;
+      submitForReview?: boolean;
+      lektionen?: LektionInput[];
+    };
 
     // Validierung
     if (!thema || !beschreibung || !anzahlLektionen || !schuljahr || !zeitraum) {
@@ -167,13 +198,18 @@ export async function POST(request: NextRequest) {
     // Status bestimmen
     const status: ThemeStatus = submitForReview ? "pending_review" : "draft";
 
+    // Berechne tatsächliche Anzahl Lektionen
+    const actualAnzahlLektionen = lektionen && lektionen.length > 0
+      ? lektionen.length
+      : anzahlLektionen;
+
     // Theme erstellen
     const themeId = await createCustomTheme({
       thema,
       beschreibung,
       lehrmittel,
       bildLehrmittel,
-      anzahlLektionen,
+      anzahlLektionen: actualAnzahlLektionen,
       schuljahr,
       zeitraum,
       kompetenzenIds: kompetenzenIds || [],
@@ -184,6 +220,35 @@ export async function POST(request: NextRequest) {
       schuleId: teacher.schuleId,
       status,
     });
+
+    // Lektionen erstellen (wenn vorhanden)
+    let lektionenIds: string[] = [];
+    if (lektionen && lektionen.length > 0) {
+      try {
+        const lektionenToCreate = lektionen.map((lektion) => ({
+          themeId,
+          lektion: lektion.lektion,
+          eindeutigeBezeichnung: lektion.eindeutigeBezeichnung,
+          aufgaben: lektion.aufgaben,
+          vorwissen: lektion.vorwissen,
+          material: lektion.material || [],
+          websiteTools: lektion.websiteTools || [],
+          einstieg: lektion.einstieg,
+          hauptteil: lektion.hauptteil,
+          abschluss: lektion.abschluss,
+          stolpersteine: lektion.stolpersteine,
+          kiZusammenfassung: lektion.kiZusammenfassung,
+          createdBy: userId,
+          order: lektion.order,
+        }));
+
+        lektionenIds = await createMultipleCustomLektionen(lektionenToCreate);
+        console.log(`Created ${lektionenIds.length} lektionen for theme ${themeId}`);
+      } catch (lektionenError) {
+        console.error("Error creating lektionen:", lektionenError);
+        // Fehler beim Erstellen der Lektionen soll Theme-Erstellung nicht blockieren
+      }
+    }
 
     // Bei Submission: Benachrichtige PICTS-Admins
     if (submitForReview) {
@@ -203,7 +268,12 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: true, themeId, status },
+      {
+        success: true,
+        themeId,
+        status,
+        lektionenCount: lektionenIds.length,
+      },
       { status: 201 }
     );
   } catch (error) {

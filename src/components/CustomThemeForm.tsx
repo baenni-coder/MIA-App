@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Stufe, Zeitraum } from "@/types";
-import { Upload, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Stufe, Zeitraum, TempLektion } from "@/types";
+import { Upload, Loader2, Plus, BookOpen, FileText } from "lucide-react";
+import InlineLektionEditor from "./InlineLektionEditor";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -43,13 +51,25 @@ const ZEITRAEUME: Zeitraum[] = [
 interface CustomThemeFormProps {
   onSuccess?: (themeId: string) => void;
   initialData?: any;
+  initialLektionen?: TempLektion[];
   mode?: "create" | "edit";
   themeId?: string;
 }
 
+// Hilfsfunktion: Erstellt eine leere Lektion
+const createEmptyLektion = (order: number, themaName?: string): TempLektion => ({
+  tempId: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  lektion: `Lektion ${order}`,
+  eindeutigeBezeichnung: themaName ? `Lektion ${order} - ${themaName}` : `Lektion ${order}`,
+  material: [],
+  websiteTools: [],
+  order,
+});
+
 export default function CustomThemeForm({
   onSuccess,
   initialData,
+  initialLektionen,
   mode = "create",
   themeId,
 }: CustomThemeFormProps) {
@@ -66,9 +86,6 @@ export default function CustomThemeForm({
   const [bildLehrmittel, setBildLehrmittel] = useState(
     initialData?.bildLehrmittel || ""
   );
-  const [anzahlLektionen, setAnzahlLektionen] = useState(
-    initialData?.anzahlLektionen || 1
-  );
   const [schuljahr, setSchuljahr] = useState<Stufe[]>(
     initialData?.schuljahr || []
   );
@@ -80,6 +97,15 @@ export default function CustomThemeForm({
   );
   const [fileRouge, setFileRouge] = useState(initialData?.fileRouge || "");
   const [unterlagen, setUnterlagen] = useState(initialData?.unterlagen || "");
+
+  // Lektionen State
+  const [lektionen, setLektionen] = useState<TempLektion[]>(
+    initialLektionen || []
+  );
+  const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
+
+  // Anzahl Lektionen wird automatisch aus dem Lektionen-Array berechnet
+  const anzahlLektionen = Math.max(lektionen.length, 1);
 
   // Bild-Upload Handler
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,6 +152,39 @@ export default function CustomThemeForm({
     );
   };
 
+  // Lektion hinzufügen
+  const addLektion = () => {
+    const newOrder = lektionen.length + 1;
+    const newLektion = createEmptyLektion(newOrder, thema);
+    setLektionen([...lektionen, newLektion]);
+    // Öffne das Akkordeon für die neue Lektion
+    setOpenAccordionItems([...openAccordionItems, newLektion.tempId]);
+  };
+
+  // Lektion aktualisieren
+  const updateLektion = (tempId: string, updatedLektion: TempLektion) => {
+    setLektionen(
+      lektionen.map((l) => (l.tempId === tempId ? updatedLektion : l))
+    );
+  };
+
+  // Lektion löschen
+  const deleteLektion = (tempId: string) => {
+    const filteredLektionen = lektionen.filter((l) => l.tempId !== tempId);
+    // Renummeriere die verbleibenden Lektionen
+    const renumbered = filteredLektionen.map((l, index) => ({
+      ...l,
+      order: index + 1,
+      lektion: `Lektion ${index + 1}`,
+      // Aktualisiere eindeutige Bezeichnung wenn sie das Standard-Format hat
+      eindeutigeBezeichnung: l.eindeutigeBezeichnung.startsWith("Lektion")
+        ? `Lektion ${index + 1}${thema ? ` - ${thema}` : ""}`
+        : l.eindeutigeBezeichnung,
+    }));
+    setLektionen(renumbered);
+    setOpenAccordionItems(openAccordionItems.filter((id) => id !== tempId));
+  };
+
   // Submit Handler
   const handleSubmit = async (e: React.FormEvent, submitForReview = false) => {
     e.preventDefault();
@@ -134,6 +193,14 @@ export default function CustomThemeForm({
     if (!thema || !beschreibung || !zeitraum || schuljahr.length === 0) {
       alert("Bitte füllen Sie alle Pflichtfelder aus.");
       return;
+    }
+
+    // Validiere Lektionen (wenn vorhanden)
+    for (const lektion of lektionen) {
+      if (!lektion.lektion || !lektion.eindeutigeBezeichnung) {
+        alert(`Bitte füllen Sie die Pflichtfelder für "${lektion.lektion || 'Lektion'}" aus.`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -154,6 +221,8 @@ export default function CustomThemeForm({
         fileRouge,
         unterlagen,
         submitForReview,
+        // Lektionen mitsenden (ohne tempId)
+        lektionen: lektionen.map(({ tempId, ...rest }) => rest),
       };
 
       const url =
@@ -298,21 +367,6 @@ export default function CustomThemeForm({
               )}
             </div>
           </div>
-
-          {/* Anzahl Lektionen */}
-          <div>
-            <Label htmlFor="anzahlLektionen">
-              Anzahl Lektionen <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="anzahlLektionen"
-              type="number"
-              min="1"
-              value={anzahlLektionen}
-              onChange={(e) => setAnzahlLektionen(parseInt(e.target.value) || 1)}
-              required
-            />
-          </div>
         </CardContent>
       </Card>
 
@@ -366,6 +420,83 @@ export default function CustomThemeForm({
               </SelectContent>
             </Select>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Lektionen Sektion */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Lektionsplanung
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Erfassen Sie die einzelnen Lektionen für dieses Thema
+              </CardDescription>
+            </div>
+            <Badge variant="secondary" className="text-sm">
+              {lektionen.length} {lektionen.length === 1 ? "Lektion" : "Lektionen"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {lektionen.length > 0 ? (
+            <Accordion
+              type="multiple"
+              value={openAccordionItems}
+              onValueChange={setOpenAccordionItems}
+              className="space-y-2"
+            >
+              {lektionen.map((lektion) => (
+                <AccordionItem
+                  key={lektion.tempId}
+                  value={lektion.tempId}
+                  className="border rounded-lg px-4"
+                >
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="font-mono">
+                        {lektion.order}
+                      </Badge>
+                      <span className="font-medium">
+                        {lektion.eindeutigeBezeichnung || lektion.lektion}
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <InlineLektionEditor
+                      lektion={lektion}
+                      onChange={(updated) => updateLektion(lektion.tempId, updated)}
+                      onDelete={() => deleteLektion(lektion.tempId)}
+                      themaName={thema}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+              <BookOpen className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+              <p className="text-gray-600 mb-1">
+                Noch keine Lektionen erfasst
+              </p>
+              <p className="text-sm text-gray-400">
+                Klicken Sie auf den Button unten, um Lektionen hinzuzufügen
+              </p>
+            </div>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addLektion}
+            className="w-full"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Lektion zum Thema erfassen
+          </Button>
         </CardContent>
       </Card>
 

@@ -6,12 +6,33 @@ import {
   deleteCustomTheme,
 } from "@/lib/firestore/custom-themes";
 import {
+  deleteCustomLektionenByThemeId,
+  createMultipleCustomLektionen,
+} from "@/lib/firestore/custom-lektionen";
+import {
   canReadCustomTheme,
   canEditCustomTheme,
   canDeleteCustomTheme,
 } from "@/lib/firestore/permissions";
 import { notifyThemeSubmitted } from "@/lib/firestore/notifications";
 import { getTeacherProfile } from "@/lib/firestore/permissions";
+import { WebsiteTool } from "@/types";
+
+// Interface für Lektionen aus dem Request Body
+interface LektionInput {
+  lektion: string;
+  eindeutigeBezeichnung: string;
+  aufgaben?: string;
+  vorwissen?: string;
+  material?: string[];
+  websiteTools?: WebsiteTool[];
+  einstieg?: string;
+  hauptteil?: string;
+  abschluss?: string;
+  stolpersteine?: string;
+  kiZusammenfassung?: string;
+  order: number;
+}
 
 /**
  * GET /api/custom-themes/[id]
@@ -112,15 +133,59 @@ export async function PUT(
 
     // Request Body
     const body = await request.json();
-    const { submitForReview, ...updates } = body;
+    const { submitForReview, lektionen, ...updates } = body as {
+      submitForReview?: boolean;
+      lektionen?: LektionInput[];
+      [key: string]: any;
+    };
 
     // Wenn submitForReview = true, ändere Status
     if (submitForReview && theme.createdBy === userId) {
       updates.status = "pending_review";
     }
 
+    // Berechne tatsächliche Anzahl Lektionen
+    if (lektionen && lektionen.length > 0) {
+      updates.anzahlLektionen = lektionen.length;
+    }
+
     // Aktualisiere Theme
     await updateCustomTheme(themeId, updates);
+
+    // Lektionen aktualisieren (wenn vorhanden)
+    // Strategie: Alle alten Lektionen löschen und neue erstellen
+    if (lektionen !== undefined) {
+      try {
+        // Lösche alle vorhandenen Lektionen für dieses Theme
+        await deleteCustomLektionenByThemeId(themeId);
+
+        // Erstelle neue Lektionen
+        if (lektionen.length > 0) {
+          const lektionenToCreate = lektionen.map((lektion) => ({
+            themeId,
+            lektion: lektion.lektion,
+            eindeutigeBezeichnung: lektion.eindeutigeBezeichnung,
+            aufgaben: lektion.aufgaben,
+            vorwissen: lektion.vorwissen,
+            material: lektion.material || [],
+            websiteTools: lektion.websiteTools || [],
+            einstieg: lektion.einstieg,
+            hauptteil: lektion.hauptteil,
+            abschluss: lektion.abschluss,
+            stolpersteine: lektion.stolpersteine,
+            kiZusammenfassung: lektion.kiZusammenfassung,
+            createdBy: userId,
+            order: lektion.order,
+          }));
+
+          await createMultipleCustomLektionen(lektionenToCreate);
+          console.log(`Updated ${lektionen.length} lektionen for theme ${themeId}`);
+        }
+      } catch (lektionenError) {
+        console.error("Error updating lektionen:", lektionenError);
+        // Fehler beim Aktualisieren der Lektionen soll Theme-Update nicht blockieren
+      }
+    }
 
     // Bei Submission: Benachrichtige PICTS-Admins
     if (submitForReview && theme.createdBy === userId) {
