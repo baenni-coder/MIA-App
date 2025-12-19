@@ -48,10 +48,11 @@ export async function upsertSystemThemes(themes: Omit<SystemTheme, "id">[]): Pro
 
     themes.forEach((theme) => {
       const docRef = adminDb.collection(SYSTEM_THEMES_COLLECTION).doc(theme.airtableId);
-      batch.set(docRef, {
+      const cleanedTheme = removeUndefined({
         ...theme,
         lastSyncedAt: new Date(),
-      }, { merge: true });
+      });
+      batch.set(docRef, cleanedTheme, { merge: true });
     });
 
     await batch.commit();
@@ -187,10 +188,11 @@ export async function upsertSystemSchulen(schulen: Omit<SystemSchule, "id">[]): 
 
     schulen.forEach((schule) => {
       const docRef = adminDb.collection(SYSTEM_SCHULEN_COLLECTION).doc(schule.airtableId);
-      batch.set(docRef, {
+      const cleanedSchule = removeUndefined({
         ...schule,
         lastSyncedAt: new Date(),
-      }, { merge: true });
+      });
+      batch.set(docRef, cleanedSchule, { merge: true });
     });
 
     await batch.commit();
@@ -296,10 +298,11 @@ export async function upsertSystemKompetenzen(kompetenzen: Omit<SystemKompetenz,
 
     kompetenzen.forEach((kompetenz) => {
       const docRef = adminDb.collection(SYSTEM_KOMPETENZEN_COLLECTION).doc(kompetenz.airtableId);
-      batch.set(docRef, {
+      const cleanedKompetenz = removeUndefined({
         ...kompetenz,
         lastSyncedAt: new Date(),
-      }, { merge: true });
+      });
+      batch.set(docRef, cleanedKompetenz, { merge: true });
     });
 
     await batch.commit();
@@ -433,10 +436,11 @@ export async function upsertSystemLektionen(lektionen: Omit<SystemLektion, "id">
 
     lektionen.forEach((lektion) => {
       const docRef = adminDb.collection(SYSTEM_LEKTIONEN_COLLECTION).doc(lektion.airtableId);
-      batch.set(docRef, {
+      const cleanedLektion = removeUndefined({
         ...lektion,
         lastSyncedAt: new Date(),
-      }, { merge: true });
+      });
+      batch.set(docRef, cleanedLektion, { merge: true });
     });
 
     await batch.commit();
