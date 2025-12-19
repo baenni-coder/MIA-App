@@ -92,21 +92,40 @@ export async function GET(request: Request) {
     const stufe = searchParams.get("stufe") as Stufe | null;
     const grouped = searchParams.get("grouped") === "true";
 
+    // Debug: Check if Firestore cache is enabled
+    const cacheEnabled = process.env.ENABLE_FIRESTORE_CACHE === "true";
+    const dataSource = cacheEnabled ? "firestore-cache" : "airtable-direct";
+
     if (stufe && grouped) {
       // Verwende kombinierte Funktion statt nur Airtable
       const themenGrouped = await getCombinedThemenGroupedByZeitraum(stufe);
-      return NextResponse.json(themenGrouped);
+      return NextResponse.json(themenGrouped, {
+        headers: {
+          "X-Data-Source": dataSource,
+          "X-Cache-Enabled": cacheEnabled.toString(),
+        },
+      });
     }
 
     if (stufe) {
       // Verwende kombinierte Funktion statt nur Airtable
       const themen = await getCombinedThemenByStufe(stufe);
-      return NextResponse.json(themen);
+      return NextResponse.json(themen, {
+        headers: {
+          "X-Data-Source": dataSource,
+          "X-Cache-Enabled": cacheEnabled.toString(),
+        },
+      });
     }
 
     // Ohne Stufe: alle System Themen (Firestore Cache oder Airtable)
     const allThemen = await getThemes();
-    return NextResponse.json(allThemen);
+    return NextResponse.json(allThemen, {
+      headers: {
+        "X-Data-Source": dataSource,
+        "X-Cache-Enabled": cacheEnabled.toString(),
+      },
+    });
   } catch (error) {
     console.error("Error fetching Themen:", error);
     return NextResponse.json(
