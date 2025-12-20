@@ -2,18 +2,19 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { Thema, Zeitraum, Kompetenz } from "@/types";
+import { Thema, Zeitraum, Kompetenz, Stufe } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { ExternalLink, BookOpen, Clock, FileText } from "lucide-react";
+import { ExternalLink, BookOpen, Clock, FileText, Info } from "lucide-react";
 import LektionsplanungViewer from "./LektionsplanungViewer";
 
 interface KanbanBoardProps {
   themenGrouped: Record<Zeitraum, Thema[]>;
   schulePictsBuchen?: string;
   searchQuery?: string;
+  userStufe?: Stufe;
 }
 
 const ZEITRAUM_LABELS: Record<Zeitraum, string> = {
@@ -34,7 +35,7 @@ const ZEITRAUM_IMAGES: Record<Zeitraum, string | null> = {
   "Zusatz": null,
 };
 
-export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQuery }: KanbanBoardProps) {
+export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQuery, userStufe }: KanbanBoardProps) {
   const [selectedThema, setSelectedThema] = useState<Thema | null>(null);
   const [selectedKompetenz, setSelectedKompetenz] = useState<Kompetenz | null>(null);
   const [lektionsplanungOpen, setLektionsplanungOpen] = useState(false);
@@ -189,6 +190,16 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                   </DialogDescription>
                 )}
               </DialogHeader>
+
+              {/* Hinweis wenn Thema nicht für User-Stufe ist */}
+              {userStufe && selectedThema.schuljahr && selectedThema.schuljahr.length > 0 && !selectedThema.schuljahr.includes(userStufe) && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <span className="font-medium">Hinweis:</span> Diese Unterrichtsidee ist für {selectedThema.schuljahr.join(", ")} vorgesehen, nicht für Ihre Stufe ({userStufe}).
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4 mt-4">
                 {/* Beschreibung */}
