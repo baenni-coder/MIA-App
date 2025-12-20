@@ -26,6 +26,7 @@ function JahresplanContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("search");
+  const allStufenParam = searchParams.get("allStufen") === "true";
   const [themenGrouped, setThemenGrouped] = useState<Record<Zeitraum, Thema[]> | null>(null);
   const [teacherData, setTeacherData] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,8 +49,16 @@ function JahresplanContent() {
           // Verwende selectedStufe falls gesetzt, sonst die Stufe des Lehrers
           const currentStufe = selectedStufe || data.stufe;
 
-          // Dann Themen für die Stufe laden
-          const themenUrl = `/api/themen?stufe=${encodeURIComponent(currentStufe)}&grouped=true`;
+          // Wenn allStufen=true (von Lehrplan-Link), lade ALLE Themen
+          // Sonst nur Themen für die aktuelle Stufe
+          let themenUrl: string;
+          if (allStufenParam && searchQuery) {
+            // Lade alle Themen ohne Stufen-Filter
+            themenUrl = `/api/themen?grouped=true`;
+            console.log("🔗 Loading ALL themen (allStufen mode)");
+          } else {
+            themenUrl = `/api/themen?stufe=${encodeURIComponent(currentStufe)}&grouped=true`;
+          }
           console.log("🔗 Fetching themen from:", themenUrl);
           return fetch(themenUrl);
         })
@@ -74,7 +83,7 @@ function JahresplanContent() {
           setLoading(false);
         });
     }
-  }, [user, selectedStufe]);
+  }, [user, selectedStufe, allStufenParam, searchQuery]);
 
   return (
     <ProtectedRoute>
@@ -130,6 +139,7 @@ function JahresplanContent() {
               themenGrouped={themenGrouped}
               schulePictsBuchen={teacherData?.schule?.pictsBuchen}
               searchQuery={searchQuery || undefined}
+              userStufe={teacherData?.stufe}
             />
           ) : (
             <div className="text-center py-12">

@@ -40,6 +40,39 @@ const ZYKLUS_COLORS: Record<string, string> = {
   "Zyklus 3": "bg-violet-100 text-violet-800",
 };
 
+// Helper: Parse Querverweis LP Text zu Array von {code, link}
+function parseQuerverweisLP(text: string): Array<{ code: string; link?: string }> {
+  if (!text) return [];
+
+  const results: Array<{ code: string; link?: string }> = [];
+
+  // Format: [LP.Code](https://...) oder [LP.Code]\n(https://...)
+  // Regex für Markdown-Link-Format
+  const markdownLinkRegex = /\[([^\]]+)\]\s*\(([^)]+)\)/g;
+  let match;
+
+  while ((match = markdownLinkRegex.exec(text)) !== null) {
+    results.push({
+      code: match[1].trim(),
+      link: match[2].trim(),
+    });
+  }
+
+  // Falls keine Markdown-Links gefunden, versuche einfache LP-Codes zu extrahieren
+  if (results.length === 0) {
+    // Suche nach LP-Code-Patterns wie D.2.B.1.a, MI.1.1.a, NMG.7.4.a etc.
+    const codeRegex = /([A-Z]{1,3}\.[0-9]+\.[A-Z]?\.[0-9]+\.[a-z]?|[A-Z]{1,3}\.[0-9]+\.[0-9]+\.[a-z])/gi;
+    const codes = text.match(codeRegex);
+    if (codes) {
+      codes.forEach(code => {
+        results.push({ code: code.trim() });
+      });
+    }
+  }
+
+  return results;
+}
+
 export default function LehrplanPage() {
   const { user } = useAuth();
   const [kompetenzen, setKompetenzen] = useState<Kompetenz[]>([]);
@@ -253,8 +286,33 @@ export default function LehrplanPage() {
 
                               {/* Querverweis */}
                               {k.querverweisLP && (
-                                <div className="text-xs text-muted-foreground font-mono">
-                                  {k.querverweisLP}
+                                <div className="flex flex-wrap gap-1">
+                                  {parseQuerverweisLP(k.querverweisLP).slice(0, 4).map((qv, idx) => (
+                                    qv.link ? (
+                                      <a
+                                        key={idx}
+                                        href={qv.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-xs font-mono bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded text-slate-600 hover:text-slate-800 transition-colors"
+                                      >
+                                        {qv.code}
+                                      </a>
+                                    ) : (
+                                      <span
+                                        key={idx}
+                                        className="text-xs font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-600"
+                                      >
+                                        {qv.code}
+                                      </span>
+                                    )
+                                  ))}
+                                  {parseQuerverweisLP(k.querverweisLP).length > 4 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      +{parseQuerverweisLP(k.querverweisLP).length - 4}
+                                    </span>
+                                  )}
                                 </div>
                               )}
 
@@ -264,7 +322,7 @@ export default function LehrplanPage() {
                                   {k.unterrichtsideen.slice(0, 3).map((u) => (
                                     <Link
                                       key={u.id}
-                                      href={`/dashboard/jahresplan?search=${encodeURIComponent(u.name)}`}
+                                      href={`/dashboard/jahresplan?search=${encodeURIComponent(u.name)}&allStufen=true`}
                                       onClick={(e) => e.stopPropagation()}
                                       className="flex items-center gap-1 text-xs text-primary hover:underline truncate"
                                     >
@@ -406,10 +464,32 @@ export default function LehrplanPage() {
                   </div>
 
                   {/* Querverweis */}
-                  {selectedKompetenz.querverweisLP && (
+                  {selectedKompetenz.querverweisLP && parseQuerverweisLP(selectedKompetenz.querverweisLP).length > 0 && (
                     <div>
-                      <h4 className="font-semibold text-sm text-muted-foreground mb-1">Querverweis LP</h4>
-                      <p className="font-mono text-sm">{selectedKompetenz.querverweisLP}</p>
+                      <h4 className="font-semibold text-sm text-muted-foreground mb-2">Querverweis LP</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {parseQuerverweisLP(selectedKompetenz.querverweisLP).map((qv, idx) => (
+                          qv.link ? (
+                            <a
+                              key={idx}
+                              href={qv.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 font-mono text-sm bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded text-slate-700 hover:text-slate-900 transition-colors"
+                            >
+                              {qv.code}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span
+                              key={idx}
+                              className="font-mono text-sm bg-slate-100 px-2 py-1 rounded text-slate-700"
+                            >
+                              {qv.code}
+                            </span>
+                          )
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -424,7 +504,7 @@ export default function LehrplanPage() {
                         {selectedKompetenz.unterrichtsideen.map((u) => (
                           <Link
                             key={u.id}
-                            href={`/dashboard/jahresplan?search=${encodeURIComponent(u.name)}`}
+                            href={`/dashboard/jahresplan?search=${encodeURIComponent(u.name)}&allStufen=true`}
                             className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors group"
                           >
                             <div className="flex items-center gap-3">
