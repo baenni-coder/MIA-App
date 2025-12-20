@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -21,8 +22,10 @@ const STUFEN: Stufe[] = [
   "9. Klasse",
 ];
 
-export default function JahresplanPage() {
+function JahresplanContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("search");
   const [themenGrouped, setThemenGrouped] = useState<Record<Zeitraum, Thema[]> | null>(null);
   const [teacherData, setTeacherData] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
@@ -126,6 +129,7 @@ export default function JahresplanPage() {
             <KanbanBoard
               themenGrouped={themenGrouped}
               schulePictsBuchen={teacherData?.schule?.pictsBuchen}
+              searchQuery={searchQuery || undefined}
             />
           ) : (
             <div className="text-center py-12">
@@ -137,5 +141,24 @@ export default function JahresplanPage() {
         </div>
       </DashboardLayout>
     </ProtectedRoute>
+  );
+}
+
+export default function JahresplanPage() {
+  return (
+    <Suspense fallback={
+      <ProtectedRoute>
+        <DashboardLayout>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Jahresplan wird geladen...</p>
+            </div>
+          </div>
+        </DashboardLayout>
+      </ProtectedRoute>
+    }>
+      <JahresplanContent />
+    </Suspense>
   );
 }
