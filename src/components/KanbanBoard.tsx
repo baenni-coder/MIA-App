@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Thema, Zeitraum, Kompetenz } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -13,6 +13,7 @@ import LektionsplanungViewer from "./LektionsplanungViewer";
 interface KanbanBoardProps {
   themenGrouped: Record<Zeitraum, Thema[]>;
   schulePictsBuchen?: string;
+  searchQuery?: string;
 }
 
 const ZEITRAUM_LABELS: Record<Zeitraum, string> = {
@@ -33,11 +34,12 @@ const ZEITRAUM_IMAGES: Record<Zeitraum, string | null> = {
   "Zusatz": null,
 };
 
-export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: KanbanBoardProps) {
+export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQuery }: KanbanBoardProps) {
   const [selectedThema, setSelectedThema] = useState<Thema | null>(null);
   const [selectedKompetenz, setSelectedKompetenz] = useState<Kompetenz | null>(null);
   const [lektionsplanungOpen, setLektionsplanungOpen] = useState(false);
   const [lektionsplanungThema, setLektionsplanungThema] = useState<string>("");
+  const [searchHandled, setSearchHandled] = useState(false);
 
   const zeitraumOrder: Zeitraum[] = [
     "Sommerferien-Herbstferien",
@@ -47,6 +49,28 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen }: Kanban
     "Frühlingsferien-Sommerferien",
     "Zusatz",
   ];
+
+  // Alle Themen als flache Liste für Suche
+  const allThemen = useMemo(() => {
+    return Object.values(themenGrouped).flat();
+  }, [themenGrouped]);
+
+  // Auto-open theme when searchQuery is provided
+  useEffect(() => {
+    if (searchQuery && !searchHandled && allThemen.length > 0) {
+      const normalizedQuery = searchQuery.toLowerCase();
+      const matchingThema = allThemen.find(
+        (thema) =>
+          thema.thema.toLowerCase().includes(normalizedQuery) ||
+          normalizedQuery.includes(thema.thema.toLowerCase())
+      );
+
+      if (matchingThema) {
+        setSelectedThema(matchingThema);
+      }
+      setSearchHandled(true);
+    }
+  }, [searchQuery, allThemen, searchHandled]);
 
   return (
     <>

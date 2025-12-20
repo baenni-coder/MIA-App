@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Accordion,
   AccordionContent,
@@ -12,17 +12,33 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Kompetenz } from "@/types";
-import { GraduationCap, Search, BookOpen, Lightbulb } from "lucide-react";
+import { GraduationCap, Search, Lightbulb, BookOpen, ExternalLink, CheckCircle, XCircle } from "lucide-react";
+import Link from "next/link";
+
+// Reihenfolge der Kompetenzbereiche
+const BEREICH_ORDER = ["Medien", "Informatik", "Anwendungskompetenzen"];
+
+// Farben für Kompetenzbereiche
+const BEREICH_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  "Medien": { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-200" },
+  "Informatik": { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-200" },
+  "Anwendungskompetenzen": { bg: "bg-green-100", text: "text-green-800", border: "border-green-200" },
+};
+
+// Farben für Zyklen
+const ZYKLUS_COLORS: Record<string, string> = {
+  "Zyklus 1": "bg-amber-100 text-amber-800",
+  "Zyklus 2": "bg-sky-100 text-sky-800",
+  "Zyklus 3": "bg-violet-100 text-violet-800",
+};
 
 export default function LehrplanPage() {
   const { user } = useAuth();
@@ -30,6 +46,7 @@ export default function LehrplanPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedZyklus, setSelectedZyklus] = useState<string | null>(null);
+  const [selectedKompetenz, setSelectedKompetenz] = useState<Kompetenz | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -74,10 +91,22 @@ export default function LehrplanPage() {
       return { bereich, items: filtered };
     })
     .filter(({ items }) => items.length > 0)
-    .sort((a, b) => a.bereich.localeCompare(b.bereich));
+    // Sortiere nach definierter Reihenfolge
+    .sort((a, b) => {
+      const indexA = BEREICH_ORDER.indexOf(a.bereich);
+      const indexB = BEREICH_ORDER.indexOf(b.bereich);
+      if (indexA === -1 && indexB === -1) return a.bereich.localeCompare(b.bereich);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
 
   // Alle Zyklen extrahieren
   const alleZyklen = [...new Set(kompetenzen.flatMap((k) => k.zyklus || []))].sort();
+
+  const getBereichColors = (bereich: string) => {
+    return BEREICH_COLORS[bereich] || { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-200" };
+  };
 
   return (
     <ProtectedRoute>
@@ -137,92 +166,127 @@ export default function LehrplanPage() {
               </div>
             </div>
           ) : filteredBereiche.length > 0 ? (
-            <Accordion type="multiple" defaultValue={[filteredBereiche[0]?.bereich]} className="space-y-4">
-              {filteredBereiche.map(({ bereich, items }) => (
-                <AccordionItem
-                  key={bereich}
-                  value={bereich}
-                  className="border rounded-lg bg-card overflow-hidden"
-                >
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <GraduationCap className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-semibold">{bereich}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {items.length} {items.length === 1 ? "Kompetenz" : "Kompetenzen"}
+            <Accordion type="multiple" defaultValue={BEREICH_ORDER} className="space-y-4">
+              {filteredBereiche.map(({ bereich, items }) => {
+                const colors = getBereichColors(bereich);
+                return (
+                  <AccordionItem
+                    key={bereich}
+                    value={bereich}
+                    className="border rounded-lg bg-card overflow-hidden"
+                  >
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center`}>
+                          <GraduationCap className={`h-5 w-5 ${colors.text}`} />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-semibold">{bereich}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {items.length} {items.length === 1 ? "Kompetenz" : "Kompetenzen"}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-0 pb-0">
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-24">LP Code</TableHead>
-                            <TableHead>Kompetenz</TableHead>
-                            <TableHead className="w-28">Zyklus</TableHead>
-                            <TableHead className="w-48">Unterrichtsideen</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {items.map((k) => (
-                            <TableRow key={k.id}>
-                              <TableCell className="font-mono text-sm font-medium">
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {items.map((k) => (
+                          <Card
+                            key={k.id}
+                            className={`cursor-pointer hover:shadow-md transition-shadow border-t-4 ${colors.border}`}
+                            onClick={() => setSelectedKompetenz(k)}
+                          >
+                            <CardContent className="p-4 space-y-3">
+                              {/* LP Code */}
+                              <div className="font-mono text-lg font-bold">
                                 {k.lpCode}
-                              </TableCell>
-                              <TableCell>
-                                <div className="font-medium">{k.name}</div>
-                                {k.kompetenz && (
-                                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                    {k.kompetenz}
-                                  </p>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-1">
-                                  {k.zyklus?.map((z) => (
-                                    <Badge key={z} variant="secondary" className="text-xs">
-                                      {z}
-                                    </Badge>
-                                  ))}
+                              </div>
+
+                              {/* Kompetenzbereich Badge */}
+                              <Badge className={`${colors.bg} ${colors.text} border-0`}>
+                                {bereich}
+                              </Badge>
+
+                              {/* Kompetenz Text */}
+                              <p className="text-sm text-muted-foreground line-clamp-3">
+                                {k.kompetenz}
+                              </p>
+
+                              {/* Kompetenzstufe */}
+                              {k.kompetenzstufe && (
+                                <p className="text-sm line-clamp-2">
+                                  {k.kompetenzstufe}
+                                </p>
+                              )}
+
+                              {/* Grundanspruch */}
+                              <div className="flex items-center gap-1">
+                                {k.grundanspruch?.toLowerCase() === "ja" ? (
+                                  <Badge className="bg-green-100 text-green-800 border-0 text-xs">
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Ja
+                                  </Badge>
+                                ) : k.grundanspruch?.toLowerCase() === "nein" ? (
+                                  <Badge className="bg-red-100 text-red-800 border-0 text-xs">
+                                    <XCircle className="h-3 w-3 mr-1" />
+                                    nein
+                                  </Badge>
+                                ) : null}
+                              </div>
+
+                              {/* Zyklus & Klassenstufe */}
+                              <div className="flex flex-wrap gap-1">
+                                {k.zyklus?.map((z) => (
+                                  <Badge
+                                    key={z}
+                                    className={`text-xs ${ZYKLUS_COLORS[z] || "bg-gray-100 text-gray-800"}`}
+                                  >
+                                    {z}
+                                  </Badge>
+                                ))}
+                                {k.klassenstufe?.map((ks) => (
+                                  <Badge key={ks} variant="outline" className="text-xs">
+                                    {ks}
+                                  </Badge>
+                                ))}
+                              </div>
+
+                              {/* Querverweis */}
+                              {k.querverweisLP && (
+                                <div className="text-xs text-muted-foreground font-mono">
+                                  {k.querverweisLP}
                                 </div>
-                              </TableCell>
-                              <TableCell>
-                                {k.unterrichtsideen && k.unterrichtsideen.length > 0 ? (
-                                  <div className="space-y-1">
-                                    {k.unterrichtsideen.map((u) => (
-                                      <div
-                                        key={u.id}
-                                        className="flex items-center gap-2 text-sm"
-                                      >
-                                        <Lightbulb className="h-3 w-3 text-yellow-500 shrink-0" />
-                                        <span className="text-primary font-medium truncate">
-                                          {u.name}
-                                        </span>
-                                        {u.lehrmittel && (
-                                          <span className="text-xs text-muted-foreground">
-                                            ({u.lehrmittel})
-                                          </span>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
+                              )}
+
+                              {/* Unterrichtsideen */}
+                              {k.unterrichtsideen && k.unterrichtsideen.length > 0 && (
+                                <div className="pt-2 border-t space-y-1">
+                                  {k.unterrichtsideen.slice(0, 3).map((u) => (
+                                    <Link
+                                      key={u.id}
+                                      href={`/dashboard/jahresplan?search=${encodeURIComponent(u.name)}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-1 text-xs text-primary hover:underline truncate"
+                                    >
+                                      <Lightbulb className="h-3 w-3 text-yellow-500 shrink-0" />
+                                      <span className="truncate">{u.name}</span>
+                                    </Link>
+                                  ))}
+                                  {k.unterrichtsideen.length > 3 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      +{k.unterrichtsideen.length - 3} weitere
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
             </Accordion>
           ) : (
             <div className="text-center py-12">
@@ -264,6 +328,129 @@ export default function LehrplanPage() {
             </Card>
           )}
         </div>
+
+        {/* Detail Dialog */}
+        <Dialog open={!!selectedKompetenz} onOpenChange={() => setSelectedKompetenz(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            {selectedKompetenz && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-3">
+                    <span className="font-mono text-2xl">{selectedKompetenz.lpCode}</span>
+                    <Badge className={`${getBereichColors(selectedKompetenz.kompetenzbereich || "").bg} ${getBereichColors(selectedKompetenz.kompetenzbereich || "").text} border-0`}>
+                      {selectedKompetenz.kompetenzbereich}
+                    </Badge>
+                  </DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  {/* Kompetenz */}
+                  {selectedKompetenz.kompetenz && (
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground mb-1">Kompetenz</h4>
+                      <p>{selectedKompetenz.kompetenz}</p>
+                    </div>
+                  )}
+
+                  {/* Kompetenzstufe */}
+                  {selectedKompetenz.kompetenzstufe && (
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground mb-1">Kompetenzstufe</h4>
+                      <p>{selectedKompetenz.kompetenzstufe}</p>
+                    </div>
+                  )}
+
+                  {/* Grundanspruch */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-muted-foreground mb-1">Grundanspruch</h4>
+                    {selectedKompetenz.grundanspruch?.toLowerCase() === "ja" ? (
+                      <Badge className="bg-green-100 text-green-800 border-0">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Ja
+                      </Badge>
+                    ) : selectedKompetenz.grundanspruch?.toLowerCase() === "nein" ? (
+                      <Badge className="bg-red-100 text-red-800 border-0">
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Nein
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </div>
+
+                  {/* Zyklus & Klassenstufe */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground mb-1">Zyklus</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedKompetenz.zyklus?.map((z) => (
+                          <Badge
+                            key={z}
+                            className={`${ZYKLUS_COLORS[z] || "bg-gray-100 text-gray-800"}`}
+                          >
+                            {z}
+                          </Badge>
+                        )) || <span className="text-muted-foreground">-</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground mb-1">Klassenstufe</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedKompetenz.klassenstufe?.map((ks) => (
+                          <Badge key={ks} variant="outline">
+                            {ks}
+                          </Badge>
+                        )) || <span className="text-muted-foreground">-</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Querverweis */}
+                  {selectedKompetenz.querverweisLP && (
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground mb-1">Querverweis LP</h4>
+                      <p className="font-mono text-sm">{selectedKompetenz.querverweisLP}</p>
+                    </div>
+                  )}
+
+                  {/* Unterrichtsideen */}
+                  {selectedKompetenz.unterrichtsideen && selectedKompetenz.unterrichtsideen.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-yellow-500" />
+                        Unterrichtsideen ({selectedKompetenz.unterrichtsideen.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {selectedKompetenz.unterrichtsideen.map((u) => (
+                          <Link
+                            key={u.id}
+                            href={`/dashboard/jahresplan?search=${encodeURIComponent(u.name)}`}
+                            className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <BookOpen className="h-4 w-4 text-primary shrink-0" />
+                              <div>
+                                <span className="font-medium group-hover:text-primary transition-colors">
+                                  {u.name}
+                                </span>
+                                {u.lehrmittel && (
+                                  <span className="text-sm text-muted-foreground ml-2">
+                                    ({u.lehrmittel})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     </ProtectedRoute>
   );
