@@ -34,16 +34,10 @@ function JahresplanContent() {
 
   useEffect(() => {
     if (user) {
-      console.log("🔍 Loading data for user:", user.uid);
-
       // Erst Lehrer-Daten laden, um die Stufe zu bekommen
       fetch(`/api/teachers?userId=${user.uid}`)
-        .then((res) => {
-          console.log("📥 Teacher API response status:", res.status);
-          return res.json();
-        })
+        .then((res) => res.json())
         .then((data: Teacher) => {
-          console.log("👨‍🏫 Teacher data:", data);
           setTeacherData(data);
 
           // Verwende selectedStufe falls gesetzt, sonst die Stufe des Lehrers
@@ -55,31 +49,18 @@ function JahresplanContent() {
           if (allStufenParam && searchQuery) {
             // Lade alle Themen ohne Stufen-Filter
             themenUrl = `/api/themen?grouped=true`;
-            console.log("🔗 Loading ALL themen (allStufen mode)");
           } else {
             themenUrl = `/api/themen?stufe=${encodeURIComponent(currentStufe)}&grouped=true`;
           }
-          console.log("🔗 Fetching themen from:", themenUrl);
           return fetch(themenUrl);
         })
-        .then((res) => {
-          console.log("📥 Themen API response status:", res.status);
-          return res.json();
-        })
+        .then((res) => res.json())
         .then((data) => {
-          console.log("📚 Themen data:", data);
-          console.log("📊 Number of themen groups:", Object.keys(data).length);
-
-          // Zähle Themen pro Zeitraum
-          Object.entries(data).forEach(([zeitraum, themen]) => {
-            console.log(`  ${zeitraum}: ${(themen as any[]).length} Themen`);
-          });
-
           setThemenGrouped(data);
           setLoading(false);
         })
         .catch((err) => {
-          console.error("❌ Error loading data:", err);
+          console.error("Error loading data:", err);
           setLoading(false);
         });
     }
