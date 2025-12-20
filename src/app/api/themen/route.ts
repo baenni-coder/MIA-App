@@ -86,6 +86,30 @@ async function getCombinedThemenGroupedByZeitraum(
   return grouped;
 }
 
+/**
+ * Gruppiert ALLE Themen nach Zeitraum (ohne Stufen-Filter)
+ */
+async function getAllThemenGroupedByZeitraum(): Promise<Record<Zeitraum, Thema[]>> {
+  const allThemen = await getThemes();
+
+  const grouped: Record<Zeitraum, Thema[]> = {
+    "Sommerferien-Herbstferien": [],
+    "Herbstferien-Weihnachtsferien": [],
+    "Weihnachtsferien-Winterferien": [],
+    "Winterferien-Frühlingsferien": [],
+    "Frühlingsferien-Sommerferien": [],
+    "Zusatz": [],
+  };
+
+  allThemen.forEach((thema) => {
+    if (thema.zeitraum && grouped[thema.zeitraum]) {
+      grouped[thema.zeitraum].push(thema);
+    }
+  });
+
+  return grouped;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -99,6 +123,17 @@ export async function GET(request: Request) {
     if (stufe && grouped) {
       // Verwende kombinierte Funktion statt nur Airtable
       const themenGrouped = await getCombinedThemenGroupedByZeitraum(stufe);
+      return NextResponse.json(themenGrouped, {
+        headers: {
+          "X-Data-Source": dataSource,
+          "X-Cache-Enabled": cacheEnabled.toString(),
+        },
+      });
+    }
+
+    if (grouped) {
+      // Gruppiert ohne Stufen-Filter (für allStufen-Modus)
+      const themenGrouped = await getAllThemenGroupedByZeitraum();
       return NextResponse.json(themenGrouped, {
         headers: {
           "X-Data-Source": dataSource,
