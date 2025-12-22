@@ -9,6 +9,8 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - PICTS-Admins können diese Themen prüfen und freigeben
 - Genehmigte Themen werden systemweit für alle Schulen sichtbar
 - **Hybrid Airtable-Firestore Architektur** für 5-7x schnellere Performance
+- **Collapsible Sidebar Navigation** für bessere UX
+- **Lehrplan-Kompetenzen Seite** mit Kachel-Layout und klickbaren Unterrichtsideen
 
 ## Tech Stack
 
@@ -52,11 +54,13 @@ src/
 │   │   └── lektionsplanung/     # Lektionsplanung (Airtable)
 │   ├── login/                    # Login-Seite
 │   ├── register/                 # Registrierungs-Seite
+│   │   ├── kompetenzen/         # API für Lehrplan-Kompetenzen
 │   ├── dashboard/                # Dashboard-Seiten
 │   │   ├── admin/               # Admin Dashboard (Review Workflow)
-│   │   ├── jahresplan/          # Jahresplan mit Stufe-Auswahl
-│   │   ├── lehrmittel/          # Lehrmittel-Übersicht
-│   │   ├── thema-erstellen/     # Custom Theme erstellen
+│   │   ├── jahresplan/          # Jahresplan mit Stufe-Auswahl & Search
+│   │   ├── lehrmittel/          # Lehrmittel-Übersicht (Akkordeon)
+│   │   ├── lehrplan/            # Lehrplan-Kompetenzen (Kachel-Layout)
+│   │   ├── thema-erstellen/     # Custom Theme erstellen (mit Inline-Lektionen)
 │   │   ├── thema-bearbeiten/[id]/ # Custom Theme bearbeiten
 │   │   ├── meine-themen/        # Übersicht eigene Custom Themes
 │   │   ├── thema/[id]/lektionen/ # Lektionen-Verwaltung
@@ -72,9 +76,10 @@ src/
 │   │   ├── textarea.tsx         # Textarea für Formulare
 │   │   └── ...                  # Weitere UI-Komponenten
 │   ├── AdminThemeReview.tsx     # Admin Review Dialog
-│   ├── CustomThemeForm.tsx      # Formular für Custom Themes
-│   ├── DashboardLayout.tsx      # Dashboard Layout mit Logo & Notifications
-│   ├── KanbanBoard.tsx          # Kanban-Board mit Roboter-Bildern
+│   ├── CustomThemeForm.tsx      # Formular für Custom Themes (mit Inline-Lektionen)
+│   ├── DashboardLayout.tsx      # Dashboard Layout mit Collapsible Sidebar
+│   ├── InlineLektionEditor.tsx  # Kompakter Lektion-Editor für Akkordeon
+│   ├── KanbanBoard.tsx          # Kanban-Board mit Roboter-Bildern & Search
 │   ├── LektionEditor.tsx        # Editor für Custom Lektionen
 │   ├── NotificationBell.tsx     # Notification Bell mit Badge
 │   ├── ProtectedRoute.tsx       # Auth-Schutz
@@ -303,21 +308,37 @@ ENABLE_FIRESTORE_CACHE=true
 - Geschützte Routen via ProtectedRoute-Component
 - Server-seitige Session-Validierung
 
-### 2. Dashboard
+### 2. Dashboard mit Collapsible Sidebar
+- **Collapsible Sidebar** (Desktop):
+  - Ein-/Ausklappbar mit Chevron-Button
+  - Zustand wird in localStorage gespeichert
+  - Zeigt Icons + Labels (erweitert) oder nur Icons (eingeklappt)
+- **Mobile Navigation**: Sheet/Drawer für kleine Bildschirme
+- **Menüpunkte**:
+  - Dashboard (Profil)
+  - Jahresplan
+  - Lehrmittel
+  - **Lehrplan** (NEU)
+  - Thema erstellen
+  - Meine Themen
+  - Admin Dashboard (nur für Admins)
+  - Sync (nur für Admins)
 - **Profil-Übersicht**: Anzeige von Name, Schule, Stufe
-- **Stufe-Bearbeitung**: Lehrpersonen können ihre Stufe für das nächste Schuljahr ändern
-- **Schnellzugriff**: Jahresplan, Lehrmittel, PICTS-Buchungen
-- **MIA-App Logo**: Branding in Header und Auth-Seiten
+- **Stufe-Bearbeitung**: Lehrpersonen können ihre Stufe ändern
 
 ### 3. Jahresplan Kanban-Board
 - **6 Spalten für Zeiträume** mit Roboter-Bildern:
-  - Sommerferien - Herbstferien (roboter_sommer.png)
-  - Herbstferien - Weihnachtsferien (roboter_herbst.png)
-  - Weihnachtsferien - Winterferien (roboter_weihnachten.png)
-  - Winterferien - Frühlingsferien (roboter_winter.png)
+  - Sommerferien - Herbstferien (roboter_herbst.png)
+  - Herbstferien - Weihnachtsferien (roboter_weihnachten.png)
+  - Weihnachtsferien - Winterferien (roboter_winter.png)
+  - Winterferien - Frühlingsferien (roboter_frühling.png)
   - Frühlingsferien - Sommerferien (roboter_sommer.png)
   - Zusatz
 - **Temporäre Stufe-Auswahl**: Dropdown zum Anschauen anderer Klassenstufen
+- **Search-Parameter** (`?search=...&allStufen=true`):
+  - Automatisches Öffnen des gesuchten Themas
+  - Lädt alle Stufen wenn `allStufen=true`
+  - Hinweis-Banner wenn Thema für andere Stufe vorgesehen
 - **Klickbare Themen-Karten** mit Detailansicht:
   - Thema, Beschreibung ("Um was geht es?")
   - Lehrmittel-Bild
@@ -338,14 +359,32 @@ ENABLE_FIRESTORE_CACHE=true
   - **Unterrichtsideen**: Mit Lehrmittel und Lektionenanzahl
 - **Zwei-Dialog-System**: Thema-Dialog → Kompetenz-Dialog
 
-### 5. Lehrmittel-Übersicht
-- Gruppierung aller Themen nach Lehrmittel
+### 5. Lehrmittel-Übersicht (Akkordeon)
+- **Akkordeon-Layout** gruppiert nach Lehrmittel
 - Alphabetische Sortierung
 - Für jedes Lehrmittel:
   - Lehrmittel-Bild
-  - Liste aller zugehörigen Themen
-  - Klassenstufen-Anzeige
-  - Links zu Unterlagen und Lektionsplanung
+  - Ausklappbare Themen-Liste
+  - **Klickbare Themen-Namen** mit Link zur Lektionsplanung
+  - Beschreibung und Lektionenanzahl
+- Optimiert für schnelle Navigation
+
+### 5a. Lehrplan-Kompetenzen Seite (NEU)
+- **Kachel-Layout** ähnlich wie Airtable
+- **Sortierung**: Medien → Informatik → Anwendungskompetenzen
+- **Akkordeon** pro Kompetenzbereich (alle standardmässig offen)
+- **Kompetenz-Kacheln** zeigen:
+  - LP-Code (z.B. "MI.1.1.a") prominent
+  - Kompetenzbereich als farbiger Badge
+  - Kompetenz und Kompetenzstufe
+  - Grundanspruch (Ja/Nein mit grün/rot Badge)
+  - Zyklus-Badges (farbcodiert)
+  - Klassenstufen-Badges
+  - **Querverweis LP** als klickbare Badges (Link zum Lehrplan)
+  - **Klickbare Unterrichtsideen** → Navigiert zum Jahresplan
+- **Filter**: Suche + Zyklus-Filter
+- **Detail-Dialog** mit allen Kompetenz-Informationen
+- **Statistik-Karte** am Ende der Seite
 
 ### 6. Schulspezifische PICTS-Links
 - Jede Schule hat einen eigenen PICTS-Buchungslink
@@ -377,6 +416,12 @@ ENABLE_FIRESTORE_CACHE=true
   - Zeitraum-Auswahl für Kanban-Spalte
   - Kompetenzen-Auswahl (Airtable IDs)
   - Bild-Upload mit Drag & Drop (max 10MB, JPEG/PNG/WEBP)
+  - **Inline-Lektionen** (NEU):
+    - Akkordeon-basierter Editor direkt im Formular
+    - Button "Lektion zum Thema erfassen"
+    - Automatische Nummerierung (Lektion 1, 2, 3...)
+    - Drag & Ren-Nummerierung bei Löschung
+    - Kompakter Editor mit allen Lektionsfeldern
   - Zwei Submit-Optionen: "Als Entwurf speichern" oder "Zur Prüfung einreichen"
 - **Thema-Bearbeitung** (`/dashboard/thema-bearbeiten/[id]`):
   - Gleiche Features wie Erstellung
@@ -656,10 +701,14 @@ Aktualisiert Lehrerprofil (z.B. Stufe ändern)
 ### GET `/api/themen?stufe={stufe}&grouped=true`
 Lädt Themen nach Stufe, gruppiert nach Zeiträumen
 
+**Query Parameters:**
+- `stufe` - Klassenstufe (optional, wenn nicht gesetzt werden alle Themen geladen)
+- `grouped` - `true` für Gruppierung nach Zeitraum
+
 **Response:**
 ```json
 {
-  "Sommerferien - Herbstferien": [
+  "Sommerferien-Herbstferien": [
     {
       "id": "recXXX",
       "thema": "...",
@@ -669,6 +718,37 @@ Lädt Themen nach Stufe, gruppiert nach Zeiträumen
           "lpCode": "MI.1.1.a",
           "name": "...",
           "unterrichtsideen": [...]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### GET `/api/kompetenzen`
+Lädt alle Lehrplan-Kompetenzen mit Unterrichtsideen
+
+**Response:**
+```json
+{
+  "kompetenzen": [
+    {
+      "id": "recXXX",
+      "lpCode": "MI.1.1.a",
+      "name": "...",
+      "kompetenzbereich": "Medien",
+      "kompetenz": "...",
+      "kompetenzstufe": "...",
+      "zyklus": ["Zyklus 1", "Zyklus 2"],
+      "klassenstufe": ["1./2.", "3./4."],
+      "grundanspruch": "Ja",
+      "querverweisLP": "[D.2.B.1.a](https://...)",
+      "unterrichtsideen": [
+        {
+          "id": "recYYY",
+          "name": "Thema Name",
+          "lehrmittel": "Connected",
+          "anzahl": 8
         }
       ]
     }
@@ -988,6 +1068,12 @@ makeSuperAdmin("deine-email@schule.ch");
 - [x] **Theme Review Workflow** - PICTS-Admin kann Themen freigeben/ablehnen
 - [x] **In-App Notifications** - Bell mit Badge für Review-Status
 - [x] **Roboter-Bilder im Kanban** - Saisonale Roboter für Zeiträume
+- [x] **Collapsible Sidebar Navigation** - Ein-/ausklappbar mit localStorage
+- [x] **Lehrplan-Kompetenzen Seite** - Kachel-Layout mit klickbaren Unterrichtsideen
+- [x] **Lehrmittel Akkordeon-Layout** - Bessere UX für Themen-Übersicht
+- [x] **Inline-Lektionen Editor** - Lektionen direkt beim Thema erstellen
+- [x] **Querverweis LP Formatierung** - Als klickbare Badges statt Raw-Text
+- [x] **AllStufen-Modus im Jahresplan** - Unterrichtsideen für alle Stufen klickbar
 
 ### 🚧 In Arbeit / Geplant
 
@@ -1016,49 +1102,29 @@ makeSuperAdmin("deine-email@schule.ch");
   - Cache-Status Dashboard
 
 #### UI/UX Verbesserungen
-- [ ] **Hintergrund für Startseite** erstellen
-  - Hero-Section mit MIA-App Branding
+- [ ] **Landing Page Hero-Section**
+  - MIA-App Branding
   - Features-Übersicht
   - Call-to-Action für Login/Registrierung
-
-- [ ] **Navigation im Dashboard erweitern**
-  - Sidebar oder Top-Menu mit Links zu:
-    - Dashboard (Profil)
-    - Jahresplan
-    - Lehrmittel
-    - **NEU:** Thema erstellen
-    - **NEU:** Meine Themen
-    - **NEU:** Admin Dashboard (nur für Admins)
-  - Mobile-Responsive Navigation
 
 - [ ] **Custom Theme Badge im Kanban-Board**
   - Badge "Eigenes Thema" für Custom Themes
   - Visuell von Airtable-Themen unterscheidbar
 
 ### Funktionale Erweiterungen
-- [ ] **Lektionsplanung für Custom Themes**
-  - Lektionsplanung-Viewer auch für Custom Lektionen
+- [ ] **Lektionsplanung-Viewer für Custom Themes**
+  - Viewer auch für Custom Lektionen
   - Export-Funktionen (Markdown, PDF) für Custom Lektionen
   - Integration in Thema-Detail-Dialog
-
-- [ ] **Batch-Operations für Custom Lektionen**
-  - Multiple Lektionen auf einmal erstellen
-  - Template-System für wiederkehrende Strukturen
-  - Copy/Paste zwischen Themen
 
 - [ ] **Erweiterte Admin-Features**
   - Benutzer-Verwaltung für Super Admins
   - PICTS-Admin Ernennung direkt in der App
   - Statistiken (Anzahl Themen, Reviews, etc.)
 
-- [ ] **Airtable Export**
-  - Button im Admin Dashboard
-  - Genehmigte Custom Themes nach Airtable exportieren
-  - Bi-direktionale Synchronisation
-
 ### Performance & Qualität
-- [ ] **Caching-Strategie**
-  - React Query für API-Calls
+- [ ] **React Query Integration**
+  - Caching für API-Calls
   - Optimistic Updates
   - Background Refresh
 
@@ -1070,23 +1136,11 @@ makeSuperAdmin("deine-email@schule.ch");
 - [ ] **Loading States**
   - Skeleton Screens statt Spinner
   - Progressive Loading
-  - Optimistic UI Updates
 
 ### Testing & Monitoring
 - [ ] **Unit Tests** für kritische Funktionen
-  - Permission System
-  - API Routes
-  - Firestore Helper Functions
-
 - [ ] **E2E Tests** für User Workflows
-  - Theme erstellen und einreichen
-  - Review Workflow
-  - Notification System
-
-- [ ] **Monitoring & Analytics**
-  - Firebase Analytics
-  - Error Tracking (Sentry)
-  - Performance Monitoring
+- [ ] **Monitoring & Analytics** (Firebase Analytics, Sentry)
 
 ## Kontakt & Support
 
