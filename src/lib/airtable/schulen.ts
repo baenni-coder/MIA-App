@@ -3,6 +3,38 @@ import { Schule } from "@/types";
 
 const SCHULEN_TABLE = process.env.AIRTABLE_SCHULEN_TABLE || "Schulen";
 
+/**
+ * Validiert eine URL und schützt vor Phishing/XSS
+ * Nur HTTPS-URLs sind erlaubt
+ * Optional: Whitelist von erlaubten Domains
+ */
+function validatePICTSUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+
+  try {
+    const parsed = new URL(url);
+
+    // Nur HTTPS erlauben (keine javascript:, data:, file:, etc.)
+    if (parsed.protocol !== 'https:') {
+      console.warn(`Invalid PICTS URL protocol: ${parsed.protocol} for URL: ${url}`);
+      return undefined;
+    }
+
+    // Optional: Whitelist erlaubter Domains (kann angepasst werden)
+    // Kommentar: Falls spezifische Domains bekannt sind, hier hinzufügen
+    // const allowedDomains = ['picts-buchung.ch', 'schulevents.ch', 'example.com'];
+    // if (!allowedDomains.some(domain => parsed.hostname.includes(domain))) {
+    //   console.warn(`PICTS URL not in whitelist: ${parsed.hostname}`);
+    //   return undefined;
+    // }
+
+    return url;
+  } catch (error) {
+    console.warn(`Invalid PICTS URL format: ${url}`, error);
+    return undefined;
+  }
+}
+
 // Alle Schulen laden
 export const getAllSchulen = async (): Promise<Schule[]> => {
   try {
@@ -13,7 +45,7 @@ export const getAllSchulen = async (): Promise<Schule[]> => {
       id: record.id,
       name: record.get("Name") as string,
       ort: record.get("Ort") as string | undefined,
-      pictsBuchen: record.get("PICTS buchen") as string | undefined,
+      pictsBuchen: validatePICTSUrl(record.get("PICTS buchen") as string | undefined),
       createdAt: new Date(record.get("Created") as string || Date.now()),
     }));
   } catch (error) {
@@ -32,7 +64,7 @@ export const getSchuleById = async (id: string): Promise<Schule | null> => {
       id: record.id,
       name: record.get("Name") as string,
       ort: record.get("Ort") as string | undefined,
-      pictsBuchen: record.get("PICTS buchen") as string | undefined,
+      pictsBuchen: validatePICTSUrl(record.get("PICTS buchen") as string | undefined),
       createdAt: new Date(record.get("Created") as string || Date.now()),
     };
   } catch (error) {

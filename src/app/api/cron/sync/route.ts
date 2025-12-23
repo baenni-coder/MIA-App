@@ -11,14 +11,30 @@ import { getSyncMetadata } from "@/lib/firestore/system-cache";
 export async function GET(request: NextRequest) {
   try {
     // Vercel Cron Job Authentifizierung
-    // Vercel sendet einen speziellen Header bei Cron-Aufrufen
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
 
-    // Prüfe ob Request von Vercel Cron kommt
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      console.warn("Unauthorized cron attempt");
+    // IMMER prüfen - auch wenn CRON_SECRET nicht gesetzt ist
+    if (!cronSecret) {
+      console.error("CRON_SECRET not configured - rejecting cron request for security");
+      return NextResponse.json(
+        { error: "Server misconfigured - CRON_SECRET required" },
+        { status: 500 }
+      );
+    }
+
+    // Prüfe Authorization Header
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      console.warn("Unauthorized cron attempt - invalid or missing token");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Optional: Zusätzliche Vercel-spezifische Header prüfen
+    const userAgent = request.headers.get("user-agent");
+    const isVercelCron = userAgent?.includes("vercel-cron");
+    if (!isVercelCron) {
+      console.warn(`Suspicious cron request from user-agent: ${userAgent}`);
+      // Warnung loggen, aber nicht blockieren (für Flexibilität)
     }
 
     console.log("🕐 Scheduled sync triggered by Vercel Cron");
