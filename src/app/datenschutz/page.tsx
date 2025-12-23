@@ -35,12 +35,12 @@ export default function DatenschutzPage() {
               Verantwortlich für die Datenverarbeitung auf dieser Website ist:
             </p>
             <div className="bg-gray-50 p-4 rounded-md border">
-              <p className="font-medium">Schulkreis BeLoSe</p>
-              <p>Friedhofstrasse 2</p>
-              <p>4512 Bellach</p>
+              <p className="font-medium">PICTS BeLoSe</p>
+              <p>Schulhausstrasse 14</p>
+              <p>2545 Selzach</p>
               <p className="mt-2">
                 <Mail className="inline h-4 w-4 mr-1" />
-                E-Mail: [mia-app@schueu.ch]
+                E-Mail: mia-app@schueu.ch
               </p>
             </div>
             </section>
@@ -206,7 +206,7 @@ export default function DatenschutzPage() {
               </div>
             </div>
             <p className="text-gray-700 leading-relaxed mt-4">
-              Zur Ausübung Ihrer Rechte kontaktieren Sie uns bitte unter: <strong>[kontakt@example.ch]</strong>
+              Zur Ausübung Ihrer Rechte kontaktieren Sie uns bitte unter: <strong>mia-app@schueu.ch</strong>
             </p>
           </section>
 
