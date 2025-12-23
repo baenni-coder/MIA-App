@@ -275,8 +275,18 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t py-8 px-4">
-        <div className="container mx-auto max-w-6xl text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} MIA-App. Alle Rechte vorbehalten.</p>
+        <div className="container mx-auto max-w-6xl">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+            <p>© {new Date().getFullYear()} MIA-App. Alle Rechte vorbehalten.</p>
+            <div className="flex gap-6">
+              <Link href="/datenschutz" className="hover:text-primary transition-colors underline">
+                Datenschutzerklärung
+              </Link>
+              <Link href="/impressum" className="hover:text-primary transition-colors underline">
+                Impressum
+              </Link>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
