@@ -21,13 +21,16 @@ import {
   ChevronRight,
   RefreshCw,
   GraduationCap,
+  Scale,
 } from "lucide-react";
+import { Kanton } from "@/types";
 
 interface NavItem {
   label: string;
   icon: React.ReactNode;
   path: string;
   adminOnly?: boolean;
+  kantonOnly?: Kanton; // Nur für bestimmte Kantone anzeigen
 }
 
 export default function DashboardLayout({
@@ -39,17 +42,35 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userKanton, setUserKanton] = useState<Kanton | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     checkAdminStatus();
+    loadUserKanton();
     // Sidebar-Status aus localStorage laden
     const savedState = localStorage.getItem("sidebarCollapsed");
     if (savedState) {
       setSidebarCollapsed(savedState === "true");
     }
   }, [user]);
+
+  const loadUserKanton = async () => {
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/teachers?userId=${user.uid}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUserKanton(data.kanton || null);
+      }
+    } catch (error) {
+      console.error("Error loading user kanton:", error);
+    }
+  };
 
   const toggleSidebar = () => {
     const newState = !sidebarCollapsed;
@@ -100,6 +121,12 @@ export default function DashboardLayout({
       path: "/dashboard/lehrplan",
     },
     {
+      label: "Regelstandards",
+      icon: <Scale className="h-5 w-5" />,
+      path: "/dashboard/regelstandards",
+      kantonOnly: "SO", // Nur für Kanton Solothurn
+    },
+    {
       label: "Thema erstellen",
       icon: <PlusCircle className="h-5 w-5" />,
       path: "/dashboard/thema-erstellen",
@@ -123,7 +150,13 @@ export default function DashboardLayout({
     },
   ];
 
-  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const visibleNavItems = navItems.filter((item) => {
+    // Admin-Only Filter
+    if (item.adminOnly && !isAdmin) return false;
+    // Kanton-Only Filter
+    if (item.kantonOnly && item.kantonOnly !== userKanton) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-background flex">

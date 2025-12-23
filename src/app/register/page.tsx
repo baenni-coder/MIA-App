@@ -16,7 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Stufe } from "@/types";
+import { Stufe, Kanton, KANTONE } from "@/types";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -39,6 +39,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [schuleId, setSchuleId] = useState("");
+  const [kanton, setKanton] = useState<Kanton | "">("");
   const [stufe, setStufe] = useState<Stufe>("1. Klasse");
   const [schulen, setSchulen] = useState<Array<{ id: string; name: string }>>([]);
   const [error, setError] = useState("");
@@ -90,6 +91,7 @@ export default function RegisterPage() {
             email: user.email,
             name,
             schuleId,
+            kanton: kanton || undefined,
             stufe,
           }),
         });
@@ -177,6 +179,27 @@ export default function RegisterPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="kanton">Unterrichtskanton</Label>
+              <Select
+                value={kanton}
+                onValueChange={(value) => setKanton(value as Kanton)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Kanton auswählen (optional)..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {KANTONE.map((k) => (
+                    <SelectItem key={k.value} value={k.value}>
+                      {k.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Einige Funktionen sind kantonsspezifisch (z.B. Regelstandards für SO)
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="stufe">Stufe</Label>

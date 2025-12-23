@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
     const authenticatedUserId = decodedToken.uid;
 
-    const { userId, email, name, schuleId, stufe } = await request.json();
+    const { userId, email, name, schuleId, kanton, stufe } = await request.json();
 
     if (!userId || !email || !name || !schuleId || !stufe) {
       return NextResponse.json(
@@ -58,14 +58,21 @@ export async function POST(request: Request) {
     }
 
     // 4. Profil erstellen - role IMMER auf "teacher" setzen (nicht vom Client übernehmen!)
-    await adminDb.collection("teachers").doc(userId).set({
+    const profileData: Record<string, unknown> = {
       email,
       name,
       schuleId,
       stufe,
       role: "teacher", // Hardcoded - keine Privilege Escalation!
       createdAt: new Date().toISOString(),
-    });
+    };
+
+    // Kanton ist optional
+    if (kanton) {
+      profileData.kanton = kanton;
+    }
+
+    await adminDb.collection("teachers").doc(userId).set(profileData);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -194,7 +201,7 @@ export async function PUT(request: Request) {
 
     const authenticatedUserId = decodedToken.uid;
 
-    const { userId, stufe, role } = await request.json();
+    const { userId, stufe, kanton, role } = await request.json();
 
     if (!userId) {
       return NextResponse.json(
@@ -212,10 +219,11 @@ export async function PUT(request: Request) {
     }
 
     const adminDb = getAdminDb();
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, unknown> = {};
 
-    // 3. Stufe kann jeder User für sich selbst ändern
+    // 3. Stufe und Kanton kann jeder User für sich selbst ändern
     if (stufe) updateData.stufe = stufe;
+    if (kanton !== undefined) updateData.kanton = kanton || null; // null um zu löschen
 
     // 4. Role-Updates NUR durch Super-Admin
     if (role !== undefined) {
@@ -231,7 +239,7 @@ export async function PUT(request: Request) {
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: "At least one field (stufe or role) is required" },
+        { error: "At least one field (stufe, kanton or role) is required" },
         { status: 400 }
       );
     }

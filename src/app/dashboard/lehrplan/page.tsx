@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -19,8 +20,9 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Kompetenz } from "@/types";
-import { GraduationCap, Search, Lightbulb, BookOpen, ExternalLink, CheckCircle, XCircle } from "lucide-react";
+import { Kompetenz, Regelstandard } from "@/types";
+import { getRegelstandardsByLPCode } from "@/lib/data/regelstandards";
+import { GraduationCap, Search, Lightbulb, BookOpen, ExternalLink, CheckCircle, XCircle, FileText } from "lucide-react";
 import Link from "next/link";
 
 // Reihenfolge der Kompetenzbereiche
@@ -73,13 +75,15 @@ function parseQuerverweisLP(text: string): Array<{ code: string; link?: string }
   return results;
 }
 
-export default function LehrplanPage() {
+function LehrplanPageContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [kompetenzen, setKompetenzen] = useState<Kompetenz[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
   const [selectedZyklus, setSelectedZyklus] = useState<string | null>(null);
   const [selectedKompetenz, setSelectedKompetenz] = useState<Kompetenz | null>(null);
+  const [hasAutoOpened, setHasAutoOpened] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -95,6 +99,23 @@ export default function LehrplanPage() {
         });
     }
   }, [user]);
+
+  // Auto-open Kompetenz from URL search param
+  useEffect(() => {
+    if (!loading && kompetenzen.length > 0 && searchTerm && !hasAutoOpened) {
+      // If search term looks like an LP code, try to open that specific one
+      const lpCodeMatch = searchTerm.match(/^(MI|IB)\.\d+\.\d+\.[a-z]$/i);
+      if (lpCodeMatch) {
+        const matchingK = kompetenzen.find(
+          (k) => k.lpCode?.toLowerCase() === searchTerm.toLowerCase()
+        );
+        if (matchingK) {
+          setSelectedKompetenz(matchingK);
+          setHasAutoOpened(true);
+        }
+      }
+    }
+  }, [loading, kompetenzen, searchTerm, hasAutoOpened]);
 
   // Gruppiere nach Kompetenzbereich
   const gruppiertNachBereich = kompetenzen.reduce((acc, k) => {
@@ -139,6 +160,12 @@ export default function LehrplanPage() {
 
   const getBereichColors = (bereich: string) => {
     return BEREICH_COLORS[bereich] || { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-200" };
+  };
+
+  // Helper: Get related Regelstandards for a Kompetenz
+  const getRelatedRegelstandards = (lpCode: string | undefined): Regelstandard[] => {
+    if (!lpCode) return [];
+    return getRegelstandardsByLPCode(lpCode);
   };
 
   return (
@@ -337,6 +364,31 @@ export default function LehrplanPage() {
                                   )}
                                 </div>
                               )}
+
+                              {/* Regelstandards (Kanton SO) */}
+                              {getRelatedRegelstandards(k.lpCode).length > 0 && (
+                                <div className="pt-2 border-t space-y-1">
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <FileText className="h-3 w-3 shrink-0" />
+                                    <span>Regelstandards SO</span>
+                                  </div>
+                                  {getRelatedRegelstandards(k.lpCode).slice(0, 2).map((rs) => (
+                                    <Link
+                                      key={rs.rsCode}
+                                      href={`/dashboard/regelstandards?search=${encodeURIComponent(rs.rsCode)}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex items-center gap-1 text-xs text-teal-600 hover:underline truncate"
+                                    >
+                                      <span className="font-mono">{rs.rsCode}</span>
+                                    </Link>
+                                  ))}
+                                  {getRelatedRegelstandards(k.lpCode).length > 2 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      +{getRelatedRegelstandards(k.lpCode).length - 2} weitere
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </CardContent>
                           </Card>
                         ))}
@@ -526,6 +578,41 @@ export default function LehrplanPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Regelstandards (Kanton Solothurn) */}
+                  {getRelatedRegelstandards(selectedKompetenz.lpCode).length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-teal-600" />
+                        Regelstandards Kanton Solothurn ({getRelatedRegelstandards(selectedKompetenz.lpCode).length})
+                      </h4>
+                      <div className="space-y-2">
+                        {getRelatedRegelstandards(selectedKompetenz.lpCode).map((rs) => (
+                          <Link
+                            key={rs.rsCode}
+                            href={`/dashboard/regelstandards?search=${encodeURIComponent(rs.rsCode)}`}
+                            className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="font-mono font-bold text-teal-700">{rs.rsCode}</span>
+                              <div>
+                                <span className="font-medium group-hover:text-teal-600 transition-colors">
+                                  {rs.kompetenz}
+                                </span>
+                                <span className="text-sm text-muted-foreground ml-2">
+                                  ({rs.zyklus}, {rs.klassenstufe})
+                                </span>
+                              </div>
+                            </div>
+                            <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-teal-600 transition-colors" />
+                          </Link>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Diese Regelstandards sind spezifisch für den Kanton Solothurn.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -533,5 +620,24 @@ export default function LehrplanPage() {
         </Dialog>
       </DashboardLayout>
     </ProtectedRoute>
+  );
+}
+
+export default function LehrplanPage() {
+  return (
+    <Suspense fallback={
+      <ProtectedRoute>
+        <DashboardLayout>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-4 text-muted-foreground">Wird geladen...</p>
+            </div>
+          </div>
+        </DashboardLayout>
+      </ProtectedRoute>
+    }>
+      <LehrplanPageContent />
+    </Suspense>
   );
 }
