@@ -1,3 +1,38 @@
+// Schweizer Kantone (für kantonsspezifische Funktionen)
+export type Kanton =
+  | "AG" | "AI" | "AR" | "BE" | "BL" | "BS" | "FR" | "GE" | "GL" | "GR"
+  | "JU" | "LU" | "NE" | "NW" | "OW" | "SG" | "SH" | "SO" | "SZ" | "TG"
+  | "TI" | "UR" | "VD" | "VS" | "ZG" | "ZH";
+
+export const KANTONE: { value: Kanton; label: string }[] = [
+  { value: "AG", label: "Aargau" },
+  { value: "AI", label: "Appenzell Innerrhoden" },
+  { value: "AR", label: "Appenzell Ausserrhoden" },
+  { value: "BE", label: "Bern" },
+  { value: "BL", label: "Basel-Landschaft" },
+  { value: "BS", label: "Basel-Stadt" },
+  { value: "FR", label: "Freiburg" },
+  { value: "GE", label: "Genf" },
+  { value: "GL", label: "Glarus" },
+  { value: "GR", label: "Graubünden" },
+  { value: "JU", label: "Jura" },
+  { value: "LU", label: "Luzern" },
+  { value: "NE", label: "Neuenburg" },
+  { value: "NW", label: "Nidwalden" },
+  { value: "OW", label: "Obwalden" },
+  { value: "SG", label: "St. Gallen" },
+  { value: "SH", label: "Schaffhausen" },
+  { value: "SO", label: "Solothurn" },
+  { value: "SZ", label: "Schwyz" },
+  { value: "TG", label: "Thurgau" },
+  { value: "TI", label: "Tessin" },
+  { value: "UR", label: "Uri" },
+  { value: "VD", label: "Waadt" },
+  { value: "VS", label: "Wallis" },
+  { value: "ZG", label: "Zug" },
+  { value: "ZH", label: "Zürich" },
+];
+
 // Schulstufen
 export type Stufe =
   | "KiGa"
@@ -73,6 +108,21 @@ export interface Kompetenz {
   grundanspruch?: string;
   querverweisLP?: string;
   unterrichtsideen?: Unterrichtsidee[];
+  // Verknüpfung zu Regelstandards (für bidirektionale Links)
+  regelstandardCodes?: string[]; // z.B. ["RS.1.1.a", "RS.1.1.b"]
+}
+
+// Regelstandard (Kanton Solothurn)
+export interface Regelstandard {
+  rsCode: string; // z.B. "RS.1.1.a"
+  handlungsfeld: string; // z.B. "Handlungsfeld 1: Auswählen, Beurteilen & Vorbeugen"
+  handlungsfeldNummer: number; // 1-7
+  dimension: string; // z.B. "Dimension Zugang: Zugang finden, Handhaben, Anwenden"
+  kompetenz: string; // z.B. "Datensicherheit"
+  kompetenzenLehrplan: string[]; // LP-Codes z.B. ["IB.2.3.b", "IB.3.1.a"]
+  kompetenzstufe: string; // Beschreibung der Kompetenzstufe
+  zyklus: string; // z.B. "Zyklus 2"
+  klassenstufe: string; // z.B. "3./4."
 }
 
 // Benutzer-Rollen
@@ -85,7 +135,8 @@ export interface Teacher {
   name: string;
   schuleId: string;
   stufe: Stufe;
-  role: UserRole; // NEU: Rolle des Benutzers
+  kanton?: Kanton; // Unterrichtskanton (für kantonsspezifische Funktionen)
+  role: UserRole; // Rolle des Benutzers
   schule?: Schule | null;
   createdAt: Date;
 }
