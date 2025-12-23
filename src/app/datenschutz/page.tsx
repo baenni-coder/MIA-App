@@ -35,18 +35,15 @@ export default function DatenschutzPage() {
               Verantwortlich für die Datenverarbeitung auf dieser Website ist:
             </p>
             <div className="bg-gray-50 p-4 rounded-md border">
-              <p className="font-medium">[Name der Organisation/Schule]</p>
-              <p>[Adresse]</p>
-              <p>[PLZ] [Ort]</p>
+              <p className="font-medium">Schulkreis BeLoSe</p>
+              <p>Friedhofstrasse 2</p>
+              <p>4512 Bellach</p>
               <p className="mt-2">
                 <Mail className="inline h-4 w-4 mr-1" />
-                E-Mail: [kontakt@example.ch]
+                E-Mail: [mia-app@schueu.ch]
               </p>
             </div>
-            <p className="text-sm text-gray-600 mt-4">
-              <strong>Hinweis:</strong> Bitte ergänzen Sie hier Ihre tatsächlichen Kontaktdaten.
-            </p>
-          </section>
+            </section>
 
           {/* 2. Erhobene Daten */}
           <section>
@@ -272,8 +269,8 @@ export default function DatenschutzPage() {
         <div className="mt-8 text-center text-sm text-gray-600">
           <p>
             Bei Fragen zum Datenschutz wenden Sie sich bitte an:{" "}
-            <a href="mailto:kontakt@example.ch" className="text-primary underline">
-              kontakt@example.ch
+            <a href="mailto:mia-app@schueu.ch" className="text-primary underline">
+              mia-app@schueu.ch
             </a>
           </p>
           <Link href="/" className="mt-4 inline-block">
