@@ -23,7 +23,7 @@ const STUFEN: Stufe[] = [
 ];
 
 function JahresplanContent() {
-  const { user } = useAuth();
+  const { user, getAuthToken } = useAuth();
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("search");
   const allStufenParam = searchParams.get("allStufen") === "true";
@@ -33,38 +33,57 @@ function JahresplanContent() {
   const [selectedStufe, setSelectedStufe] = useState<Stufe | null>(null);
 
   useEffect(() => {
-    if (user) {
-      // Erst Lehrer-Daten laden, um die Stufe zu bekommen
-      fetch(`/api/teachers?userId=${user.uid}`)
-        .then((res) => res.json())
-        .then((data: Teacher) => {
-          setTeacherData(data);
+    const loadData = async () => {
+      if (!user) return;
 
-          // Verwende selectedStufe falls gesetzt, sonst die Stufe des Lehrers
-          const currentStufe = selectedStufe || data.stufe;
+      try {
+        // Get auth token for teachers API
+        const token = await getAuthToken();
+        if (!token) {
+          console.error("No auth token available");
+          setLoading(false);
+          return;
+        }
 
-          // Wenn allStufen=true (von Lehrplan-Link), lade ALLE Themen
-          // Sonst nur Themen für die aktuelle Stufe
-          let themenUrl: string;
-          if (allStufenParam && searchQuery) {
-            // Lade alle Themen ohne Stufen-Filter
-            themenUrl = `/api/themen?grouped=true`;
-          } else {
-            themenUrl = `/api/themen?stufe=${encodeURIComponent(currentStufe)}&grouped=true`;
-          }
-          return fetch(themenUrl);
-        })
-        .then((res) => res.json())
-        .then((data) => {
-          setThemenGrouped(data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Error loading data:", err);
-          setLoading(false);
+        // Erst Lehrer-Daten laden, um die Stufe zu bekommen
+        const teacherRes = await fetch(`/api/teachers?userId=${user.uid}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
-    }
-  }, [user, selectedStufe, allStufenParam, searchQuery]);
+
+        if (!teacherRes.ok) {
+          throw new Error(`HTTP ${teacherRes.status}`);
+        }
+
+        const data: Teacher = await teacherRes.json();
+        setTeacherData(data);
+
+        // Verwende selectedStufe falls gesetzt, sonst die Stufe des Lehrers
+        const currentStufe = selectedStufe || data.stufe;
+
+        // Wenn allStufen=true (von Lehrplan-Link), lade ALLE Themen
+        // Sonst nur Themen für die aktuelle Stufe
+        let themenUrl: string;
+        if (allStufenParam && searchQuery) {
+          // Lade alle Themen ohne Stufen-Filter
+          themenUrl = `/api/themen?grouped=true`;
+        } else {
+          themenUrl = `/api/themen?stufe=${encodeURIComponent(currentStufe)}&grouped=true`;
+        }
+
+        const themenRes = await fetch(themenUrl);
+        const themenData = await themenRes.json();
+        setThemenGrouped(themenData);
+      } catch (err) {
+        console.error("Error loading data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [user, getAuthToken, selectedStufe, allStufenParam, searchQuery]);
 
   return (
     <ProtectedRoute>

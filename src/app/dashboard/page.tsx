@@ -25,7 +25,7 @@ const STUFEN: Stufe[] = [
 ];
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, getAuthToken } = useAuth();
   const router = useRouter();
   const [teacherData, setTeacherData] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,28 +34,56 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetch(`/api/teachers?userId=${user.uid}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setTeacherData(data);
+    const loadTeacherData = async () => {
+      if (!user) return;
+
+      try {
+        const token = await getAuthToken();
+        if (!token) {
+          console.error("No auth token available");
           setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Error loading teacher data:", err);
-          setLoading(false);
+          return;
+        }
+
+        const res = await fetch(`/api/teachers?userId=${user.uid}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
-    }
-  }, [user]);
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        setTeacherData(data);
+      } catch (err) {
+        console.error("Error loading teacher data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTeacherData();
+  }, [user, getAuthToken]);
 
   const handleSaveStufe = async () => {
     if (!user || !newStufe) return;
 
     setSaving(true);
     try {
+      const token = await getAuthToken();
+      if (!token) {
+        console.error("No auth token available");
+        return;
+      }
+
       const response = await fetch("/api/teachers", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           userId: user.uid,
           stufe: newStufe,

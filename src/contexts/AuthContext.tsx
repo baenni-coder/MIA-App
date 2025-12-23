@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ user: User | null; error: string | null }>;
   register: (email: string, password: string) => Promise<{ user: User | null; error: string | null }>;
   logout: () => Promise<{ error: string | null }>;
+  getAuthToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => ({ user: null, error: null }),
   register: async () => ({ user: null, error: null }),
   logout: async () => ({ error: null }),
+  getAuthToken: async () => null,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -37,12 +39,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => unsubscribe();
   }, []);
 
+  const getAuthToken = async (): Promise<string | null> => {
+    if (!user) return null;
+    try {
+      return await user.getIdToken();
+    } catch (error) {
+      console.error("Error getting auth token:", error);
+      return null;
+    }
+  };
+
   const value = {
     user,
     loading,
     login: loginUser,
     register: registerUser,
     logout: logoutUser,
+    getAuthToken,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

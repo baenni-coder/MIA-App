@@ -74,22 +74,35 @@ export default function RegisterPage() {
       setError(registerError);
       setLoading(false);
     } else if (user) {
-      // Lehrer-Profil in Firestore speichern
-      const response = await fetch("/api/teachers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.uid,
-          email: user.email,
-          name,
-          schuleId,
-          stufe,
-        }),
-      });
+      try {
+        // Get auth token from newly created user
+        const token = await user.getIdToken();
 
-      if (response.ok) {
-        router.push("/dashboard");
-      } else {
+        // Lehrer-Profil in Firestore speichern
+        const response = await fetch("/api/teachers", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            userId: user.uid,
+            email: user.email,
+            name,
+            schuleId,
+            stufe,
+          }),
+        });
+
+        if (response.ok) {
+          router.push("/dashboard");
+        } else {
+          const errorData = await response.json();
+          setError(errorData.error || "Fehler beim Erstellen des Profils");
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error creating profile:", err);
         setError("Fehler beim Erstellen des Profils");
         setLoading(false);
       }
