@@ -64,8 +64,8 @@ export default function ImpressumPage() {
                 <Globe className="h-5 w-5 text-primary mt-0.5" />
                 <div>
                   <p className="font-semibold">Website</p>
-                  <a href="https://www.example.ch" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    [www.example.ch]
+                  <a href="https://www.schueu.ch" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    www.schueu.ch
                   </a>
                 </div>
               </div>
@@ -76,8 +76,8 @@ export default function ImpressumPage() {
           <section>
             <h2 className="text-2xl font-semibold mb-4">Vertretungsberechtigte Person</h2>
             <div className="bg-gray-50 p-4 rounded-md border">
-              <p className="font-semibold">[Vorname Nachname]</p>
-              <p className="text-muted-foreground">[Funktion, z.B. Schulleitung / PICTS-Verantwortliche/r]</p>
+              <p className="font-semibold">Andreas Bänninger</p>
+              <p className="text-muted-foreground">PICTS-Verantwortlicher Schulkreis BeLoSe</p>
             </div>
           </section>
 
