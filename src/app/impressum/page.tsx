@@ -32,14 +32,12 @@ export default function ImpressumPage() {
               <h2 className="text-2xl font-semibold">Betreiber der Website</h2>
             </div>
             <div className="bg-gray-50 p-6 rounded-md border space-y-2">
-              <p className="font-semibold text-lg">[Name der Organisation / Schulgemeinde]</p>
-              <p>[Strasse und Hausnummer]</p>
-              <p>[PLZ] [Ort]</p>
+              <p className="font-semibold text-lg">PICTS BeLoSe</p>
+              <p>Schulhausstrasse 14</p>
+              <p>2545 Selzach</p>
               <p>Schweiz</p>
             </div>
-            <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded border border-amber-200 mt-4">
-              <strong>Hinweis:</strong> Bitte ersetzen Sie die Platzhalter mit Ihren tatsächlichen Angaben.
-            </p>
+            
           </section>
 
           {/* 2. Kontakt */}
@@ -50,8 +48,8 @@ export default function ImpressumPage() {
                 <Mail className="h-5 w-5 text-primary mt-0.5" />
                 <div>
                   <p className="font-semibold">E-Mail</p>
-                  <a href="mailto:kontakt@example.ch" className="text-primary hover:underline">
-                    [kontakt@example.ch]
+                  <a href="mailto:mia-app@schueu.ch" className="text-primary hover:underline">
+                    mia-app@schueu.ch
                   </a>
                 </div>
               </div>
@@ -59,7 +57,7 @@ export default function ImpressumPage() {
                 <Phone className="h-5 w-5 text-primary mt-0.5" />
                 <div>
                   <p className="font-semibold">Telefon</p>
-                  <p>[+41 XX XXX XX XX]</p>
+                  <p>+41 32 641 70 25</p>
                 </div>
               </div>
               <div className="bg-gray-50 p-4 rounded-md border flex items-start gap-3 md:col-span-2">
