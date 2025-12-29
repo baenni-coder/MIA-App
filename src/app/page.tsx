@@ -65,8 +65,8 @@ export default function Home() {
           {/* Stats */}
           <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="text-center">
-              <div className="text-4xl font-bold text-primary">5-7x</div>
-              <div className="text-sm text-muted-foreground mt-2">Schnellere Performance</div>
+              <div className="text-4xl font-bold text-primary">80+</div>
+              <div className="text-sm text-muted-foreground mt-2">Kompetenzen Lehrplan 21</div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-primary">90+</div>
