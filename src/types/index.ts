@@ -421,6 +421,66 @@ export interface SyncLog {
 }
 
 // ============================================
+// School Files (schulspezifische Dateien)
+// ============================================
+
+// Freigabe-Level für Dateien
+export type FileShareLevel = "private" | "school";
+
+// Erlaubte Dateitypen
+export type AllowedFileType =
+  | "application/pdf"
+  | "application/msword"
+  | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  | "application/vnd.ms-powerpoint"
+  | "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+  | "application/vnd.ms-excel"
+  | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  | "image/jpeg"
+  | "image/png"
+  | "image/webp";
+
+// School File Metadata (in Firestore gespeichert)
+export interface SchoolFile {
+  id: string;
+
+  // Datei-Informationen
+  name: string; // Original Dateiname
+  storagePath: string; // Pfad in Firebase Storage
+  storageUrl: string; // Download URL
+  contentType: string; // MIME-Type
+  size: number; // Größe in Bytes
+
+  // Zugehörigkeit
+  schuleId: string; // Airtable Schul-ID
+  schuleName?: string; // Schulname für Anzeige
+  uploadedBy: string; // User ID des Uploaders
+  uploadedByName: string; // Name des Uploaders
+
+  // Freigabe
+  sharedWith: FileShareLevel; // "private" oder "school"
+
+  // Optional: Verknüpfung zu Themen
+  linkedThemeIds?: string[]; // Custom Theme IDs
+  linkedThemeNames?: string[]; // Theme Namen für Anzeige
+
+  // Beschreibung
+  description?: string;
+
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Für File-Upload Request
+export interface SchoolFileUploadRequest {
+  name?: string; // Optional: Custom Name (sonst Original-Dateiname)
+  sharedWith: FileShareLevel;
+  linkedThemeIds?: string[];
+  description?: string;
+}
+
+// ============================================
 // Temporäre Typen (für Formulare)
 // ============================================
 
