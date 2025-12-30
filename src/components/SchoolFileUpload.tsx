@@ -2,6 +2,12 @@
 
 import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { storage } from "@/lib/firebase/config";
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+} from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +48,14 @@ const ALLOWED_TYPES = [
 
 const MAX_SIZE_MB = 50;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+
+// Generiert sicheren Dateinamen
+function sanitizeFilename(filename: string): string {
+  return filename
+    .replace(/[^a-zA-Z0-9äöüÄÖÜß._-]/g, "_")
+    .replace(/_+/g, "_")
+    .substring(0, 100);
+}
 
 export default function SchoolFileUpload({
   onUploadComplete,
@@ -116,7 +130,7 @@ export default function SchoolFileUpload({
   };
 
   const handleUpload = async () => {
-    if (!user || !file) return;
+    if (!user || !file || !storage) return;
 
     setUploading(true);
     setProgress(0);
@@ -125,56 +139,106 @@ export default function SchoolFileUpload({
     try {
       const token = await user.getIdToken();
 
-      // Erstelle FormData
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("sharedWith", sharedWith);
-      if (customName && customName !== file.name) {
-        formData.append("name", customName);
-      }
-      if (description) {
-        formData.append("description", description);
-      }
-      if (linkedThemeIds.length > 0) {
-        formData.append("linkedThemeIds", linkedThemeIds.join(","));
+      // 1. Hole Teacher-Info für schuleId
+      const teacherResponse = await fetch(`/api/teachers?userId=${user.uid}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!teacherResponse.ok) {
+        throw new Error("Lehrerprofil konnte nicht geladen werden");
       }
 
-      // Simuliere Upload-Fortschritt
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => Math.min(prev + 10, 90));
-      }, 200);
+      const teacherData = await teacherResponse.json();
+      const schuleId = teacherData.schuleId;
+      const teacherName = teacherData.name;
 
-      const response = await fetch("/api/school-files", {
+      if (!schuleId) {
+        throw new Error("Keine Schule zugewiesen");
+      }
+
+      // 2. Generiere Storage-Pfad
+      const timestamp = Date.now();
+      const sanitizedName = sanitizeFilename(customName || file.name);
+      const storagePath =
+        sharedWith === "school"
+          ? `school-files/${schuleId}/shared/${timestamp}_${sanitizedName}`
+          : `school-files/${schuleId}/users/${user.uid}/${timestamp}_${sanitizedName}`;
+
+      // 3. Upload direkt zu Firebase Storage (Client-seitig)
+      const storageRef = ref(storage, storagePath);
+      const uploadTask = uploadBytesResumable(storageRef, file, {
+        contentType: file.type,
+        customMetadata: {
+          schuleId,
+          uploadedBy: user.uid,
+          sharedWith,
+          originalName: file.name,
+        },
+      });
+
+      // Fortschritt tracken
+      await new Promise<void>((resolve, reject) => {
+        uploadTask.on(
+          "state_changed",
+          (snapshot) => {
+            const pct = Math.round(
+              (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+            );
+            setProgress(pct);
+          },
+          (err) => {
+            console.error("Upload error:", err);
+            reject(new Error("Upload fehlgeschlagen"));
+          },
+          () => {
+            resolve();
+          }
+        );
+      });
+
+      // 4. Hole Download-URL
+      const storageUrl = await getDownloadURL(storageRef);
+
+      // 5. Speichere Metadaten in Firestore über API
+      const metadataResponse = await fetch("/api/school-files/metadata", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body: formData,
+        body: JSON.stringify({
+          name: customName || file.name,
+          storagePath,
+          storageUrl,
+          contentType: file.type,
+          size: file.size,
+          sharedWith,
+          linkedThemeIds: linkedThemeIds.length > 0 ? linkedThemeIds : undefined,
+          description: description || undefined,
+        }),
       });
 
-      clearInterval(progressInterval);
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Fehler beim Hochladen");
+      if (!metadataResponse.ok) {
+        const data = await metadataResponse.json();
+        throw new Error(data.error || "Metadaten konnten nicht gespeichert werden");
       }
+
+      const metadataResult = await metadataResponse.json();
 
       setProgress(100);
       setSuccess(true);
 
-      const data = await response.json();
-
       // Erstelle SchoolFile Objekt für Callback
       const uploadedFile: SchoolFile = {
-        id: data.fileId,
+        id: metadataResult.fileId,
         name: customName || file.name,
-        storagePath: "",
-        storageUrl: data.storageUrl,
+        storagePath,
+        storageUrl,
         contentType: file.type,
         size: file.size,
-        schuleId: "",
+        schuleId,
         uploadedBy: user.uid,
-        uploadedByName: "",
+        uploadedByName: teacherName,
         sharedWith,
         description: description || undefined,
         linkedThemeIds: linkedThemeIds.length > 0 ? linkedThemeIds : undefined,
