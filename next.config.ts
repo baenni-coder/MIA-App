@@ -13,6 +13,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Erhöhe Body-Size-Limit für File-Uploads (50MB)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
+  },
 };
 
 export default nextConfig;
