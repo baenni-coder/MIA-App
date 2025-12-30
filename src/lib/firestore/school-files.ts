@@ -108,56 +108,72 @@ export async function getSchoolFilesForUser(
 ): Promise<SchoolFile[]> {
   const adminDb = getAdminDb();
 
-  // Query 1: Eigene Dateien (privat + school)
-  const ownFilesQuery = adminDb
-    .collection(COLLECTION)
-    .where("uploadedBy", "==", userId)
-    .orderBy("createdAt", "desc");
+  try {
+    // Einfache Queries ohne orderBy (vermeidet Index-Probleme)
+    // Query 1: Eigene Dateien (privat + school)
+    const ownFilesQuery = adminDb
+      .collection(COLLECTION)
+      .where("uploadedBy", "==", userId);
 
-  // Query 2: Geteilte Dateien der Schule (von anderen)
-  const sharedFilesQuery = adminDb
-    .collection(COLLECTION)
-    .where("schuleId", "==", schuleId)
-    .where("sharedWith", "==", "school")
-    .orderBy("createdAt", "desc");
+    // Query 2: Geteilte Dateien der Schule
+    // Vereinfacht: Nur nach schuleId filtern, dann im Code prüfen
+    const sharedFilesQuery = adminDb
+      .collection(COLLECTION)
+      .where("schuleId", "==", schuleId);
 
-  const [ownSnapshot, sharedSnapshot] = await Promise.all([
-    ownFilesQuery.get(),
-    sharedFilesQuery.get(),
-  ]);
+    const [ownSnapshot, sharedSnapshot] = await Promise.all([
+      ownFilesQuery.get(),
+      sharedFilesQuery.get(),
+    ]);
 
-  // Kombiniere und dedupliziere
-  const filesMap = new Map<string, SchoolFile>();
+    // Kombiniere und dedupliziere
+    const filesMap = new Map<string, SchoolFile>();
 
-  const processDoc = (doc: FirebaseFirestore.DocumentSnapshot) => {
-    const data = doc.data()!;
-    filesMap.set(doc.id, {
-      id: doc.id,
-      name: data.name,
-      storagePath: data.storagePath,
-      storageUrl: data.storageUrl,
-      contentType: data.contentType,
-      size: data.size,
-      schuleId: data.schuleId,
-      schuleName: data.schuleName,
-      uploadedBy: data.uploadedBy,
-      uploadedByName: data.uploadedByName,
-      sharedWith: data.sharedWith,
-      linkedThemeIds: data.linkedThemeIds || [],
-      linkedThemeNames: data.linkedThemeNames || [],
-      description: data.description,
-      createdAt: timestampToDate(data.createdAt),
-      updatedAt: timestampToDate(data.updatedAt),
+    const processDoc = (doc: FirebaseFirestore.DocumentSnapshot) => {
+      const data = doc.data();
+      if (!data) return;
+
+      filesMap.set(doc.id, {
+        id: doc.id,
+        name: data.name || "Unbekannt",
+        storagePath: data.storagePath || "",
+        storageUrl: data.storageUrl || "",
+        contentType: data.contentType || "application/octet-stream",
+        size: data.size || 0,
+        schuleId: data.schuleId || "",
+        schuleName: data.schuleName,
+        uploadedBy: data.uploadedBy || "",
+        uploadedByName: data.uploadedByName || "Unbekannt",
+        sharedWith: data.sharedWith || "private",
+        linkedThemeIds: data.linkedThemeIds || [],
+        linkedThemeNames: data.linkedThemeNames || [],
+        description: data.description,
+        createdAt: timestampToDate(data.createdAt),
+        updatedAt: timestampToDate(data.updatedAt),
+      });
+    };
+
+    // Eigene Dateien immer hinzufügen
+    ownSnapshot.forEach(processDoc);
+
+    // Geteilte Dateien nur hinzufügen wenn sharedWith === "school"
+    sharedSnapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data && data.sharedWith === "school") {
+        processDoc(doc);
+      }
     });
-  };
 
-  ownSnapshot.forEach(processDoc);
-  sharedSnapshot.forEach(processDoc);
-
-  // Sortiere nach Erstellungsdatum (neueste zuerst)
-  return Array.from(filesMap.values()).sort(
-    (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-  );
+    // Sortiere nach Erstellungsdatum (neueste zuerst) - im Code statt in Query
+    return Array.from(filesMap.values()).sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
+  } catch (error) {
+    console.error("Error fetching school files:", error);
+    // Bei Fehler leeres Array zurückgeben statt zu werfen
+    // Dies verhindert 500 Errors wenn die Collection noch nicht existiert
+    return [];
+  }
 }
 
 /**

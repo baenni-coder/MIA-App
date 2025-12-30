@@ -7,6 +7,10 @@ import {
 import { uploadSchoolFile, validateSchoolFile } from "@/lib/storage/school-files";
 import { FileShareLevel } from "@/types";
 
+// Next.js 15 Route Segment Config
+export const maxDuration = 60; // 60 Sekunden Timeout für Uploads
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/school-files
  * Holt alle Dateien für den aktuellen User (eigene + geteilte der Schule)
