@@ -130,6 +130,39 @@ service cloud.firestore {
     }
 
     // ============================================
+    // School Files Collection (Metadaten für schulspezifische Dateien)
+    // ============================================
+
+    match /school_files/{fileId} {
+      // Helper: Prüft ob User zur gleichen Schule gehört
+      function isSameSchool(schuleId) {
+        let teacher = getTeacher(request.auth.uid);
+        return teacher.data.schuleId == schuleId;
+      }
+
+      // Lesen: Eigene Dateien ODER geteilte Dateien der gleichen Schule
+      allow read: if isAuthenticated() && (
+        resource.data.uploadedBy == request.auth.uid ||
+        (resource.data.sharedWith == "school" && isSameSchool(resource.data.schuleId))
+      );
+
+      // Erstellen: Jeder authentifizierte User kann Dateien hochladen
+      allow create: if isAuthenticated()
+                    && request.resource.data.uploadedBy == request.auth.uid
+                    && isSameSchool(request.resource.data.schuleId);
+
+      // Aktualisieren: Nur der Uploader
+      allow update: if isAuthenticated()
+                    && resource.data.uploadedBy == request.auth.uid;
+
+      // Löschen: Nur der Uploader oder PICTS-Admin der Schule
+      allow delete: if isAuthenticated() && (
+        resource.data.uploadedBy == request.auth.uid ||
+        isPICTSAdminOfSchule(request.auth.uid, resource.data.schuleId)
+      );
+    }
+
+    // ============================================
     // Notifications Collection
     // ============================================
 

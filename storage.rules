@@ -40,6 +40,40 @@ service firebase.storage {
     }
 
     // ============================================
+    // School Files (schulspezifische Unterlagen)
+    // ============================================
+
+    // Pfad: school-files/{schuleId}/shared/{filename}
+    // Für Dateien, die mit allen Lehrpersonen der Schule geteilt werden
+    match /school-files/{schuleId}/shared/{filename} {
+      // Lesen: Nur Lehrpersonen derselben Schule
+      // (wird via Custom Claims oder Server-side geprüft)
+      allow read: if isAuthenticated();
+
+      // Schreiben: Nur authentifizierte User (Server prüft Schul-Zugehörigkeit)
+      allow write: if isAuthenticated()
+                   && isSizeValid(50); // Max 50MB pro Datei
+
+      // Löschen: Nur authentifizierte User
+      allow delete: if isAuthenticated();
+    }
+
+    // Pfad: school-files/{schuleId}/users/{userId}/{filename}
+    // Für private Dateien eines Users (nur er selbst sieht sie)
+    match /school-files/{schuleId}/users/{userId}/{filename} {
+      // Lesen: Nur der Besitzer
+      allow read: if isAuthenticated() && isOwner(userId);
+
+      // Schreiben: Nur der Besitzer, max 50MB
+      allow write: if isAuthenticated()
+                   && isOwner(userId)
+                   && isSizeValid(50);
+
+      // Löschen: Nur der Besitzer
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // ============================================
     // Andere Dateien (falls benötigt)
     // ============================================
 
