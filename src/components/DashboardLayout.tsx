@@ -22,6 +22,7 @@ import {
   RefreshCw,
   GraduationCap,
   Scale,
+  FileArchive,
 } from "lucide-react";
 import { Kanton } from "@/types";
 
@@ -135,6 +136,11 @@ export default function DashboardLayout({
       label: "Meine Themen",
       icon: <FolderOpen className="h-5 w-5" />,
       path: "/dashboard/meine-themen",
+    },
+    {
+      label: "Schul-Dateien",
+      icon: <FileArchive className="h-5 w-5" />,
+      path: "/dashboard/dateien",
     },
     {
       label: "Admin",
