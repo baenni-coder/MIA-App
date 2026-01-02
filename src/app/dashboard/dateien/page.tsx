@@ -39,8 +39,10 @@ import {
   Upload,
   RefreshCw,
   BookOpen,
+  Pencil,
 } from "lucide-react";
 import { SchoolFile, FileShareLevel } from "@/types";
+import ThemeSelector from "@/components/ThemeSelector";
 
 // Datei-Icon basierend auf Content-Type
 function getFileIcon(contentType: string) {
@@ -89,6 +91,12 @@ export default function DateienPage() {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<SchoolFile | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Edit Dialog State
+  const [editFile, setEditFile] = useState<SchoolFile | null>(null);
+  const [editThemeIds, setEditThemeIds] = useState<string[]>([]);
+  const [editThemeNames, setEditThemeNames] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadFiles();
@@ -207,6 +215,52 @@ export default function DateienPage() {
   const handleUploadComplete = (newFile: SchoolFile) => {
     setFiles((prev) => [newFile, ...prev]);
     setShowUploadDialog(false);
+  };
+
+  const handleEditClick = (file: SchoolFile) => {
+    setEditFile(file);
+    setEditThemeIds(file.linkedThemeIds || []);
+    setEditThemeNames(file.linkedThemeNames || []);
+  };
+
+  const handleSaveThemeLinks = async () => {
+    if (!user || !editFile) return;
+
+    setSaving(true);
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/school-files/${editFile.id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          linkedThemeIds: editThemeIds,
+          linkedThemeNames: editThemeNames,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Fehler beim Speichern");
+      }
+
+      // Aktualisiere in Liste
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === editFile.id
+            ? { ...f, linkedThemeIds: editThemeIds, linkedThemeNames: editThemeNames }
+            : f
+        )
+      );
+      setEditFile(null);
+    } catch (err) {
+      console.error("Error saving theme links:", err);
+      alert("Fehler beim Speichern der Verknüpfungen");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Filter anwenden
@@ -420,6 +474,15 @@ export default function DateienPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => handleEditClick(file)}
+                              title="Themen-Verknüpfungen bearbeiten"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => handleToggleShare(file)}
                               title={
                                 file.sharedWith === "school"
@@ -495,6 +558,43 @@ export default function DateienPage() {
               >
                 {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Löschen
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Theme Links Dialog */}
+        <Dialog open={!!editFile} onOpenChange={() => setEditFile(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Themen-Verknüpfungen bearbeiten</DialogTitle>
+              <DialogDescription>
+                Verknüpfen Sie die Datei &quot;{editFile?.name}&quot; mit Themen.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4">
+              <ThemeSelector
+                selectedThemeIds={editThemeIds}
+                onSelectionChange={(ids, names) => {
+                  setEditThemeIds(ids);
+                  setEditThemeNames(names);
+                }}
+                disabled={saving}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setEditFile(null)}
+                disabled={saving}
+              >
+                Abbrechen
+              </Button>
+              <Button onClick={handleSaveThemeLinks} disabled={saving}>
+                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Speichern
               </Button>
             </DialogFooter>
           </DialogContent>
