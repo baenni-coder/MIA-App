@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       size,
       sharedWith,
       linkedThemeIds,
+      linkedThemeNames,
       description,
     } = body;
 
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
       uploadedByName: teacherName,
       sharedWith: sharedWith as FileShareLevel,
       linkedThemeIds: linkedThemeIds || [],
+      linkedThemeNames: linkedThemeNames || [],
       description: description || undefined,
     });
 

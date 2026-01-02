@@ -23,8 +23,12 @@ import {
   AlertCircle,
   Users,
   Lock,
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { SchoolFile, FileShareLevel } from "@/types";
+import ThemeSelector from "./ThemeSelector";
 
 interface SchoolFileUploadProps {
   onUploadComplete: (file: SchoolFile) => void;
@@ -72,6 +76,16 @@ export default function SchoolFileUpload({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+
+  // Themen-Verknüpfung
+  const [selectedThemeIds, setSelectedThemeIds] = useState<string[]>(linkedThemeIds);
+  const [selectedThemeNames, setSelectedThemeNames] = useState<string[]>([]);
+  const [showThemeSelector, setShowThemeSelector] = useState(linkedThemeIds.length > 0);
+
+  const handleThemeSelectionChange = (themeIds: string[], themeNames: string[]) => {
+    setSelectedThemeIds(themeIds);
+    setSelectedThemeNames(themeNames);
+  };
 
   const validateFile = (f: File): string | null => {
     if (!ALLOWED_TYPES.includes(f.type)) {
@@ -152,9 +166,6 @@ export default function SchoolFileUpload({
       // Force Token Refresh um sicherzustellen, dass Auth aktuell ist
       const token = await user.getIdToken(true);
 
-      console.log("Upload starting - User UID:", user.uid);
-      console.log("Storage bucket:", storage.app.options.storageBucket);
-
       // 1. Hole Teacher-Info für schuleId
       const teacherResponse = await fetch(`/api/teachers?userId=${user.uid}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -192,8 +203,6 @@ export default function SchoolFileUpload({
         },
       });
 
-      console.log("Storage path:", storagePath);
-
       // Fortschritt tracken
       await new Promise<void>((resolve, reject) => {
         uploadTask.on(
@@ -203,20 +212,13 @@ export default function SchoolFileUpload({
               (snapshot.bytesTransferred / snapshot.totalBytes) * 100
             );
             setProgress(pct);
-            console.log("Upload progress:", pct + "%");
           },
           (err) => {
-            console.error("Upload error details:", {
-              code: err.code,
-              message: err.message,
-              serverResponse: err.serverResponse,
-              name: err.name,
-            });
-            // Detailliertere Fehlermeldung
+            console.error("Upload error:", err.code, err.message);
             if (err.code === "storage/unauthorized") {
               reject(
                 new Error(
-                  "Keine Berechtigung. Bitte prüfen Sie, ob die Firebase Storage Rules korrekt deployed sind."
+                  "Keine Berechtigung. Bitte prüfen Sie, ob die Firebase Storage Rules korrekt sind."
                 )
               );
             } else {
@@ -224,7 +226,6 @@ export default function SchoolFileUpload({
             }
           },
           () => {
-            console.log("Upload completed successfully");
             resolve();
           }
         );
@@ -247,7 +248,8 @@ export default function SchoolFileUpload({
           contentType: file.type,
           size: file.size,
           sharedWith,
-          linkedThemeIds: linkedThemeIds.length > 0 ? linkedThemeIds : undefined,
+          linkedThemeIds: selectedThemeIds.length > 0 ? selectedThemeIds : undefined,
+          linkedThemeNames: selectedThemeNames.length > 0 ? selectedThemeNames : undefined,
           description: description || undefined,
         }),
       });
@@ -275,7 +277,8 @@ export default function SchoolFileUpload({
         uploadedByName: teacherName,
         sharedWith,
         description: description || undefined,
-        linkedThemeIds: linkedThemeIds.length > 0 ? linkedThemeIds : undefined,
+        linkedThemeIds: selectedThemeIds.length > 0 ? selectedThemeIds : undefined,
+        linkedThemeNames: selectedThemeNames.length > 0 ? selectedThemeNames : undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -389,6 +392,38 @@ export default function SchoolFileUpload({
               rows={2}
               disabled={uploading}
             />
+          </div>
+
+          {/* Themen-Verknüpfung */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+              onClick={() => setShowThemeSelector(!showThemeSelector)}
+              disabled={uploading}
+            >
+              <BookOpen className="h-4 w-4" />
+              Mit Themen verknüpfen (optional)
+              {showThemeSelector ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+              {selectedThemeIds.length > 0 && (
+                <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                  {selectedThemeIds.length}
+                </span>
+              )}
+            </button>
+            {showThemeSelector && (
+              <div className="border rounded-lg p-3">
+                <ThemeSelector
+                  selectedThemeIds={selectedThemeIds}
+                  onSelectionChange={handleThemeSelectionChange}
+                  disabled={uploading}
+                />
+              </div>
+            )}
           </div>
 
           {/* Freigabe */}
