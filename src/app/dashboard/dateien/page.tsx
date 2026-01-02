@@ -38,6 +38,7 @@ import {
   AlertCircle,
   Upload,
   RefreshCw,
+  BookOpen,
 } from "lucide-react";
 import { SchoolFile, FileShareLevel } from "@/types";
 
@@ -385,6 +386,21 @@ export default function DateienPage() {
                           <p className="text-sm mt-1 text-muted-foreground truncate">
                             {file.description}
                           </p>
+                        )}
+                        {/* Verknüpfte Themen */}
+                        {file.linkedThemeNames && file.linkedThemeNames.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {file.linkedThemeNames.map((themeName, idx) => (
+                              <Badge
+                                key={idx}
+                                variant="outline"
+                                className="text-xs flex items-center gap-1"
+                              >
+                                <BookOpen className="h-3 w-3" />
+                                <span className="max-w-[120px] truncate">{themeName}</span>
+                              </Badge>
+                            ))}
+                          </div>
                         )}
                       </div>
 
