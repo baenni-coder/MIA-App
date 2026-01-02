@@ -130,14 +130,30 @@ export default function SchoolFileUpload({
   };
 
   const handleUpload = async () => {
-    if (!user || !file || !storage) return;
+    if (!file) return;
+
+    // Prüfe ob Storage initialisiert ist
+    if (!storage) {
+      setError("Firebase Storage nicht initialisiert. Bitte Seite neu laden.");
+      return;
+    }
+
+    // Prüfe ob User eingeloggt ist
+    if (!user) {
+      setError("Sie müssen eingeloggt sein, um Dateien hochzuladen.");
+      return;
+    }
 
     setUploading(true);
     setProgress(0);
     setError(null);
 
     try {
-      const token = await user.getIdToken();
+      // Force Token Refresh um sicherzustellen, dass Auth aktuell ist
+      const token = await user.getIdToken(true);
+
+      console.log("Upload starting - User UID:", user.uid);
+      console.log("Storage bucket:", storage.app.options.storageBucket);
 
       // 1. Hole Teacher-Info für schuleId
       const teacherResponse = await fetch(`/api/teachers?userId=${user.uid}`, {
@@ -176,6 +192,8 @@ export default function SchoolFileUpload({
         },
       });
 
+      console.log("Storage path:", storagePath);
+
       // Fortschritt tracken
       await new Promise<void>((resolve, reject) => {
         uploadTask.on(
@@ -185,12 +203,28 @@ export default function SchoolFileUpload({
               (snapshot.bytesTransferred / snapshot.totalBytes) * 100
             );
             setProgress(pct);
+            console.log("Upload progress:", pct + "%");
           },
           (err) => {
-            console.error("Upload error:", err);
-            reject(new Error("Upload fehlgeschlagen"));
+            console.error("Upload error details:", {
+              code: err.code,
+              message: err.message,
+              serverResponse: err.serverResponse,
+              name: err.name,
+            });
+            // Detailliertere Fehlermeldung
+            if (err.code === "storage/unauthorized") {
+              reject(
+                new Error(
+                  "Keine Berechtigung. Bitte prüfen Sie, ob die Firebase Storage Rules korrekt deployed sind."
+                )
+              );
+            } else {
+              reject(new Error(`Upload fehlgeschlagen: ${err.message}`));
+            }
           },
           () => {
+            console.log("Upload completed successfully");
             resolve();
           }
         );
