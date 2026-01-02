@@ -23,6 +23,7 @@ import {
   GraduationCap,
   Scale,
   FileArchive,
+  HelpCircle,
 } from "lucide-react";
 import { Kanton } from "@/types";
 
@@ -141,6 +142,11 @@ export default function DashboardLayout({
       label: "Schul-Dateien",
       icon: <FileArchive className="h-5 w-5" />,
       path: "/dashboard/dateien",
+    },
+    {
+      label: "FAQ",
+      icon: <HelpCircle className="h-5 w-5" />,
+      path: "/dashboard/faq",
     },
     {
       label: "Admin",

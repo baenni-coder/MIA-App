@@ -12,6 +12,11 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Collapsible Sidebar Navigation** für bessere UX
 - **Lehrplan-Kompetenzen Seite** mit Kachel-Layout und klickbaren Unterrichtsideen
 
+**NEU (2025-01)**:
+- **Schul-Dateien**: Dateien schulintern teilen (rechtssicher)
+- **Themen-Verknüpfungen**: Dateien mit Themen verknüpfen
+- **FAQ-Seite**: Häufig gestellte Fragen im Dashboard
+
 ## Tech Stack
 
 - **Framework**: Next.js 15 mit App Router
@@ -47,6 +52,10 @@ src/
 │   │   ├── notifications/       # Notifications
 │   │   │   ├── [id]/           # Mark single as read
 │   │   │   └── route.ts         # List & Mark all read
+│   │   ├── school-files/        # Schul-Dateien (NEU)
+│   │   │   ├── [id]/           # Single File (GET, PUT, DELETE)
+│   │   │   ├── metadata/        # Metadata nach Client-Upload
+│   │   │   └── route.ts         # List & Create
 │   │   ├── upload-image/        # Image Upload zu Firebase Storage
 │   │   ├── schulen/             # Schulen-Endpunkte
 │   │   ├── teachers/            # Lehrer-Endpunkte (GET, POST, PUT)
@@ -64,6 +73,8 @@ src/
 │   │   ├── thema-bearbeiten/[id]/ # Custom Theme bearbeiten
 │   │   ├── meine-themen/        # Übersicht eigene Custom Themes
 │   │   ├── thema/[id]/lektionen/ # Lektionen-Verwaltung
+│   │   ├── dateien/             # Schul-Dateien Übersicht (NEU)
+│   │   ├── faq/                 # FAQ-Seite (NEU)
 │   │   └── page.tsx             # Dashboard mit Profil-Bearbeitung
 │   ├── layout.tsx               # Root Layout
 │   └── page.tsx                 # Landing Page
@@ -83,7 +94,10 @@ src/
 │   ├── LektionEditor.tsx        # Editor für Custom Lektionen
 │   ├── NotificationBell.tsx     # Notification Bell mit Badge
 │   ├── ProtectedRoute.tsx       # Auth-Schutz
-│   └── ThemeStatusBadge.tsx     # Status Badge (draft, pending, approved, rejected)
+│   ├── ThemeStatusBadge.tsx     # Status Badge (draft, pending, approved, rejected)
+│   ├── SchoolFileUpload.tsx     # Datei-Upload mit Themen-Verknüpfung (NEU)
+│   ├── ThemeSelector.tsx        # Themen-Auswahl mit Suche (NEU)
+│   └── LinkedFilesViewer.tsx    # Verknüpfte Dateien im Thema-Dialog (NEU)
 ├── contexts/                     # React Contexts
 │   └── AuthContext.tsx          # Authentication State
 ├── lib/                          # Utility Libraries
@@ -101,9 +115,11 @@ src/
 │   │   ├── permissions.ts       # Rollen-basierte Permissions
 │   │   ├── custom-themes.ts     # Custom Themes CRUD
 │   │   ├── custom-lektionen.ts  # Custom Lektionen CRUD
-│   │   └── notifications.ts     # Notifications CRUD
+│   │   ├── notifications.ts     # Notifications CRUD
+│   │   └── school-files.ts      # School Files CRUD (NEU)
 │   └── storage/                 # Firebase Storage
-│       └── upload.ts            # Image Upload & Validation
+│       ├── upload.ts            # Image Upload & Validation
+│       └── school-files.ts      # School Files Storage (NEU)
 ├── middleware.ts                 # Next.js Middleware
 └── types/                        # TypeScript Typen
     └── index.ts                 # Zentrale Type Definitions
@@ -240,6 +256,27 @@ ENABLE_FIRESTORE_CACHE=true
   relatedThemeName?: string // Name des Themes
   isRead: boolean           // Gelesen Status
   createdAt: Date
+}
+```
+
+**Collection: `school_files`** (NEU)
+```typescript
+{
+  name: string              // Dateiname
+  storagePath: string       // Pfad in Firebase Storage
+  storageUrl: string        // Download-URL
+  contentType: string       // MIME-Type (z.B. "application/pdf")
+  size: number              // Dateigröße in Bytes
+  schuleId: string          // Schul-ID (für Zugriffskontrolle)
+  schuleName?: string       // Schulname (optional)
+  uploadedBy: string        // User ID des Uploaders
+  uploadedByName: string    // Name des Uploaders
+  sharedWith: FileShareLevel // "private" | "school"
+  linkedThemeIds?: string[] // Verknüpfte Themen-IDs
+  linkedThemeNames?: string[] // Verknüpfte Themen-Namen
+  description?: string      // Beschreibung
+  createdAt: Date
+  updatedAt: Date
 }
 ```
 
@@ -522,6 +559,41 @@ ENABLE_FIRESTORE_CACHE=true
   - Verknüpfung von Lektionen mit Themen über Airtable Linked Records
   - Lookup-Felder für Tool-Namen und Links
   - CSV-Parsing für Material-Listen
+
+### 16. Schul-Dateien (NEU)
+Rechtssicheres Teilen von Dateien innerhalb einer Schule.
+
+- **Datei-Upload** (`/dashboard/dateien`):
+  - Drag & Drop oder File-Select
+  - Unterstützte Formate: PDF, Word, Excel, PowerPoint, Bilder
+  - Max. Dateigröße: 50MB
+  - Client-seitiger Upload direkt zu Firebase Storage
+  - Progress-Anzeige während Upload
+- **Freigabe-Optionen**:
+  - **Privat**: Nur für den Uploader sichtbar
+  - **Schule**: Für alle Lehrpersonen derselben Schule sichtbar
+- **Themen-Verknüpfung**:
+  - Dateien können mit einem oder mehreren Themen verknüpft werden
+  - ThemeSelector mit Suchfunktion
+  - Verknüpfungen nachträglich bearbeitbar (Stift-Button)
+  - Verknüpfte Dateien werden im Themen-Detail-Dialog angezeigt
+- **Datei-Übersicht**:
+  - Statistiken (Anzahl, Speicherplatz)
+  - Filter: Alle / Meine / Von Kolleg:innen
+  - Download, Teilen, Löschen Buttons
+  - Verknüpfte Themen als Badges
+- **Sicherheit**:
+  - Firebase Storage Security Rules
+  - Schulbasierte Zugriffskontrolle
+  - CORS-Konfiguration erforderlich
+
+### 17. FAQ-Seite (NEU)
+Häufig gestellte Fragen für Lehrpersonen.
+
+- **Akkordeon-Layout**: Fragen klappbar
+- **Kategorien**: Allgemein, Jahresplan, Themen, Dateien
+- **Suchfunktion**: Schnelles Finden von Antworten
+- **Navigation**: Über Dashboard-Sidebar erreichbar
 
 ## Umgebungsvariablen
 
@@ -974,6 +1046,69 @@ Prüft Admin-Status eines Users (Server-side)
 }
 ```
 
+### GET `/api/school-files?themeId={themeId}`
+Lädt Schul-Dateien für den aktuellen User (eigene + geteilte der Schule)
+
+**Query Parameters:**
+- `themeId` - Optional: Nur Dateien für ein bestimmtes Thema
+
+**Response:**
+```json
+{
+  "files": [
+    {
+      "id": "firestore-doc-id",
+      "name": "Arbeitsblatt.pdf",
+      "storagePath": "school-files/recXXX/shared/...",
+      "storageUrl": "https://...",
+      "contentType": "application/pdf",
+      "size": 1024000,
+      "schuleId": "recXXX",
+      "uploadedBy": "user-id",
+      "uploadedByName": "Max Mustermann",
+      "sharedWith": "school",
+      "linkedThemeIds": ["recYYY"],
+      "linkedThemeNames": ["Thema Name"],
+      "createdAt": "2025-01-02T..."
+    }
+  ]
+}
+```
+
+### POST `/api/school-files/metadata`
+Speichert Metadaten nach Client-seitigem Upload zu Firebase Storage
+
+**Request Body:**
+```json
+{
+  "name": "Arbeitsblatt.pdf",
+  "storagePath": "school-files/recXXX/shared/...",
+  "storageUrl": "https://...",
+  "contentType": "application/pdf",
+  "size": 1024000,
+  "sharedWith": "school",
+  "linkedThemeIds": ["recYYY"],
+  "linkedThemeNames": ["Thema Name"],
+  "description": "Optionale Beschreibung"
+}
+```
+
+### PUT `/api/school-files/[id]`
+Aktualisiert eine Datei (Name, Freigabe, Verknüpfungen)
+
+**Request Body:**
+```json
+{
+  "name": "Neuer Name.pdf",
+  "sharedWith": "private",
+  "linkedThemeIds": ["recYYY", "recZZZ"],
+  "linkedThemeNames": ["Thema 1", "Thema 2"]
+}
+```
+
+### DELETE `/api/school-files/[id]`
+Löscht eine Datei (nur Uploader oder Admin der Schule)
+
 ## Tipps für weitere Entwicklung
 
 ### Neue Airtable-Tabelle hinzufügen
@@ -1074,6 +1209,18 @@ makeSuperAdmin("deine-email@schule.ch");
 - [x] **Inline-Lektionen Editor** - Lektionen direkt beim Thema erstellen
 - [x] **Querverweis LP Formatierung** - Als klickbare Badges statt Raw-Text
 - [x] **AllStufen-Modus im Jahresplan** - Unterrichtsideen für alle Stufen klickbar
+
+### ✅ Abgeschlossen (Januar 2025)
+
+- [x] **Schul-Dateien System** - Dateien schulintern teilen
+  - Client-seitiger Upload zu Firebase Storage
+  - Schulbasierte Zugriffskontrolle
+  - Private und geteilte Dateien
+- [x] **Themen-Verknüpfungen** - Dateien mit Themen verknüpfen
+  - ThemeSelector Komponente mit Suche
+  - Nachträgliches Bearbeiten der Verknüpfungen
+  - LinkedFilesViewer im Themen-Dialog
+- [x] **FAQ-Seite** - Häufig gestellte Fragen für Lehrpersonen
 
 ### 🚧 In Arbeit / Geplant
 
