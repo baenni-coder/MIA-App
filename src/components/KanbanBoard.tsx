@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { ExternalLink, BookOpen, Clock, FileText, Info } from "lucide-react";
+import { ExternalLink, BookOpen, Clock, FileText, Info, Paperclip } from "lucide-react";
 import LektionsplanungViewer from "./LektionsplanungViewer";
+import LinkedFilesViewer from "./LinkedFilesViewer";
 
 interface KanbanBoardProps {
   themenGrouped: Record<Zeitraum, Thema[]>;
@@ -287,6 +288,18 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                     <FileText className="h-4 w-4 mr-2" />
                     Lektionsplanung anzeigen
                   </Button>
+                </div>
+
+                {/* Verknüpfte Dateien */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold mb-2 flex items-center gap-2">
+                    <Paperclip className="h-4 w-4" />
+                    Verknüpfte Dateien
+                  </h4>
+                  <LinkedFilesViewer
+                    themeId={selectedThema.id}
+                    themeName={selectedThema.thema}
+                  />
                 </div>
 
                 {/* Links */}

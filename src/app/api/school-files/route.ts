@@ -3,6 +3,7 @@ import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import {
   createSchoolFile,
   getSchoolFilesForUser,
+  getSchoolFilesForTheme,
 } from "@/lib/firestore/school-files";
 import { uploadSchoolFile, validateSchoolFile } from "@/lib/storage/school-files";
 import { FileShareLevel } from "@/types";
@@ -55,8 +56,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Hole Dateien
-    const files = await getSchoolFilesForUser(userId, schuleId);
+    // Check for themeId query parameter
+    const { searchParams } = new URL(request.url);
+    const themeId = searchParams.get("themeId");
+
+    // Hole Dateien - entweder für ein Thema oder alle
+    const files = themeId
+      ? await getSchoolFilesForTheme(themeId, userId, schuleId)
+      : await getSchoolFilesForUser(userId, schuleId);
 
     return NextResponse.json({ files }, { status: 200 });
   } catch (error) {
