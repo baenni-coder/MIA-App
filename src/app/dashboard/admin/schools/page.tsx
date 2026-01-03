@@ -7,7 +7,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Accordion,
@@ -42,6 +42,10 @@ import {
   UserCog,
   Crown,
   RefreshCw,
+  Plus,
+  Pencil,
+  Trash2,
+  Link as LinkIcon,
 } from "lucide-react";
 
 interface SchoolUser {
@@ -90,10 +94,20 @@ export default function SchoolsManagementPage() {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Dialog States
+  // User Role Dialog States
   const [editingUser, setEditingUser] = useState<SchoolUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>("teacher");
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingRole, setIsSavingRole] = useState(false);
+
+  // School Dialog States
+  const [schoolDialogOpen, setSchoolDialogOpen] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<SchoolWithUsers | null>(null);
+  const [schoolForm, setSchoolForm] = useState({ name: "", ort: "", pictsBuchen: "" });
+  const [isSavingSchool, setIsSavingSchool] = useState(false);
+
+  // Delete Confirmation
+  const [deleteSchoolId, setDeleteSchoolId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     checkSuperAdminAccess();
@@ -157,6 +171,7 @@ export default function SchoolsManagementPage() {
     }
   };
 
+  // --- User Role Functions ---
   const handleEditRole = (userItem: SchoolUser) => {
     setEditingUser(userItem);
     setSelectedRole(userItem.role);
@@ -166,7 +181,7 @@ export default function SchoolsManagementPage() {
     if (!user || !editingUser) return;
 
     try {
-      setIsSaving(true);
+      setIsSavingRole(true);
       const token = await user.getIdToken();
 
       const response = await fetch(`/api/admin/users/${editingUser.id}`, {
@@ -189,7 +204,102 @@ export default function SchoolsManagementPage() {
       console.error("Error saving role:", err);
       alert(err instanceof Error ? err.message : "Fehler beim Speichern");
     } finally {
-      setIsSaving(false);
+      setIsSavingRole(false);
+    }
+  };
+
+  // --- School Functions ---
+  const handleNewSchool = () => {
+    setEditingSchool(null);
+    setSchoolForm({ name: "", ort: "", pictsBuchen: "" });
+    setSchoolDialogOpen(true);
+  };
+
+  const handleEditSchool = (school: SchoolWithUsers) => {
+    setEditingSchool(school);
+    setSchoolForm({
+      name: school.name,
+      ort: school.ort || "",
+      pictsBuchen: school.pictsBuchen || "",
+    });
+    setSchoolDialogOpen(true);
+  };
+
+  const handleSaveSchool = async () => {
+    if (!user || !schoolForm.name.trim()) return;
+
+    try {
+      setIsSavingSchool(true);
+      const token = await user.getIdToken();
+
+      if (editingSchool) {
+        // Update existing school
+        const response = await fetch(`/api/admin/schools/${editingSchool.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(schoolForm),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Fehler beim Aktualisieren");
+        }
+      } else {
+        // Create new school
+        const response = await fetch("/api/admin/schools", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(schoolForm),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Fehler beim Erstellen");
+        }
+      }
+
+      setSchoolDialogOpen(false);
+      loadSchools();
+    } catch (err) {
+      console.error("Error saving school:", err);
+      alert(err instanceof Error ? err.message : "Fehler beim Speichern");
+    } finally {
+      setIsSavingSchool(false);
+    }
+  };
+
+  const handleDeleteSchool = async () => {
+    if (!user || !deleteSchoolId) return;
+
+    try {
+      setIsDeleting(true);
+      const token = await user.getIdToken();
+
+      const response = await fetch(`/api/admin/schools/${deleteSchoolId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Fehler beim Löschen");
+      }
+
+      setDeleteSchoolId(null);
+      loadSchools();
+    } catch (err) {
+      console.error("Error deleting school:", err);
+      alert(err instanceof Error ? err.message : "Fehler beim Löschen");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -235,10 +345,16 @@ export default function SchoolsManagementPage() {
                 Verwalten Sie Schulen, PICTS-Admins und Benutzer
               </p>
             </div>
-            <Button variant="outline" onClick={loadSchools}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Aktualisieren
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleNewSchool}>
+                <Plus className="h-4 w-4 mr-2" />
+                Neue Schule
+              </Button>
+              <Button variant="outline" onClick={loadSchools}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Aktualisieren
+              </Button>
+            </div>
           </div>
 
           {/* Statistiken */}
@@ -345,28 +461,71 @@ export default function SchoolsManagementPage() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="px-4 pb-4">
+                    {/* School Actions */}
+                    <div className="flex gap-2 mb-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditSchool(school)}
+                      >
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Bearbeiten
+                      </Button>
+                      {school.userCount === 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => setDeleteSchoolId(school.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Löschen
+                        </Button>
+                      )}
+                    </div>
+
                     {/* PICTS-Link */}
-                    {school.pictsBuchen && (
-                      <div className="mb-4 p-3 bg-muted rounded-lg">
-                        <div className="flex items-center justify-between">
+                    <div className="mb-4 p-3 bg-muted rounded-lg">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <LinkIcon className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm font-medium">PICTS-Buchungslink:</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {school.pictsBuchen ? (
+                            <>
+                              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                {school.pictsBuchen}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                              >
+                                <a
+                                  href={school.pictsBuchen}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            </>
+                          ) : (
+                            <span className="text-sm text-muted-foreground italic">
+                              Nicht konfiguriert
+                            </span>
+                          )}
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            asChild
+                            onClick={() => handleEditSchool(school)}
                           >
-                            <a
-                              href={school.pictsBuchen}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="h-4 w-4 mr-1" />
-                              Öffnen
-                            </a>
+                            <Pencil className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
-                    )}
+                    </div>
 
                     {/* PICTS-Admins */}
                     {school.pictsAdmins.length > 0 && (
@@ -452,10 +611,122 @@ export default function SchoolsManagementPage() {
                     Versuchen Sie einen anderen Suchbegriff
                   </p>
                 )}
+                <Button className="mt-4" onClick={handleNewSchool}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Erste Schule erstellen
+                </Button>
               </CardContent>
             </Card>
           )}
         </div>
+
+        {/* School Edit/Create Dialog */}
+        <Dialog open={schoolDialogOpen} onOpenChange={setSchoolDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {editingSchool ? "Schule bearbeiten" : "Neue Schule erstellen"}
+              </DialogTitle>
+              <DialogDescription>
+                {editingSchool
+                  ? "Bearbeiten Sie die Daten der Schule."
+                  : "Erfassen Sie eine neue Schule im System."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Name *</label>
+                <Input
+                  value={schoolForm.name}
+                  onChange={(e) =>
+                    setSchoolForm({ ...schoolForm, name: e.target.value })
+                  }
+                  placeholder="Schule Musterstadt"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Ort</label>
+                <Input
+                  value={schoolForm.ort}
+                  onChange={(e) =>
+                    setSchoolForm({ ...schoolForm, ort: e.target.value })
+                  }
+                  placeholder="Musterstadt"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">PICTS-Buchungslink</label>
+                <Input
+                  value={schoolForm.pictsBuchen}
+                  onChange={(e) =>
+                    setSchoolForm({ ...schoolForm, pictsBuchen: e.target.value })
+                  }
+                  placeholder="https://..."
+                  type="url"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Link zur PICTS-Buchungsseite der Schule
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setSchoolDialogOpen(false)}
+                disabled={isSavingSchool}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                onClick={handleSaveSchool}
+                disabled={isSavingSchool || !schoolForm.name.trim()}
+              >
+                {isSavingSchool ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : null}
+                {editingSchool ? "Speichern" : "Erstellen"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete School Confirmation Dialog */}
+        <Dialog open={!!deleteSchoolId} onOpenChange={() => setDeleteSchoolId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Schule löschen?</DialogTitle>
+              <DialogDescription>
+                Möchten Sie diese Schule wirklich löschen? Diese Aktion kann nicht
+                rückgängig gemacht werden.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteSchoolId(null)}
+                disabled={isDeleting}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteSchool}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Löschen
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Role Edit Dialog */}
         <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
@@ -528,15 +799,15 @@ export default function SchoolsManagementPage() {
               <Button
                 variant="outline"
                 onClick={() => setEditingUser(null)}
-                disabled={isSaving}
+                disabled={isSavingRole}
               >
                 Abbrechen
               </Button>
               <Button
                 onClick={handleSaveRole}
-                disabled={isSaving || selectedRole === editingUser?.role}
+                disabled={isSavingRole || selectedRole === editingUser?.role}
               >
-                {isSaving ? (
+                {isSavingRole ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : null}
                 Speichern

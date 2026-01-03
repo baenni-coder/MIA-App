@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
-import { Teacher, Schule, UserRole } from "@/types";
+import { Schule, UserRole } from "@/types";
 
 interface SchoolWithUsers extends Schule {
   users: {
@@ -132,6 +132,91 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to fetch schools" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/admin/schools
+ * Erstellt eine neue Schule (nur Super-Admin)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // Authentifizierung prüfen
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Unauthorized - Missing token" },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    const adminAuth = getAdminAuth();
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const userId = decodedToken.uid;
+
+    // Prüfe Super-Admin-Status
+    const adminDb = getAdminDb();
+    const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
+
+    if (!teacherDoc.exists) {
+      return NextResponse.json(
+        { error: "Teacher profile not found" },
+        { status: 404 }
+      );
+    }
+
+    const teacher = teacherDoc.data()!;
+    if (teacher.role !== "super_admin") {
+      return NextResponse.json(
+        { error: "Super admin access required" },
+        { status: 403 }
+      );
+    }
+
+    // Parse Request Body
+    const body = await request.json();
+    const { name, ort, pictsBuchen } = body;
+
+    // Validierung
+    if (!name) {
+      return NextResponse.json(
+        { error: "Name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Erstelle neue Schule
+    const now = new Date();
+    const docRef = await adminDb.collection("system_schulen").add({
+      name,
+      ort: ort || "",
+      pictsBuchen: pictsBuchen || "",
+      createdAt: now,
+      updatedAt: now,
+      lastSyncedAt: now,
+      isActive: true,
+      // Kein airtableId, da manuell erstellt
+    });
+
+    return NextResponse.json(
+      {
+        id: docRef.id,
+        message: "Schule erfolgreich erstellt",
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Error in POST /api/admin/schools:", error);
+
+    if ((error as any).code === "auth/argument-error") {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    return NextResponse.json(
+      { error: "Failed to create school" },
       { status: 500 }
     );
   }

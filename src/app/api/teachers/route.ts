@@ -201,7 +201,7 @@ export async function PUT(request: Request) {
 
     const authenticatedUserId = decodedToken.uid;
 
-    const { userId, stufe, kanton, role } = await request.json();
+    const { userId, stufe, kanton, schuleId, role } = await request.json();
 
     if (!userId) {
       return NextResponse.json(
@@ -221,9 +221,10 @@ export async function PUT(request: Request) {
     const adminDb = getAdminDb();
     const updateData: Record<string, unknown> = {};
 
-    // 3. Stufe und Kanton kann jeder User für sich selbst ändern
+    // 3. Stufe, Kanton und Schule kann jeder User für sich selbst ändern
     if (stufe) updateData.stufe = stufe;
     if (kanton !== undefined) updateData.kanton = kanton || null; // null um zu löschen
+    if (schuleId) updateData.schuleId = schuleId;
 
     // 4. Role-Updates NUR durch Super-Admin
     if (role !== undefined) {
@@ -239,7 +240,7 @@ export async function PUT(request: Request) {
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: "At least one field (stufe, kanton or role) is required" },
+        { error: "At least one field (stufe, kanton, schuleId or role) is required" },
         { status: 400 }
       );
     }

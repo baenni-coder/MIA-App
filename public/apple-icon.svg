@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <!-- Background -->
+  <rect width="180" height="180" rx="36" fill="#1E5F8C"/>
+
+  <!-- Code brackets -->
+  <!-- Left bracket < -->
+  <path d="M56 56 L28 90 L56 124" stroke="#4CAF50" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Right bracket > -->
+  <path d="M124 56 L152 90 L124 124" stroke="#4CAF50" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Slash / -->
+  <path d="M101 45 L79 135" stroke="#F39C12" stroke-width="16" fill="none" stroke-linecap="round"/>
+
+  <!-- Small decorative squares -->
+  <rect x="68" y="12" width="22" height="22" rx="5" fill="#F39C12"/>
+  <rect x="96" y="22" width="16" height="16" rx="3" fill="#4CAF50"/>
+</svg>

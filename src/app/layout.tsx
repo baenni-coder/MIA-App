@@ -5,6 +5,10 @@ import Providers from "@/components/providers/Providers";
 export const metadata: Metadata = {
   title: "MIA-App | Jahresplanung für Lehrpersonen",
   description: "Jahresplanung für Medien, Informatik und Anwendungskompetenzen",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon.svg",
+  },
 };
 
 export default function RootLayout({

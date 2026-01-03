@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarRange, BookOpen, Users, Edit2, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Teacher, Stufe } from "@/types";
+import { Teacher, Stufe, Schule, Kanton, KANTONE } from "@/types";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -32,6 +32,16 @@ export default function DashboardPage() {
   const [editingStufe, setEditingStufe] = useState(false);
   const [newStufe, setNewStufe] = useState<Stufe | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // School editing
+  const [editingSchule, setEditingSchule] = useState(false);
+  const [newSchuleId, setNewSchuleId] = useState<string | null>(null);
+  const [allSchulen, setAllSchulen] = useState<Schule[]>([]);
+  const [loadingSchulen, setLoadingSchulen] = useState(false);
+
+  // Kanton editing
+  const [editingKanton, setEditingKanton] = useState(false);
+  const [newKanton, setNewKanton] = useState<Kanton | null>(null);
 
   useEffect(() => {
     const loadTeacherData = async () => {
@@ -67,6 +77,23 @@ export default function DashboardPage() {
     loadTeacherData();
   }, [user, getAuthToken]);
 
+  // Load schools when editing starts
+  const loadSchulen = async () => {
+    if (allSchulen.length > 0) return; // Already loaded
+    setLoadingSchulen(true);
+    try {
+      const res = await fetch("/api/schulen");
+      if (res.ok) {
+        const data = await res.json();
+        setAllSchulen(data);
+      }
+    } catch (err) {
+      console.error("Error loading schools:", err);
+    } finally {
+      setLoadingSchulen(false);
+    }
+  };
+
   const handleSaveStufe = async () => {
     if (!user || !newStufe) return;
 
@@ -99,6 +126,87 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error("Error updating stufe:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveSchule = async () => {
+    if (!user || !newSchuleId) return;
+
+    setSaving(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        console.error("No auth token available");
+        return;
+      }
+
+      const response = await fetch("/api/teachers", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          schuleId: newSchuleId,
+        }),
+      });
+
+      if (response.ok) {
+        // Reload teacher data to get updated school info
+        const res = await fetch(`/api/teachers?userId=${user.uid}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setTeacherData(data);
+        }
+        setEditingSchule(false);
+        setNewSchuleId(null);
+      } else {
+        console.error("Failed to update school");
+      }
+    } catch (error) {
+      console.error("Error updating school:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveKanton = async () => {
+    if (!user) return;
+
+    setSaving(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        console.error("No auth token available");
+        return;
+      }
+
+      const response = await fetch("/api/teachers", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          kanton: newKanton,
+        }),
+      });
+
+      if (response.ok) {
+        setTeacherData({ ...teacherData!, kanton: newKanton || undefined });
+        setEditingKanton(false);
+        setNewKanton(null);
+      } else {
+        console.error("Failed to update kanton");
+      }
+    } catch (error) {
+      console.error("Error updating kanton:", error);
     } finally {
       setSaving(false);
     }
@@ -181,6 +289,127 @@ export default function DashboardPage() {
                   <span className="text-muted-foreground">E-Mail:</span>
                   <span className="font-medium">{teacherData.email}</span>
                 </div>
+
+                {/* Schule */}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Schule:</span>
+                  {editingSchule ? (
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={newSchuleId || teacherData.schuleId}
+                        onValueChange={(value) => setNewSchuleId(value)}
+                        disabled={loadingSchulen}
+                      >
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder={loadingSchulen ? "Laden..." : "Schule wählen"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allSchulen.map((schule) => (
+                            <SelectItem key={schule.id} value={schule.id}>
+                              {schule.name}{schule.ort ? ` (${schule.ort})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleSaveSchule}
+                        disabled={saving || !newSchuleId}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingSchule(false);
+                          setNewSchuleId(null);
+                        }}
+                        disabled={saving}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">
+                        {teacherData.schule?.name || "Nicht zugewiesen"}
+                        {teacherData.schule?.ort ? ` (${teacherData.schule.ort})` : ""}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingSchule(true);
+                          loadSchulen();
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Kanton */}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Kanton:</span>
+                  {editingKanton ? (
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={newKanton || teacherData.kanton || ""}
+                        onValueChange={(value) => setNewKanton(value as Kanton)}
+                      >
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Kanton wählen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {KANTONE.map((k) => (
+                            <SelectItem key={k.value} value={k.value}>
+                              {k.label} ({k.value})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleSaveKanton}
+                        disabled={saving}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingKanton(false);
+                          setNewKanton(null);
+                        }}
+                        disabled={saving}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">
+                        {teacherData.kanton
+                          ? KANTONE.find((k) => k.value === teacherData.kanton)?.label || teacherData.kanton
+                          : "Nicht gesetzt"}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEditingKanton(true)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Stufe */}
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Stufe:</span>
                   {editingStufe ? (
