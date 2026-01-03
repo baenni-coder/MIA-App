@@ -4,7 +4,7 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 
 **🆕 NEU (Dezember 2024):** Lehrpersonen können jetzt eigene Themen mit Lektionsplanung erstellen! PICTS-Admins können diese Themen prüfen und freigeben. Genehmigte Themen werden systemweit für alle Schulen sichtbar.
 
-**🆕 NEU (Januar 2025):**
+**🆕 NEU (Januar 2026):**
 - **Schul-Dateien**: Rechtssicheres Teilen von Dateien innerhalb der Schule
 - **FAQ-System**: Häufig gestellte Fragen mit Admin-Verwaltung
 - **Schulverwaltung**: Super-Admins können Schulen erstellen und PICTS-Links bearbeiten
@@ -70,7 +70,7 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
   - Gleiche Darstellung wie Airtable-Themen
   - Kompetenzen automatisch aufgelöst
 
-### 🆕 Schul-Dateien & FAQ (Januar 2025)
+### 🆕 Schul-Dateien & FAQ (Januar 2026)
 
 #### Schul-Dateien
 - **Datei-Upload** mit Drag & Drop
@@ -373,7 +373,7 @@ Die App verwendet **shadcn/ui** - eine moderne, accessible Komponenten-Bibliothe
 - [x] Permission System für Zugriffskontrolle
 - [x] Firebase Security Rules (Firestore + Storage)
 
-### Schul-Dateien, FAQ & Admin (Januar 2025 ✨)
+### Schul-Dateien, FAQ & Admin (Januar 2026 ✨)
 - [x] Schul-Dateien System mit Firebase Storage
 - [x] Themen-Verknüpfungen für Dateien
 - [x] FAQ-Seite mit Kategorien und Suche
