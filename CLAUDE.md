@@ -12,7 +12,7 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Collapsible Sidebar Navigation** für bessere UX
 - **Lehrplan-Kompetenzen Seite** mit Kachel-Layout und klickbaren Unterrichtsideen
 
-**NEU (2025-01)**:
+**NEU (2026-01)**:
 - **Schul-Dateien**: Dateien schulintern teilen (rechtssicher)
 - **Themen-Verknüpfungen**: Dateien mit Themen verknüpfen
 - **FAQ-Seite**: Häufig gestellte Fragen im Dashboard
@@ -1378,7 +1378,7 @@ makeSuperAdmin("deine-email@schule.ch");
 - [x] **Querverweis LP Formatierung** - Als klickbare Badges statt Raw-Text
 - [x] **AllStufen-Modus im Jahresplan** - Unterrichtsideen für alle Stufen klickbar
 
-### ✅ Abgeschlossen (Januar 2025)
+### ✅ Abgeschlossen (Januar 2026)
 
 - [x] **Schul-Dateien System** - Dateien schulintern teilen
   - Client-seitiger Upload zu Firebase Storage
