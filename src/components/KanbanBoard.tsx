@@ -328,15 +328,19 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                     </a>
                   )}
                   {schulePictsBuchen && (
-                    <a
-                      href={schulePictsBuchen}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    <Button
+                      asChild
+                      variant="default"
+                      className="w-full mt-2"
                     >
-                      <ExternalLink className="h-4 w-4" />
-                      PICTS buchen
-                    </a>
+                      <a
+                        href={schulePictsBuchen}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        🦸 PICTS buchen
+                      </a>
+                    </Button>
                   )}
                 </div>
               </div>

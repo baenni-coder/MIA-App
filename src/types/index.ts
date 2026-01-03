@@ -481,6 +481,41 @@ export interface SchoolFileUploadRequest {
 }
 
 // ============================================
+// FAQ System
+// ============================================
+
+// FAQ Kategorien
+export type FAQCategory =
+  | "allgemein"
+  | "jahresplan"
+  | "themen"
+  | "dateien"
+  | "admin";
+
+// FAQ Eintrag (in Firestore gespeichert)
+export interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
+  category: FAQCategory;
+  order: number; // Für Sortierung innerhalb der Kategorie
+  isActive: boolean; // Zum Ausblenden ohne Löschen
+  createdBy: string; // Admin User ID
+  createdByName: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Für FAQ Create/Update Request
+export interface FAQItemRequest {
+  question: string;
+  answer: string;
+  category: FAQCategory;
+  order?: number;
+  isActive?: boolean;
+}
+
+// ============================================
 // Temporäre Typen (für Formulare)
 // ============================================
 

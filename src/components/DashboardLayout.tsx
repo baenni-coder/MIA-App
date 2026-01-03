@@ -24,6 +24,7 @@ import {
   Scale,
   FileArchive,
   HelpCircle,
+  Building2,
 } from "lucide-react";
 import { Kanton } from "@/types";
 
@@ -32,6 +33,7 @@ interface NavItem {
   icon: React.ReactNode;
   path: string;
   adminOnly?: boolean;
+  superAdminOnly?: boolean; // Nur für Super-Admins
   kantonOnly?: Kanton; // Nur für bestimmte Kantone anzeigen
 }
 
@@ -44,6 +46,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [userKanton, setUserKanton] = useState<Kanton | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -90,6 +93,7 @@ export default function DashboardLayout({
       if (response.ok) {
         const data = await response.json();
         setIsAdmin(data.role === "super_admin" || data.role === "picts_admin");
+        setIsSuperAdmin(data.role === "super_admin");
       }
     } catch (error) {
       console.error("Error checking admin status:", error);
@@ -160,9 +164,17 @@ export default function DashboardLayout({
       path: "/dashboard/admin/sync",
       adminOnly: true,
     },
+    {
+      label: "Schulen",
+      icon: <Building2 className="h-5 w-5" />,
+      path: "/dashboard/admin/schools",
+      superAdminOnly: true,
+    },
   ];
 
   const visibleNavItems = navItems.filter((item) => {
+    // Super-Admin-Only Filter
+    if (item.superAdminOnly && !isSuperAdmin) return false;
     // Admin-Only Filter
     if (item.adminOnly && !isAdmin) return false;
     // Kanton-Only Filter
