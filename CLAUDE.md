@@ -16,6 +16,10 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Schul-Dateien**: Dateien schulintern teilen (rechtssicher)
 - **Themen-Verknüpfungen**: Dateien mit Themen verknüpfen
 - **FAQ-Seite**: Häufig gestellte Fragen im Dashboard
+- **FAQ-Verwaltung**: Admins können FAQ-Einträge erstellen, bearbeiten, löschen
+- **Schulverwaltung**: Super-Admins können Schulen erstellen und PICTS-Links bearbeiten
+- **Erweitertes Lehrerprofil**: Schule und Kanton im Dashboard bearbeitbar
+- **Favicon**: SVG-Favicon mit Code-Klammern-Design
 
 ## Tech Stack
 
@@ -52,12 +56,22 @@ src/
 │   │   ├── notifications/       # Notifications
 │   │   │   ├── [id]/           # Mark single as read
 │   │   │   └── route.ts         # List & Mark all read
-│   │   ├── school-files/        # Schul-Dateien (NEU)
+│   │   ├── school-files/        # Schul-Dateien
 │   │   │   ├── [id]/           # Single File (GET, PUT, DELETE)
 │   │   │   ├── metadata/        # Metadata nach Client-Upload
 │   │   │   └── route.ts         # List & Create
+│   │   ├── faq/                 # FAQ-Endpunkte (NEU)
+│   │   │   ├── [id]/           # Single FAQ (GET, PUT, DELETE, PATCH)
+│   │   │   └── route.ts         # List, Create, Initialize
+│   │   ├── admin/               # Admin-Endpunkte (NEU)
+│   │   │   ├── schools/         # Schulverwaltung
+│   │   │   │   ├── [id]/       # PUT, DELETE einzelne Schule
+│   │   │   │   └── route.ts     # GET, POST alle Schulen
+│   │   │   ├── users/           # Benutzerverwaltung
+│   │   │   │   └── [id]/       # PUT, GET einzelner User
+│   │   │   └── sync/            # Sync-Endpunkte
 │   │   ├── upload-image/        # Image Upload zu Firebase Storage
-│   │   ├── schulen/             # Schulen-Endpunkte
+│   │   ├── schulen/             # Schulen-Endpunkte (öffentlich)
 │   │   ├── teachers/            # Lehrer-Endpunkte (GET, POST, PUT)
 │   │   ├── themen/              # Themen-Endpunkte (Airtable + Firestore)
 │   │   └── lektionsplanung/     # Lektionsplanung (Airtable)
@@ -66,6 +80,8 @@ src/
 │   │   ├── kompetenzen/         # API für Lehrplan-Kompetenzen
 │   ├── dashboard/                # Dashboard-Seiten
 │   │   ├── admin/               # Admin Dashboard (Review Workflow)
+│   │   │   ├── schools/         # Schulverwaltung (Super-Admin) (NEU)
+│   │   │   └── sync/            # Daten-Synchronisation
 │   │   ├── jahresplan/          # Jahresplan mit Stufe-Auswahl & Search
 │   │   ├── lehrmittel/          # Lehrmittel-Übersicht (Akkordeon)
 │   │   ├── lehrplan/            # Lehrplan-Kompetenzen (Kachel-Layout)
@@ -116,7 +132,8 @@ src/
 │   │   ├── custom-themes.ts     # Custom Themes CRUD
 │   │   ├── custom-lektionen.ts  # Custom Lektionen CRUD
 │   │   ├── notifications.ts     # Notifications CRUD
-│   │   └── school-files.ts      # School Files CRUD (NEU)
+│   │   ├── school-files.ts      # School Files CRUD
+│   │   └── faq.ts               # FAQ CRUD (NEU)
 │   └── storage/                 # Firebase Storage
 │       ├── upload.ts            # Image Upload & Validation
 │       └── school-files.ts      # School Files Storage (NEU)
@@ -186,8 +203,9 @@ ENABLE_FIRESTORE_CACHE=true
 {
   email: string
   name: string
-  schuleId: string          // Airtable Record ID
+  schuleId: string          // Airtable Record ID oder Firestore ID
   stufe: Stufe              // z.B. "1. Klasse", "5. Klasse"
+  kanton?: Kanton           // Schweizer Kanton (z.B. "ZH", "BE", "SG")
   role: UserRole            // "teacher" | "picts_admin" | "super_admin"
   createdAt: string
 }
@@ -259,7 +277,7 @@ ENABLE_FIRESTORE_CACHE=true
 }
 ```
 
-**Collection: `school_files`** (NEU)
+**Collection: `school_files`**
 ```typescript
 {
   name: string              // Dateiname
@@ -275,6 +293,21 @@ ENABLE_FIRESTORE_CACHE=true
   linkedThemeIds?: string[] // Verknüpfte Themen-IDs
   linkedThemeNames?: string[] // Verknüpfte Themen-Namen
   description?: string      // Beschreibung
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+**Collection: `faq_items`** (NEU)
+```typescript
+{
+  question: string          // Die Frage
+  answer: string            // Die Antwort (kann Markdown enthalten)
+  category: FAQCategory     // "allgemein" | "jahresplan" | "themen" | "dateien" | "admin"
+  order: number             // Sortierreihenfolge innerhalb der Kategorie
+  isActive: boolean         // Ob der FAQ-Eintrag aktiv/sichtbar ist
+  createdBy: string         // User ID des Erstellers
+  createdByName: string     // Name des Erstellers
   createdAt: Date
   updatedAt: Date
 }
@@ -355,13 +388,19 @@ ENABLE_FIRESTORE_CACHE=true
   - Dashboard (Profil)
   - Jahresplan
   - Lehrmittel
-  - **Lehrplan** (NEU)
+  - Lehrplan
   - Thema erstellen
   - Meine Themen
+  - Dateien
+  - FAQ
   - Admin Dashboard (nur für Admins)
+  - Schulen (nur für Super-Admins) (NEU)
   - Sync (nur für Admins)
-- **Profil-Übersicht**: Anzeige von Name, Schule, Stufe
-- **Stufe-Bearbeitung**: Lehrpersonen können ihre Stufe ändern
+- **Profil-Übersicht**: Anzeige von Name, E-Mail, Schule, Kanton, Stufe
+- **Profil-Bearbeitung** (NEU): Lehrpersonen können bearbeiten:
+  - Schule (Dropdown mit allen verfügbaren Schulen)
+  - Kanton (Dropdown mit allen Schweizer Kantonen)
+  - Stufe (KiGa bis 9. Klasse)
 
 ### 3. Jahresplan Kanban-Board
 - **6 Spalten für Zeiträume** mit Roboter-Bildern:
@@ -587,13 +626,51 @@ Rechtssicheres Teilen von Dateien innerhalb einer Schule.
   - Schulbasierte Zugriffskontrolle
   - CORS-Konfiguration erforderlich
 
-### 17. FAQ-Seite (NEU)
+### 17. FAQ-Seite
 Häufig gestellte Fragen für Lehrpersonen.
 
 - **Akkordeon-Layout**: Fragen klappbar
-- **Kategorien**: Allgemein, Jahresplan, Themen, Dateien
+- **Kategorien**: Allgemein, Jahresplan, Themen, Dateien, Administration
 - **Suchfunktion**: Schnelles Finden von Antworten
 - **Navigation**: Über Dashboard-Sidebar erreichbar
+- **Admin-Verwaltung** (NEU):
+  - Toggle "Verwalten" für Admins
+  - FAQ-Einträge erstellen mit Frage, Antwort, Kategorie
+  - Bestehende Einträge bearbeiten
+  - Einträge aktivieren/deaktivieren
+  - Einträge löschen (mit Bestätigung)
+  - Firestore-basiert statt hardcoded
+
+### 18. Schulverwaltung (NEU)
+Super-Admins können Schulen verwalten.
+
+- **Schulen-Seite** (`/dashboard/admin/schools`):
+  - Nur für `super_admin` zugänglich
+  - Liste aller Schulen mit Benutzeranzahl
+  - PICTS-Buchungslink anzeigen und bearbeiten
+- **Schule erstellen**:
+  - Button "Neue Schule"
+  - Dialog mit Name, Ort, PICTS-Link
+- **Schule bearbeiten**:
+  - Name, Ort, PICTS-Link ändern
+  - Direkt in der Übersicht
+- **Schule löschen**:
+  - Nur wenn keine Benutzer zugewiesen
+  - Bestätigungsdialog
+- **Benutzer-Übersicht**:
+  - Anzahl Lehrpersonen pro Schule
+  - Klickbar für Detailansicht
+
+### 19. Favicon (NEU)
+SVG-basiertes Favicon für die MIA-App.
+
+- **Design**: Code-Klammern `</>` mit farbigen Quadraten
+- **Farben**: Blau (#1E5F8C), Grün (#4CAF50), Orange (#F39C12)
+- **Dateien**:
+  - `/public/icon.svg` - Standard Favicon
+  - `/public/apple-icon.svg` - Apple Touch Icon
+  - `/src/app/icon.svg` - Next.js App Router Icon
+- **Metadata**: In `layout.tsx` konfiguriert
 
 ## Umgebungsvariablen
 
@@ -760,13 +837,15 @@ Erstellt neues Lehrerprofil
 ```
 
 ### PUT `/api/teachers`
-Aktualisiert Lehrerprofil (z.B. Stufe ändern)
+Aktualisiert Lehrerprofil (Stufe, Kanton, Schule ändern)
 
 **Request Body:**
 ```json
 {
   "userId": "firebase-uid",
-  "stufe": "6. Klasse"
+  "stufe": "6. Klasse",        // optional
+  "kanton": "ZH",              // optional
+  "schuleId": "firestore-id"   // optional
 }
 ```
 
@@ -1109,6 +1188,95 @@ Aktualisiert eine Datei (Name, Freigabe, Verknüpfungen)
 ### DELETE `/api/school-files/[id]`
 Löscht eine Datei (nur Uploader oder Admin der Schule)
 
+### GET `/api/faq`
+Lädt alle aktiven FAQ-Einträge (sortiert nach Kategorie und Order)
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "id": "firestore-doc-id",
+      "question": "Was ist die MIA-App?",
+      "answer": "Die MIA-App ist...",
+      "category": "allgemein",
+      "order": 1,
+      "isActive": true,
+      "createdAt": "2025-01-03T..."
+    }
+  ]
+}
+```
+
+### POST `/api/faq`
+Erstellt einen neuen FAQ-Eintrag (nur Admins)
+
+**Request Body:**
+```json
+{
+  "question": "Neue Frage?",
+  "answer": "Die Antwort...",
+  "category": "allgemein",
+  "order": 1,
+  "isActive": true
+}
+```
+
+### PUT `/api/faq/[id]`
+Aktualisiert einen FAQ-Eintrag (nur Admins)
+
+### DELETE `/api/faq/[id]`
+Löscht einen FAQ-Eintrag (nur Admins)
+
+### PATCH `/api/faq/[id]`
+Togglet den Active-Status eines FAQ-Eintrags (nur Admins)
+
+### GET `/api/admin/schools`
+Lädt alle Schulen mit Benutzeranzahl (nur Super-Admins)
+
+**Response:**
+```json
+{
+  "schools": [
+    {
+      "id": "firestore-doc-id",
+      "name": "Schule Beispiel",
+      "ort": "Zürich",
+      "pictsBuchen": "https://...",
+      "userCount": 5,
+      "createdAt": "2025-01-03T..."
+    }
+  ]
+}
+```
+
+### POST `/api/admin/schools`
+Erstellt eine neue Schule (nur Super-Admins)
+
+**Request Body:**
+```json
+{
+  "name": "Neue Schule",
+  "ort": "Bern",
+  "pictsBuchen": "https://..."
+}
+```
+
+### PUT `/api/admin/schools/[id]`
+Aktualisiert eine Schule (nur Super-Admins)
+
+**Request Body:**
+```json
+{
+  "name": "Neuer Name",
+  "ort": "Neuer Ort",
+  "pictsBuchen": "https://neuer-link..."
+}
+```
+
+### DELETE `/api/admin/schools/[id]`
+Löscht eine Schule (nur Super-Admins, nur wenn keine Benutzer zugewiesen)
+
 ## Tipps für weitere Entwicklung
 
 ### Neue Airtable-Tabelle hinzufügen
@@ -1221,6 +1389,23 @@ makeSuperAdmin("deine-email@schule.ch");
   - Nachträgliches Bearbeiten der Verknüpfungen
   - LinkedFilesViewer im Themen-Dialog
 - [x] **FAQ-Seite** - Häufig gestellte Fragen für Lehrpersonen
+- [x] **FAQ-Verwaltung** - Admin-Interface für FAQ-Einträge
+  - CRUD-Operationen via Firestore
+  - Aktivieren/Deaktivieren von Einträgen
+  - Kategorien: Allgemein, Jahresplan, Themen, Dateien, Admin
+- [x] **Schulverwaltung** - Super-Admin Schulen-Management
+  - Neue Schulen erstellen
+  - PICTS-Buchungslinks bearbeiten
+  - Schulen löschen (nur ohne Benutzer)
+  - Benutzeranzahl pro Schule anzeigen
+- [x] **Erweitertes Lehrerprofil** - Mehr Profilfelder bearbeitbar
+  - Schule ändern (Dropdown)
+  - Kanton hinzufügen/ändern (alle CH-Kantone)
+  - Verbesserte API mit schuleId-Support
+- [x] **Favicon** - SVG-basiertes App-Icon
+  - Code-Klammern Design
+  - Passend zum Logo
+  - Apple Touch Icon
 
 ### 🚧 In Arbeit / Geplant
 
@@ -1265,7 +1450,7 @@ makeSuperAdmin("deine-email@schule.ch");
   - Integration in Thema-Detail-Dialog
 
 - [ ] **Erweiterte Admin-Features**
-  - Benutzer-Verwaltung für Super Admins
+  - ~~Benutzer-Verwaltung für Super Admins~~ ✅ (Schulverwaltung implementiert)
   - PICTS-Admin Ernennung direkt in der App
   - Statistiken (Anzahl Themen, Reviews, etc.)
 

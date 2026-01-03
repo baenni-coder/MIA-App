@@ -353,6 +353,35 @@ export async function initializeFAQItems(
       order: 3,
       isActive: true,
     },
+    {
+      question: "Wie verwalte ich FAQ-Einträge?",
+      answer: "Als Admin können Sie auf der FAQ-Seite den Button 'Verwalten' aktivieren. Dann sehen Sie Buttons zum Erstellen, Bearbeiten, Aktivieren/Deaktivieren und Löschen von FAQ-Einträgen. Wählen Sie eine Kategorie für neue Einträge.",
+      category: "admin",
+      order: 4,
+      isActive: true,
+    },
+    {
+      question: "Wie erstelle oder bearbeite ich Schulen?",
+      answer: "Als Super-Admin finden Sie in der Seitenleiste den Menüpunkt 'Schulen'. Dort können Sie neue Schulen erstellen, bestehende Schulen bearbeiten (Name, Ort, PICTS-Link) und Schulen ohne Benutzer löschen.",
+      category: "admin",
+      order: 5,
+      isActive: true,
+    },
+    // Allgemein - neue Einträge
+    {
+      question: "Wie ändere ich meine Schule?",
+      answer: "Im Dashboard unter 'Mein Profil' können Sie auf das Bearbeiten-Symbol neben Ihrer Schule klicken. Wählen Sie aus der Dropdown-Liste Ihre neue Schule aus und bestätigen Sie die Änderung.",
+      category: "allgemein",
+      order: 5,
+      isActive: true,
+    },
+    {
+      question: "Wie setze ich meinen Kanton?",
+      answer: "Im Dashboard unter 'Mein Profil' können Sie auf das Bearbeiten-Symbol neben 'Kanton' klicken. Wählen Sie Ihren Kanton aus der Liste aller Schweizer Kantone aus. Der Kanton kann später für kantonsspezifische Funktionen verwendet werden.",
+      category: "allgemein",
+      order: 6,
+      isActive: true,
+    },
   ];
 
   const batch = adminDb.batch();
