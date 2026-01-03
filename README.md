@@ -4,11 +4,18 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 
 **🆕 NEU (Dezember 2024):** Lehrpersonen können jetzt eigene Themen mit Lektionsplanung erstellen! PICTS-Admins können diese Themen prüfen und freigeben. Genehmigte Themen werden systemweit für alle Schulen sichtbar.
 
+**🆕 NEU (Januar 2025):**
+- **Schul-Dateien**: Rechtssicheres Teilen von Dateien innerhalb der Schule
+- **FAQ-System**: Häufig gestellte Fragen mit Admin-Verwaltung
+- **Schulverwaltung**: Super-Admins können Schulen erstellen und PICTS-Links bearbeiten
+- **Erweitertes Profil**: Lehrpersonen können Schule und Kanton im Dashboard ändern
+- **Favicon**: Neues SVG-Icon im Code-Klammern-Design
+
 ## 🎯 Features
 
 ### Basis-Features
 - **Lehrer-Authentifizierung**: Firebase Authentication für sichere Anmeldung
-- **Profil-Verwaltung**: Stufe ändern für nächstes Schuljahr
+- **Profil-Verwaltung**: Stufe, Schule und Kanton im Dashboard änderbar
 - **Jahresplan-Kanban**: Interaktives Board mit Zeitraum-Bildern und Stufe-Auswahl
 - **Klickbare Kompetenzen**: Detail-Dialoge mit Lehrplan-Codes und Unterrichtsideen
 - **Lektionsplanung mit Export** (für Airtable-Themen):
@@ -62,6 +69,24 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
   - Nur genehmigte Themen werden angezeigt
   - Gleiche Darstellung wie Airtable-Themen
   - Kompetenzen automatisch aufgelöst
+
+### 🆕 Schul-Dateien & FAQ (Januar 2025)
+
+#### Schul-Dateien
+- **Datei-Upload** mit Drag & Drop
+- **Freigabe-Optionen**: Privat oder für die ganze Schule
+- **Themen-Verknüpfung**: Dateien mit Themen verlinken
+- **Schulbasierte Zugriffskontrolle**: Nur Kolleg:innen der eigenen Schule
+
+#### FAQ-System
+- **Häufig gestellte Fragen** mit Kategorien
+- **Suchfunktion** für schnelles Finden
+- **Admin-Verwaltung**: FAQ-Einträge erstellen, bearbeiten, löschen
+
+#### Schulverwaltung (Super-Admin)
+- **Neue Schulen erstellen**
+- **PICTS-Links bearbeiten**
+- **Benutzerübersicht** pro Schule
 
 ## 🛠 Tech Stack
 
@@ -336,7 +361,7 @@ Die App verwendet **shadcn/ui** - eine moderne, accessible Komponenten-Bibliothe
 - [x] Logo-Integration
 - [x] Lektionsplanung mit PDF/Markdown Export (Airtable-Themen)
 
-### Custom Themes & Lektionen (NEU ✨)
+### Custom Themes & Lektionen
 - [x] Rollen-System (teacher, picts_admin, super_admin)
 - [x] Custom Themes erstellen & bearbeiten
 - [x] Image Upload zu Firebase Storage
@@ -348,19 +373,26 @@ Die App verwendet **shadcn/ui** - eine moderne, accessible Komponenten-Bibliothe
 - [x] Permission System für Zugriffskontrolle
 - [x] Firebase Security Rules (Firestore + Storage)
 
+### Schul-Dateien, FAQ & Admin (Januar 2025 ✨)
+- [x] Schul-Dateien System mit Firebase Storage
+- [x] Themen-Verknüpfungen für Dateien
+- [x] FAQ-Seite mit Kategorien und Suche
+- [x] FAQ-Verwaltung für Admins
+- [x] Schulverwaltung für Super-Admins
+- [x] Erweitertes Lehrerprofil (Schule, Kanton)
+- [x] SVG-Favicon
+
 ## 🔜 Nächste Schritte
 
 ### UI/UX Verbesserungen
 - [ ] Hintergrund für Startseite erstellen
-- [ ] Navigation im Dashboard erweitern (Sidebar/Menu)
 - [ ] Custom Theme Badge im Kanban-Board
 - [ ] Dark Mode
 
 ### Funktionale Erweiterungen
 - [ ] Lektionsplanung-Viewer für Custom Lektionen
 - [ ] Export-Funktionen (PDF, Markdown) für Custom Lektionen
-- [ ] Batch-Operations für Custom Lektionen
-- [ ] Benutzer-Verwaltung für Super Admins
+- [ ] PICTS-Admin Ernennung direkt in der App
 - [ ] Airtable Export für genehmigte Custom Themes
 - [ ] Drag & Drop im Kanban-Board für Themen-Verschiebung
 - [ ] Kalenderansicht des Jahresplans
