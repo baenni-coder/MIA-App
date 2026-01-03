@@ -3,30 +3,45 @@ import { FAQItem, FAQCategory } from "@/types";
 
 const FAQ_COLLECTION = "faq_items";
 
+// Reihenfolge der Kategorien für Sortierung
+const CATEGORY_ORDER: Record<FAQCategory, number> = {
+  allgemein: 1,
+  jahresplan: 2,
+  themen: 3,
+  dateien: 4,
+  admin: 5,
+};
+
 /**
  * Holt alle aktiven FAQ-Einträge, sortiert nach Kategorie und Order
+ * (Sortierung erfolgt in JavaScript, um Firestore-Index-Probleme zu vermeiden)
  */
 export async function getAllFAQItems(includeInactive = false): Promise<FAQItem[]> {
   const adminDb = getAdminDb();
 
-  let query = adminDb.collection(FAQ_COLLECTION).orderBy("category").orderBy("order");
+  // Hole alle Dokumente ohne orderBy (vermeidet Index-Probleme)
+  const snapshot = await adminDb.collection(FAQ_COLLECTION).get();
 
-  if (!includeInactive) {
-    query = adminDb
-      .collection(FAQ_COLLECTION)
-      .where("isActive", "==", true)
-      .orderBy("category")
-      .orderBy("order");
-  }
-
-  const snapshot = await query.get();
-
-  return snapshot.docs.map((doc) => ({
+  let items = snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate() || new Date(),
     updatedAt: doc.data().updatedAt?.toDate() || new Date(),
   })) as FAQItem[];
+
+  // Filter inaktive Items wenn nötig
+  if (!includeInactive) {
+    items = items.filter((item) => item.isActive);
+  }
+
+  // Sortiere nach Kategorie und dann nach Order
+  items.sort((a, b) => {
+    const categoryDiff = (CATEGORY_ORDER[a.category] || 99) - (CATEGORY_ORDER[b.category] || 99);
+    if (categoryDiff !== 0) return categoryDiff;
+    return (a.order || 0) - (b.order || 0);
+  });
+
+  return items;
 }
 
 /**
@@ -38,27 +53,28 @@ export async function getFAQItemsByCategory(
 ): Promise<FAQItem[]> {
   const adminDb = getAdminDb();
 
-  let query = adminDb
+  // Nur where ohne orderBy (vermeidet Index-Probleme)
+  const snapshot = await adminDb
     .collection(FAQ_COLLECTION)
     .where("category", "==", category)
-    .orderBy("order");
+    .get();
 
-  if (!includeInactive) {
-    query = adminDb
-      .collection(FAQ_COLLECTION)
-      .where("category", "==", category)
-      .where("isActive", "==", true)
-      .orderBy("order");
-  }
-
-  const snapshot = await query.get();
-
-  return snapshot.docs.map((doc) => ({
+  let items = snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate() || new Date(),
     updatedAt: doc.data().updatedAt?.toDate() || new Date(),
   })) as FAQItem[];
+
+  // Filter inaktive wenn nötig
+  if (!includeInactive) {
+    items = items.filter((item) => item.isActive);
+  }
+
+  // Sortiere nach Order in JavaScript
+  items.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  return items;
 }
 
 /**
@@ -91,15 +107,17 @@ export async function createFAQItem(
 ): Promise<string> {
   const adminDb = getAdminDb();
 
-  // Hole die höchste Order für diese Kategorie
+  // Hole die höchste Order für diese Kategorie (nur where, sortiere in JS)
   const existingItems = await adminDb
     .collection(FAQ_COLLECTION)
     .where("category", "==", item.category)
-    .orderBy("order", "desc")
-    .limit(1)
     .get();
 
-  const maxOrder = existingItems.empty ? 0 : existingItems.docs[0].data().order || 0;
+  let maxOrder = 0;
+  existingItems.docs.forEach((doc) => {
+    const order = doc.data().order || 0;
+    if (order > maxOrder) maxOrder = order;
+  });
 
   const now = new Date();
   const docRef = await adminDb.collection(FAQ_COLLECTION).add({
