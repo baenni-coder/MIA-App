@@ -85,7 +85,7 @@ export async function getFAQItem(id: string): Promise<FAQItem | null> {
  * Erstellt einen neuen FAQ-Eintrag
  */
 export async function createFAQItem(
-  item: Omit<FAQItem, "id" | "createdAt" | "updatedAt">,
+  item: Omit<FAQItem, "id" | "createdAt" | "updatedAt" | "createdBy" | "createdByName">,
   createdBy: string,
   createdByName: string
 ): Promise<string> {
