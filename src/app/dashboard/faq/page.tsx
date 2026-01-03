@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Accordion,
   AccordionContent,
@@ -13,29 +16,38 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Search,
   HelpCircle,
   BookOpen,
   Calendar,
-  FileText,
   FolderOpen,
-  Users,
   Settings,
+  Users,
+  Plus,
+  Pencil,
+  Trash2,
+  Eye,
+  EyeOff,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
-
-interface FAQItem {
-  id: string;
-  question: string;
-  answer: string;
-  category: FAQCategory;
-}
-
-type FAQCategory =
-  | "allgemein"
-  | "jahresplan"
-  | "themen"
-  | "dateien"
-  | "admin";
+import { FAQItem, FAQCategory } from "@/types";
 
 const CATEGORY_LABELS: Record<FAQCategory, string> = {
   allgemein: "Allgemein",
@@ -53,174 +65,91 @@ const CATEGORY_ICONS: Record<FAQCategory, React.ReactNode> = {
   admin: <Settings className="h-4 w-4" />,
 };
 
-const FAQ_ITEMS: FAQItem[] = [
-  // Allgemein
-  {
-    id: "1",
-    question: "Was ist die MIA-App?",
-    answer:
-      "Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung des Jahresplans für 'Medien, Informatik und Anwendungskompetenzen (MIA)'. Sie ermöglicht es, Themen nach Klassenstufe und Zeitraum zu organisieren, eigene Themen zu erstellen und Materialien mit Kolleg:innen zu teilen.",
-    category: "allgemein",
-  },
-  {
-    id: "2",
-    question: "Wie ändere ich meine Klassenstufe?",
-    answer:
-      "Gehen Sie zum Dashboard und klicken Sie auf 'Stufe bearbeiten' neben Ihrer aktuellen Stufe. Wählen Sie die gewünschte Klassenstufe aus und speichern Sie die Änderung. Der Jahresplan wird automatisch für die neue Stufe angezeigt.",
-    category: "allgemein",
-  },
-  {
-    id: "3",
-    question: "Kann ich Themen für andere Klassenstufen anschauen?",
-    answer:
-      "Ja! Im Jahresplan gibt es ein Dropdown-Menü 'Andere Stufe anschauen', mit dem Sie temporär Themen für andere Klassenstufen ansehen können. Ihre eigene Stufe bleibt dabei unverändert.",
-    category: "allgemein",
-  },
-  {
-    id: "4",
-    question: "Was bedeuten die verschiedenen Roboter-Bilder im Jahresplan?",
-    answer:
-      "Die Roboter-Bilder zeigen die verschiedenen Zeiträume im Schuljahr: Herbst-Roboter (Sommer- bis Herbstferien), Weihnachts-Roboter (Herbst- bis Weihnachtsferien), Winter-Roboter (Weihnachts- bis Winterferien), Frühlings-Roboter (Winter- bis Frühlingsferien) und Sommer-Roboter (Frühlings- bis Sommerferien).",
-    category: "allgemein",
-  },
-
-  // Jahresplan
-  {
-    id: "5",
-    question: "Wie finde ich ein bestimmtes Thema im Jahresplan?",
-    answer:
-      "Klicken Sie auf der Lehrplan-Seite auf eine Unterrichtsidee - Sie werden automatisch zum Jahresplan weitergeleitet und das entsprechende Thema wird geöffnet. Alternativ können Sie im Lehrmittel-Bereich nach Themen suchen.",
-    category: "jahresplan",
-  },
-  {
-    id: "6",
-    question: "Was sind die Kompetenzen-Badges bei den Themen?",
-    answer:
-      "Die Kompetenzen-Badges zeigen die Lehrplan-21 Kompetenzen, die mit dem jeweiligen Thema abgedeckt werden. Klicken Sie auf einen Badge, um Details zur Kompetenz zu sehen, einschliesslich Kompetenzstufe, Zyklus und weitere Unterrichtsideen.",
-    category: "jahresplan",
-  },
-  {
-    id: "7",
-    question: "Wie kann ich die Lektionsplanung eines Themas ansehen?",
-    answer:
-      "Klicken Sie auf ein Thema im Jahresplan und dann auf den Button 'Lektionsplanung anzeigen'. Sie sehen dann alle Lektionen mit Aufgaben, Material, Einstieg, Hauptteil und Abschluss. Die Lektionsplanung kann auch als PDF oder Markdown exportiert werden.",
-    category: "jahresplan",
-  },
-  {
-    id: "8",
-    question: "Was ist der PICTS-Link im Themen-Dialog?",
-    answer:
-      "Der PICTS-Link führt zur Buchungsseite für PICTS-Unterstützung (Pädagogischer ICT-Support) Ihrer Schule. Dort können Sie Unterstützung für die Durchführung des Themas anfragen.",
-    category: "jahresplan",
-  },
-
-  // Themen & Lektionen
-  {
-    id: "9",
-    question: "Wie erstelle ich ein eigenes Thema?",
-    answer:
-      "Gehen Sie zu 'Thema erstellen' in der Seitenleiste. Füllen Sie das Formular aus: Thema-Name, Beschreibung, Klassenstufen, Zeitraum und Kompetenzen. Sie können auch Lektionen direkt hinzufügen. Speichern Sie als Entwurf oder reichen Sie zur Prüfung ein.",
-    category: "themen",
-  },
-  {
-    id: "10",
-    question: "Was passiert nach dem Einreichen eines Themas?",
-    answer:
-      "Nach dem Einreichen wird Ihr Thema von einem PICTS-Admin geprüft. Sie erhalten eine Benachrichtigung (Glocken-Symbol), wenn das Thema freigegeben oder abgelehnt wurde. Bei Ablehnung sehen Sie das Feedback und können das Thema überarbeiten.",
-    category: "themen",
-  },
-  {
-    id: "11",
-    question: "Kann ich ein freigegebenes Thema noch bearbeiten?",
-    answer:
-      "Ja, Sie können auch freigegebene Themen bearbeiten. Nach dem Speichern geht das Thema jedoch wieder in den Status 'Zur Prüfung' und muss erneut freigegeben werden.",
-    category: "themen",
-  },
-  {
-    id: "12",
-    question: "Was bedeuten die Status-Badges bei meinen Themen?",
-    answer:
-      "Die Status-Badges zeigen den aktuellen Stand: 'Entwurf' (noch nicht eingereicht), 'Zur Prüfung' (eingereicht, wartet auf Review), 'Freigegeben' (genehmigt, für alle sichtbar), 'Abgelehnt' (mit Feedback zur Überarbeitung).",
-    category: "themen",
-  },
-  {
-    id: "13",
-    question: "Wie füge ich Lektionen zu meinem Thema hinzu?",
-    answer:
-      "Beim Erstellen oder Bearbeiten eines Themas können Sie unten auf 'Lektion zum Thema erfassen' klicken. Füllen Sie die Felder aus (Aufgaben, Material, Einstieg, Hauptteil, Abschluss) und die Lektion wird automatisch nummeriert.",
-    category: "themen",
-  },
-
-  // Schul-Dateien
-  {
-    id: "14",
-    question: "Wie lade ich eine Datei hoch?",
-    answer:
-      "Gehen Sie zu 'Schul-Dateien' in der Seitenleiste und klicken Sie auf 'Datei hochladen'. Wählen Sie eine Datei (max. 50MB), geben Sie optional einen Namen und eine Beschreibung ein, wählen Sie die Freigabe und verknüpfen Sie optional Themen.",
-    category: "dateien",
-  },
-  {
-    id: "15",
-    question: "Welche Dateiformate werden unterstützt?",
-    answer:
-      "Unterstützt werden: PDF, Word-Dokumente (.doc, .docx), Excel-Tabellen (.xls, .xlsx), PowerPoint-Präsentationen (.ppt, .pptx) und Bilder (JPEG, PNG, WEBP). Die maximale Dateigrösse beträgt 50MB.",
-    category: "dateien",
-  },
-  {
-    id: "16",
-    question: "Was ist der Unterschied zwischen 'Privat' und 'Schule'?",
-    answer:
-      "'Privat' bedeutet, dass nur Sie die Datei sehen können. 'Schule' bedeutet, dass alle Lehrpersonen Ihrer Schule die Datei sehen und herunterladen können. Sie können die Freigabe jederzeit ändern.",
-    category: "dateien",
-  },
-  {
-    id: "17",
-    question: "Wie verknüpfe ich eine Datei mit einem Thema?",
-    answer:
-      "Beim Hochladen können Sie auf 'Mit Themen verknüpfen' klicken und Themen auswählen. Nachträglich können Sie die Verknüpfungen bearbeiten, indem Sie auf das Stift-Symbol bei der Datei klicken. Verknüpfte Dateien erscheinen im Themen-Detail-Dialog.",
-    category: "dateien",
-  },
-  {
-    id: "18",
-    question: "Können Kolleg:innen meine Dateien löschen?",
-    answer:
-      "Nein, nur Sie selbst können Ihre eigenen Dateien löschen. PICTS-Admins Ihrer Schule können jedoch alle Dateien der Schule verwalten.",
-    category: "dateien",
-  },
-
-  // Administration
-  {
-    id: "19",
-    question: "Was ist ein PICTS-Admin?",
-    answer:
-      "Ein PICTS-Admin ist eine Lehrperson mit erweiterten Rechten für die eigene Schule. Sie können eingereichte Themen prüfen und freigeben sowie alle Schul-Dateien verwalten. Der Status wird von einem Super-Admin vergeben.",
-    category: "admin",
-  },
-  {
-    id: "20",
-    question: "Wie werde ich PICTS-Admin?",
-    answer:
-      "Wenden Sie sich an Ihren bestehenden PICTS-Admin oder den System-Administrator. Die Rolle 'picts_admin' muss in Ihrem Profil gesetzt werden.",
-    category: "admin",
-  },
-  {
-    id: "21",
-    question: "Wo finde ich das Admin-Dashboard?",
-    answer:
-      "Als PICTS-Admin oder Super-Admin sehen Sie in der Seitenleiste den Menüpunkt 'Admin Dashboard'. Dort finden Sie alle eingereichten Themen Ihrer Schule zur Prüfung.",
-    category: "admin",
-  },
-];
-
 export default function FAQPage() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<FAQCategory | "all">(
     "all"
   );
+  const [faqItems, setFaqItems] = useState<FAQItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminView, setShowAdminView] = useState(false);
+
+  // Dialog States
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<FAQItem | null>(null);
+  const [formData, setFormData] = useState({
+    question: "",
+    answer: "",
+    category: "allgemein" as FAQCategory,
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
+
+  // Admin-Status prüfen
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/auth/check-admin?userId=${user.uid}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setIsAdmin(data.role === "super_admin" || data.role === "picts_admin");
+        }
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+      }
+    };
+    checkAdminStatus();
+  }, [user]);
+
+  // FAQ-Einträge laden
+  const loadFAQItems = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const headers: Record<string, string> = {};
+      let url = "/api/faq";
+
+      if (showAdminView && user) {
+        const token = await user.getIdToken();
+        headers.Authorization = `Bearer ${token}`;
+        url += "?includeInactive=true";
+      }
+
+      const response = await fetch(url, { headers });
+
+      if (!response.ok) {
+        throw new Error("Fehler beim Laden der FAQ-Einträge");
+      }
+
+      const data = await response.json();
+      setFaqItems(data.items || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unbekannter Fehler");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFAQItems();
+  }, [showAdminView, user]);
 
   // Filter FAQ items
   const filteredItems = useMemo(() => {
-    return FAQ_ITEMS.filter((item) => {
+    return faqItems.filter((item) => {
+      // In Admin-View alle zeigen, sonst nur aktive
+      if (!showAdminView && !item.isActive) return false;
+
       const matchesSearch =
         searchQuery === "" ||
         item.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -231,7 +160,7 @@ export default function FAQPage() {
 
       return matchesSearch && matchesCategory;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [faqItems, searchQuery, selectedCategory, showAdminView]);
 
   // Group by category
   const groupedItems = useMemo(() => {
@@ -247,6 +176,11 @@ export default function FAQPage() {
       groups[item.category].push(item);
     });
 
+    // Sortiere nach order innerhalb jeder Kategorie
+    Object.keys(groups).forEach((key) => {
+      groups[key as FAQCategory].sort((a, b) => a.order - b.order);
+    });
+
     return groups;
   }, [filteredItems]);
 
@@ -259,20 +193,235 @@ export default function FAQPage() {
     "admin",
   ];
 
+  // Dialog öffnen für neuen Eintrag
+  const handleNew = () => {
+    setEditingItem(null);
+    setFormData({
+      question: "",
+      answer: "",
+      category: "allgemein",
+    });
+    setIsDialogOpen(true);
+  };
+
+  // Dialog öffnen für Bearbeitung
+  const handleEdit = (item: FAQItem) => {
+    setEditingItem(item);
+    setFormData({
+      question: item.question,
+      answer: item.answer,
+      category: item.category,
+    });
+    setIsDialogOpen(true);
+  };
+
+  // Speichern
+  const handleSave = async () => {
+    if (!user || !formData.question || !formData.answer) return;
+
+    try {
+      setIsSaving(true);
+      const token = await user.getIdToken();
+
+      if (editingItem) {
+        // Update
+        const response = await fetch(`/api/faq/${editingItem.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+          throw new Error("Fehler beim Aktualisieren");
+        }
+      } else {
+        // Create
+        const response = await fetch("/api/faq", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+          throw new Error("Fehler beim Erstellen");
+        }
+      }
+
+      setIsDialogOpen(false);
+      loadFAQItems();
+    } catch (err) {
+      console.error("Error saving FAQ:", err);
+      alert(err instanceof Error ? err.message : "Fehler beim Speichern");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Löschen
+  const handleDelete = async (id: string) => {
+    if (!user) return;
+
+    try {
+      setIsDeleting(true);
+      const token = await user.getIdToken();
+
+      const response = await fetch(`/api/faq/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Fehler beim Löschen");
+      }
+
+      setDeleteConfirmId(null);
+      loadFAQItems();
+    } catch (err) {
+      console.error("Error deleting FAQ:", err);
+      alert(err instanceof Error ? err.message : "Fehler beim Löschen");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Toggle aktiv/inaktiv
+  const handleToggleActive = async (item: FAQItem) => {
+    if (!user) return;
+
+    try {
+      const token = await user.getIdToken();
+
+      const response = await fetch(`/api/faq/${item.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: !item.isActive }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Fehler beim Ändern des Status");
+      }
+
+      loadFAQItems();
+    } catch (err) {
+      console.error("Error toggling FAQ status:", err);
+      alert(err instanceof Error ? err.message : "Fehler beim Ändern des Status");
+    }
+  };
+
+  // FAQ initialisieren (nur für Super-Admin)
+  const handleInitialize = async () => {
+    if (!user) return;
+
+    try {
+      setIsInitializing(true);
+      const token = await user.getIdToken();
+
+      const response = await fetch("/api/faq", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Fehler beim Initialisieren");
+      }
+
+      const data = await response.json();
+      if (data.count > 0) {
+        alert(`${data.count} FAQ-Einträge wurden erstellt.`);
+      } else {
+        alert("FAQ bereits initialisiert.");
+      }
+
+      loadFAQItems();
+    } catch (err) {
+      console.error("Error initializing FAQ:", err);
+      alert(err instanceof Error ? err.message : "Fehler beim Initialisieren");
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
         <div className="space-y-6">
           {/* Header */}
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <HelpCircle className="h-6 w-6" />
-              Häufig gestellte Fragen
-            </h1>
-            <p className="text-muted-foreground">
-              Antworten auf die wichtigsten Fragen zur MIA-App
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <HelpCircle className="h-6 w-6" />
+                Häufig gestellte Fragen
+              </h1>
+              <p className="text-muted-foreground">
+                Antworten auf die wichtigsten Fragen zur MIA-App
+              </p>
+            </div>
+
+            {isAdmin && (
+              <div className="flex gap-2">
+                <Button
+                  variant={showAdminView ? "default" : "outline"}
+                  onClick={() => setShowAdminView(!showAdminView)}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  {showAdminView ? "Admin-Ansicht aktiv" : "Verwalten"}
+                </Button>
+              </div>
+            )}
           </div>
+
+          {/* Admin Actions */}
+          {showAdminView && isAdmin && (
+            <Card className="border-primary/50 bg-primary/5">
+              <CardContent className="py-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <Button onClick={handleNew}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Neue Frage
+                  </Button>
+                  <Button variant="outline" onClick={loadFAQItems}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Aktualisieren
+                  </Button>
+                  {faqItems.length === 0 && (
+                    <Button
+                      variant="secondary"
+                      onClick={handleInitialize}
+                      disabled={isInitializing}
+                    >
+                      {isInitializing ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Standard-FAQ laden
+                    </Button>
+                  )}
+                  <span className="text-sm text-muted-foreground">
+                    {filteredItems.length} Einträge
+                    {faqItems.filter((i) => !i.isActive).length > 0 && (
+                      <span className="text-yellow-600 ml-2">
+                        ({faqItems.filter((i) => !i.isActive).length} inaktiv)
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Suche und Filter */}
           <div className="flex flex-col sm:flex-row gap-4">
@@ -307,75 +456,216 @@ export default function FAQPage() {
             </div>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
+                <p className="text-muted-foreground">Lade FAQ...</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <Card className="border-red-500/50">
+              <CardContent className="py-6 text-center text-red-600">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>{error}</p>
+                <Button
+                  variant="outline"
+                  onClick={loadFAQItems}
+                  className="mt-4"
+                >
+                  Erneut versuchen
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Keine Ergebnisse */}
-          {filteredItems.length === 0 && (
+          {!loading && !error && filteredItems.length === 0 && (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
                 <HelpCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Keine Fragen gefunden</p>
                 <p className="text-sm mt-2">
-                  Versuchen Sie einen anderen Suchbegriff oder wählen Sie eine
-                  andere Kategorie
+                  {faqItems.length === 0
+                    ? "Die FAQ-Sammlung ist leer."
+                    : "Versuchen Sie einen anderen Suchbegriff oder wählen Sie eine andere Kategorie"}
                 </p>
+                {showAdminView && faqItems.length === 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={handleInitialize}
+                    className="mt-4"
+                    disabled={isInitializing}
+                  >
+                    {isInitializing ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : null}
+                    Standard-FAQ laden
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
 
           {/* FAQ Accordion */}
-          {selectedCategory === "all" ? (
-            // Gruppiert nach Kategorie
-            Object.entries(groupedItems).map(([category, items]) => {
-              if (items.length === 0) return null;
+          {!loading && !error && filteredItems.length > 0 && (
+            <>
+              {selectedCategory === "all" ? (
+                // Gruppiert nach Kategorie
+                Object.entries(groupedItems).map(([category, items]) => {
+                  if (items.length === 0) return null;
 
-              return (
-                <Card key={category}>
+                  return (
+                    <Card key={category}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          {CATEGORY_ICONS[category as FAQCategory]}
+                          {CATEGORY_LABELS[category as FAQCategory]}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Accordion type="single" collapsible className="w-full">
+                          {items.map((item) => (
+                            <AccordionItem key={item.id} value={item.id}>
+                              <AccordionTrigger className="text-left">
+                                <div className="flex items-center gap-2 flex-1 pr-4">
+                                  {!item.isActive && showAdminView && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Inaktiv
+                                    </Badge>
+                                  )}
+                                  <span className={!item.isActive ? "text-muted-foreground" : ""}>
+                                    {item.question}
+                                  </span>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className="text-muted-foreground whitespace-pre-wrap">
+                                  {item.answer}
+                                </div>
+                                {showAdminView && isAdmin && (
+                                  <div className="flex gap-2 mt-4 pt-4 border-t">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleEdit(item)}
+                                    >
+                                      <Pencil className="h-4 w-4 mr-1" />
+                                      Bearbeiten
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleToggleActive(item)}
+                                    >
+                                      {item.isActive ? (
+                                        <>
+                                          <EyeOff className="h-4 w-4 mr-1" />
+                                          Deaktivieren
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Eye className="h-4 w-4 mr-1" />
+                                          Aktivieren
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => setDeleteConfirmId(item.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Löschen
+                                    </Button>
+                                  </div>
+                                )}
+                              </AccordionContent>
+                            </AccordionItem>
+                          ))}
+                        </Accordion>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              ) : (
+                // Einzelne Kategorie
+                <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg flex items-center gap-2">
-                      {CATEGORY_ICONS[category as FAQCategory]}
-                      {CATEGORY_LABELS[category as FAQCategory]}
+                      {CATEGORY_ICONS[selectedCategory]}
+                      {CATEGORY_LABELS[selectedCategory]}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Accordion type="single" collapsible className="w-full">
-                      {items.map((item) => (
+                      {filteredItems.map((item) => (
                         <AccordionItem key={item.id} value={item.id}>
                           <AccordionTrigger className="text-left">
-                            {item.question}
+                            <div className="flex items-center gap-2 flex-1 pr-4">
+                              {!item.isActive && showAdminView && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Inaktiv
+                                </Badge>
+                              )}
+                              <span className={!item.isActive ? "text-muted-foreground" : ""}>
+                                {item.question}
+                              </span>
+                            </div>
                           </AccordionTrigger>
-                          <AccordionContent className="text-muted-foreground">
-                            {item.answer}
+                          <AccordionContent>
+                            <div className="text-muted-foreground whitespace-pre-wrap">
+                              {item.answer}
+                            </div>
+                            {showAdminView && isAdmin && (
+                              <div className="flex gap-2 mt-4 pt-4 border-t">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEdit(item)}
+                                >
+                                  <Pencil className="h-4 w-4 mr-1" />
+                                  Bearbeiten
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleToggleActive(item)}
+                                >
+                                  {item.isActive ? (
+                                    <>
+                                      <EyeOff className="h-4 w-4 mr-1" />
+                                      Deaktivieren
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Eye className="h-4 w-4 mr-1" />
+                                      Aktivieren
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => setDeleteConfirmId(item.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Löschen
+                                </Button>
+                              </div>
+                            )}
                           </AccordionContent>
                         </AccordionItem>
                       ))}
                     </Accordion>
                   </CardContent>
                 </Card>
-              );
-            })
-          ) : (
-            // Einzelne Kategorie
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  {CATEGORY_ICONS[selectedCategory]}
-                  {CATEGORY_LABELS[selectedCategory]}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Accordion type="single" collapsible className="w-full">
-                  {filteredItems.map((item) => (
-                    <AccordionItem key={item.id} value={item.id}>
-                      <AccordionTrigger className="text-left">
-                        {item.question}
-                      </AccordionTrigger>
-                      <AccordionContent className="text-muted-foreground">
-                        {item.answer}
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              </CardContent>
-            </Card>
+              )}
+            </>
           )}
 
           {/* Kontakt */}
@@ -395,6 +685,127 @@ export default function FAQPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Create/Edit Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>
+                {editingItem ? "Frage bearbeiten" : "Neue Frage erstellen"}
+              </DialogTitle>
+              <DialogDescription>
+                {editingItem
+                  ? "Bearbeiten Sie die FAQ-Frage und -Antwort."
+                  : "Erstellen Sie eine neue FAQ-Frage und -Antwort."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Kategorie</label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value: FAQCategory) =>
+                    setFormData({ ...formData, category: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        <span className="flex items-center gap-2">
+                          {CATEGORY_ICONS[key as FAQCategory]}
+                          {label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Frage</label>
+                <Input
+                  value={formData.question}
+                  onChange={(e) =>
+                    setFormData({ ...formData, question: e.target.value })
+                  }
+                  placeholder="Wie kann ich...?"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Antwort</label>
+                <Textarea
+                  value={formData.answer}
+                  onChange={(e) =>
+                    setFormData({ ...formData, answer: e.target.value })
+                  }
+                  placeholder="Die Antwort auf die Frage..."
+                  rows={6}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                disabled={isSaving}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={isSaving || !formData.question || !formData.answer}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : null}
+                {editingItem ? "Speichern" : "Erstellen"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={!!deleteConfirmId}
+          onOpenChange={() => setDeleteConfirmId(null)}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>FAQ-Eintrag löschen?</DialogTitle>
+              <DialogDescription>
+                Möchten Sie diesen FAQ-Eintrag wirklich dauerhaft löschen? Diese
+                Aktion kann nicht rückgängig gemacht werden.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteConfirmId(null)}
+                disabled={isDeleting}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Löschen
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     </ProtectedRoute>
   );
