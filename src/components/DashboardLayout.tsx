@@ -172,7 +172,7 @@ export default function DashboardLayout({
       superAdminOnly: true,
     },
     {
-      label: "Schulwechsel",
+      label: "Schulanfragen",
       icon: <ArrowRightLeft className="h-5 w-5" />,
       path: "/dashboard/admin/school-requests",
       superAdminOnly: true,

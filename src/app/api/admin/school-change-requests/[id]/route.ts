@@ -6,6 +6,10 @@ import {
   approveSchoolChangeRequest,
   rejectSchoolChangeRequest,
 } from "@/lib/firestore/school-change-requests";
+import {
+  notifySchoolRequestApproved,
+  notifySchoolRequestRejected,
+} from "@/lib/firestore/notifications";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -127,12 +131,27 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const requestType = changeRequest.requestType || "change";
+    const isJoin = requestType === "join";
+    const actionLabel = isJoin ? "Schulbeitritt" : "Schulwechsel";
+
     if (action === "approve") {
       await approveSchoolChangeRequest(requestId, userId, adminName);
+
+      // Benachrichtige den Lehrer
+      await notifySchoolRequestApproved({
+        teacherId: changeRequest.teacherId,
+        teacherName: changeRequest.teacherName,
+        teacherEmail: changeRequest.teacherEmail,
+        requestType,
+        newSchuleName: changeRequest.newSchuleName,
+        approvedByName: adminName,
+      });
+
       return NextResponse.json(
         {
           success: true,
-          message: `Schulwechsel für ${changeRequest.teacherName} wurde genehmigt`,
+          message: `${actionLabel} für ${changeRequest.teacherName} wurde genehmigt`,
         },
         { status: 200 }
       );
@@ -144,10 +163,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         );
       }
       await rejectSchoolChangeRequest(requestId, userId, adminName, reviewNotes);
+
+      // Benachrichtige den Lehrer
+      await notifySchoolRequestRejected({
+        teacherId: changeRequest.teacherId,
+        teacherName: changeRequest.teacherName,
+        teacherEmail: changeRequest.teacherEmail,
+        requestType,
+        newSchuleName: changeRequest.newSchuleName,
+        rejectedByName: adminName,
+        reviewNotes,
+      });
+
       return NextResponse.json(
         {
           success: true,
-          message: `Schulwechsel für ${changeRequest.teacherName} wurde abgelehnt`,
+          message: `${actionLabel} für ${changeRequest.teacherName} wurde abgelehnt`,
         },
         { status: 200 }
       );

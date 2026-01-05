@@ -346,3 +346,154 @@ export async function notifyThemeRejected(
     console.error("Error notifying theme rejected:", error);
   }
 }
+
+// ============================================
+// Schulwechsel/Schulbeitritt Notifications
+// ============================================
+
+/**
+ * Benachrichtigt alle Super-Admins über eine neue Schulwechsel-/Schulbeitritts-Anfrage
+ */
+export async function notifySuperAdminsAboutSchoolRequest(data: {
+  requestId: string;
+  teacherId: string;
+  teacherName: string;
+  teacherEmail: string;
+  requestType: "join" | "change";
+  currentSchuleName: string;
+  newSchuleName: string;
+}): Promise<string[]> {
+  try {
+    const adminDb = getAdminDb();
+
+    // Finde alle Super-Admins
+    const superAdminsSnapshot = await adminDb
+      .collection("teachers")
+      .where("role", "==", "super_admin")
+      .get();
+
+    if (superAdminsSnapshot.empty) {
+      console.warn("No super admins found to notify about school request");
+      return [];
+    }
+
+    const isJoin = data.requestType === "join";
+    const notificationIds: string[] = [];
+    const batch = adminDb.batch();
+
+    superAdminsSnapshot.docs.forEach((doc) => {
+      const superAdmin = doc.data();
+      const notifRef = adminDb.collection("notifications").doc();
+
+      const message = isJoin
+        ? `${data.teacherName} hat sich registriert und möchte der Schule "${data.newSchuleName}" beitreten.`
+        : `${data.teacherName} möchte von "${data.currentSchuleName}" zu "${data.newSchuleName}" wechseln.`;
+
+      batch.set(notifRef, {
+        recipientId: doc.id,
+        recipientRole: superAdmin.role,
+        type: "school_change_requested",
+        themeId: data.requestId, // Wir nutzen themeId für die Request-ID
+        themeTitle: isJoin ? "Schulbeitritts-Anfrage" : "Schulwechsel-Anfrage",
+        createdBy: data.teacherId,
+        createdByName: data.teacherName,
+        createdByEmail: data.teacherEmail,
+        schuleId: data.newSchuleName, // Speichere Schulname für Kontext
+        message,
+        actionUrl: `/dashboard/admin/school-requests`,
+        read: false,
+        createdAt: new Date(),
+      });
+
+      notificationIds.push(notifRef.id);
+    });
+
+    await batch.commit();
+    console.log(`Notified ${notificationIds.length} super admins about school request`);
+    return notificationIds;
+  } catch (error) {
+    console.error("Error notifying super admins about school request:", error);
+    return [];
+  }
+}
+
+/**
+ * Benachrichtigt Lehrer über genehmigte Schulwechsel-/Schulbeitritts-Anfrage
+ */
+export async function notifySchoolRequestApproved(data: {
+  teacherId: string;
+  teacherName: string;
+  teacherEmail: string;
+  requestType: "join" | "change";
+  newSchuleName: string;
+  approvedByName: string;
+}): Promise<void> {
+  try {
+    const teacher = await getTeacherProfile(data.teacherId);
+    if (!teacher) return;
+
+    const isJoin = data.requestType === "join";
+    const message = isJoin
+      ? `Willkommen! Ihre Anfrage, der Schule "${data.newSchuleName}" beizutreten, wurde von ${data.approvedByName} genehmigt. Sie haben jetzt vollen Zugriff auf alle Schulfunktionen.`
+      : `Ihre Anfrage, zur Schule "${data.newSchuleName}" zu wechseln, wurde von ${data.approvedByName} genehmigt.`;
+
+    await createNotification({
+      recipientId: data.teacherId,
+      recipientRole: teacher.role as UserRole,
+      type: "school_change_approved",
+      themeId: "", // Keine Theme-ID
+      themeTitle: isJoin ? "Schulbeitritt genehmigt" : "Schulwechsel genehmigt",
+      createdBy: data.teacherId,
+      createdByName: data.teacherName,
+      createdByEmail: data.teacherEmail,
+      schuleId: data.newSchuleName,
+      message,
+      actionUrl: `/dashboard`,
+    });
+  } catch (error) {
+    console.error("Error notifying school request approved:", error);
+  }
+}
+
+/**
+ * Benachrichtigt Lehrer über abgelehnte Schulwechsel-/Schulbeitritts-Anfrage
+ */
+export async function notifySchoolRequestRejected(data: {
+  teacherId: string;
+  teacherName: string;
+  teacherEmail: string;
+  requestType: "join" | "change";
+  newSchuleName: string;
+  rejectedByName: string;
+  reviewNotes?: string;
+}): Promise<void> {
+  try {
+    const teacher = await getTeacherProfile(data.teacherId);
+    if (!teacher) return;
+
+    const isJoin = data.requestType === "join";
+    let message = isJoin
+      ? `Ihre Anfrage, der Schule "${data.newSchuleName}" beizutreten, wurde von ${data.rejectedByName} abgelehnt.`
+      : `Ihre Anfrage, zur Schule "${data.newSchuleName}" zu wechseln, wurde von ${data.rejectedByName} abgelehnt.`;
+
+    if (data.reviewNotes) {
+      message += ` Begründung: ${data.reviewNotes}`;
+    }
+
+    await createNotification({
+      recipientId: data.teacherId,
+      recipientRole: teacher.role as UserRole,
+      type: "school_change_rejected",
+      themeId: "",
+      themeTitle: isJoin ? "Schulbeitritt abgelehnt" : "Schulwechsel abgelehnt",
+      createdBy: data.teacherId,
+      createdByName: data.teacherName,
+      createdByEmail: data.teacherEmail,
+      schuleId: data.newSchuleName,
+      message,
+      actionUrl: `/dashboard`,
+    });
+  } catch (error) {
+    console.error("Error notifying school request rejected:", error);
+  }
+}

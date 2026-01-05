@@ -56,6 +56,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Prüfe ob Schulzugehörigkeit genehmigt wurde
+    if (teacher.schoolApproved === false) {
+      return NextResponse.json(
+        {
+          error: "Ihre Schulzugehörigkeit wurde noch nicht genehmigt. Bitte warten Sie auf die Bestätigung durch einen Administrator.",
+          schoolApprovalPending: true,
+        },
+        { status: 403 }
+      );
+    }
+
     // Check for themeId query parameter
     const { searchParams } = new URL(request.url);
     const themeId = searchParams.get("themeId");
@@ -126,6 +137,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "No school assigned to teacher" },
         { status: 400 }
+      );
+    }
+
+    // Prüfe ob Schulzugehörigkeit genehmigt wurde
+    if (teacher.schoolApproved === false) {
+      return NextResponse.json(
+        {
+          error: "Ihre Schulzugehörigkeit wurde noch nicht genehmigt. Bitte warten Sie auf die Bestätigung durch einen Administrator.",
+          schoolApprovalPending: true,
+        },
+        { status: 403 }
       );
     }
 
