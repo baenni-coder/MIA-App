@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getAdminDb, getAdminAuth } from "@/lib/firebase/admin";
 import { getSchuleById } from "@/lib/airtable/schulen";
 import { isSuperAdmin } from "@/lib/firestore/permissions";
+import {
+  createSchoolChangeRequest,
+  getPendingRequestForTeacher,
+} from "@/lib/firestore/school-change-requests";
 
 export async function POST(request: Request) {
   try {
@@ -201,7 +205,7 @@ export async function PUT(request: Request) {
 
     const authenticatedUserId = decodedToken.uid;
 
-    const { userId, stufe, kanton, schuleId, role } = await request.json();
+    const { userId, stufe, kanton, schuleId, newSchuleName, role } = await request.json();
 
     if (!userId) {
       return NextResponse.json(
@@ -221,12 +225,89 @@ export async function PUT(request: Request) {
     const adminDb = getAdminDb();
     const updateData: Record<string, unknown> = {};
 
-    // 3. Stufe, Kanton und Schule kann jeder User für sich selbst ändern
+    // Hole aktuelles Lehrerprofil
+    const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
+    if (!teacherDoc.exists) {
+      return NextResponse.json(
+        { error: "Teacher profile not found" },
+        { status: 404 }
+      );
+    }
+    const teacherData = teacherDoc.data()!;
+
+    // 3. Stufe und Kanton kann jeder User für sich selbst ändern
     if (stufe) updateData.stufe = stufe;
     if (kanton !== undefined) updateData.kanton = kanton || null; // null um zu löschen
-    if (schuleId) updateData.schuleId = schuleId;
 
-    // 4. Role-Updates NUR durch Super-Admin
+    // 4. Schulwechsel erfordert Genehmigung durch Super-Admin
+    if (schuleId && schuleId !== teacherData.schuleId) {
+      // Prüfe ob bereits eine offene Anfrage existiert
+      const existingRequest = await getPendingRequestForTeacher(userId);
+      if (existingRequest) {
+        return NextResponse.json(
+          {
+            error: "Es existiert bereits eine offene Schulwechsel-Anfrage",
+            pendingRequest: {
+              id: existingRequest.id,
+              newSchuleName: existingRequest.newSchuleName,
+              createdAt: existingRequest.createdAt,
+            },
+          },
+          { status: 409 }
+        );
+      }
+
+      // Hole Schulnamen für die Anfrage
+      let currentSchuleName = "Unbekannt";
+      let targetSchuleName = newSchuleName || "Unbekannt";
+
+      // Hole aktuelle Schule
+      try {
+        const currentSchule = await getSchuleById(teacherData.schuleId);
+        if (currentSchule) {
+          currentSchuleName = currentSchule.name;
+        }
+      } catch {
+        // Ignorieren - Name bleibt "Unbekannt"
+      }
+
+      // Hole neue Schule (falls Name nicht mitgeliefert)
+      if (!newSchuleName) {
+        try {
+          const newSchule = await getSchuleById(schuleId);
+          if (newSchule) {
+            targetSchuleName = newSchule.name;
+          }
+        } catch {
+          // Ignorieren
+        }
+      }
+
+      // Erstelle Schulwechsel-Anfrage
+      const requestId = await createSchoolChangeRequest({
+        teacherId: userId,
+        teacherName: teacherData.name || teacherData.email,
+        teacherEmail: teacherData.email,
+        currentSchuleId: teacherData.schuleId,
+        currentSchuleName,
+        newSchuleId: schuleId,
+        newSchuleName: targetSchuleName,
+      });
+
+      // Andere Änderungen (stufe, kanton) trotzdem durchführen
+      if (Object.keys(updateData).length > 0) {
+        await adminDb.collection("teachers").doc(userId).update(updateData);
+      }
+
+      return NextResponse.json({
+        success: true,
+        schoolChangeRequestCreated: true,
+        requestId,
+        message: "Schulwechsel-Anfrage wurde erstellt und wartet auf Genehmigung durch einen Super-Admin",
+      });
+    }
+
+    // 5. Role-Updates NUR durch Super-Admin
     if (role !== undefined) {
       const isAdmin = await isSuperAdmin(authenticatedUserId);
       if (!isAdmin) {

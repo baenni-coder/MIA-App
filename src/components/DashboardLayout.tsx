@@ -25,6 +25,7 @@ import {
   FileArchive,
   HelpCircle,
   Building2,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Kanton } from "@/types";
 
@@ -168,6 +169,12 @@ export default function DashboardLayout({
       label: "Schulen",
       icon: <Building2 className="h-5 w-5" />,
       path: "/dashboard/admin/schools",
+      superAdminOnly: true,
+    },
+    {
+      label: "Schulwechsel",
+      icon: <ArrowRightLeft className="h-5 w-5" />,
+      path: "/dashboard/admin/school-requests",
       superAdminOnly: true,
     },
   ];
