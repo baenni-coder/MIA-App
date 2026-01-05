@@ -64,6 +64,7 @@ export async function getSchoolChangeRequest(
 
 /**
  * Holt alle offenen Anfragen (für Super-Admins)
+ * Sortierung in JavaScript um Firestore Composite Index zu vermeiden
  */
 export async function getPendingSchoolChangeRequests(): Promise<
   SchoolChangeRequest[]
@@ -72,10 +73,9 @@ export async function getPendingSchoolChangeRequests(): Promise<
   const snapshot = await adminDb
     .collection(COLLECTION)
     .where("status", "==", "pending")
-    .orderBy("createdAt", "desc")
     .get();
 
-  return snapshot.docs.map((doc) => {
+  const requests = snapshot.docs.map((doc) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -84,28 +84,31 @@ export async function getPendingSchoolChangeRequests(): Promise<
       updatedAt: data.updatedAt?.toDate?.() || new Date(data.updatedAt),
     } as SchoolChangeRequest;
   });
+
+  // Sortierung in JavaScript (neueste zuerst)
+  return requests.sort((a, b) =>
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
 
 /**
  * Holt alle Anfragen (optional gefiltert nach Status)
+ * Sortierung in JavaScript um Firestore Composite Index zu vermeiden
  */
 export async function getAllSchoolChangeRequests(
   status?: SchoolChangeStatus
 ): Promise<SchoolChangeRequest[]> {
   const adminDb = getAdminDb();
 
-  let query = adminDb.collection(COLLECTION).orderBy("createdAt", "desc");
+  let query: FirebaseFirestore.Query = adminDb.collection(COLLECTION);
 
   if (status) {
-    query = adminDb
-      .collection(COLLECTION)
-      .where("status", "==", status)
-      .orderBy("createdAt", "desc");
+    query = query.where("status", "==", status);
   }
 
   const snapshot = await query.get();
 
-  return snapshot.docs.map((doc) => {
+  const requests = snapshot.docs.map((doc) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -115,6 +118,11 @@ export async function getAllSchoolChangeRequests(
       reviewedAt: data.reviewedAt?.toDate?.() || (data.reviewedAt ? new Date(data.reviewedAt) : undefined),
     } as SchoolChangeRequest;
   });
+
+  // Sortierung in JavaScript (neueste zuerst)
+  return requests.sort((a, b) =>
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
 
 /**
