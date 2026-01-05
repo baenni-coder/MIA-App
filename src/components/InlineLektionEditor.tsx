@@ -128,7 +128,7 @@ export default function InlineLektionEditor({
 
       {/* KI Zusammenfassung */}
       <div>
-        <Label htmlFor={`ki-${lektion.tempId}`}>KI Zusammenfassung</Label>
+        <Label htmlFor={`ki-${lektion.tempId}`}>Zusammenfassung</Label>
         <Textarea
           id={`ki-${lektion.tempId}`}
           value={lektion.kiZusammenfassung || ""}
