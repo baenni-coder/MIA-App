@@ -23,8 +23,9 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Stufe, Zeitraum, TempLektion } from "@/types";
-import { Upload, Loader2, Plus, BookOpen, FileText } from "lucide-react";
+import { Upload, Loader2, Plus, BookOpen, FileText, Paperclip } from "lucide-react";
 import InlineLektionEditor from "./InlineLektionEditor";
+import FileSelector from "./FileSelector";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -104,8 +105,132 @@ export default function CustomThemeForm({
   );
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([]);
 
+  // Dateien-Verknüpfung State
+  const [linkedFileIds, setLinkedFileIds] = useState<string[]>([]);
+  const [initialLinkedFileIds, setInitialLinkedFileIds] = useState<string[]>([]);
+
   // Anzahl Lektionen wird automatisch aus dem Lektionen-Array berechnet
   const anzahlLektionen = Math.max(lektionen.length, 1);
+
+  // Lade verknüpfte Dateien im Edit-Modus
+  useEffect(() => {
+    if (mode === "edit" && themeId && user) {
+      loadLinkedFiles();
+    }
+  }, [mode, themeId, user]);
+
+  const loadLinkedFiles = async () => {
+    if (!user || !themeId) return;
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/school-files?themeId=${themeId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const files = data.files || [];
+        // Filtere auf eigene Dateien (nur die können verknüpft/entknüpft werden)
+        const ownFiles = files.filter((f: { uploadedBy: string }) => f.uploadedBy === user.uid);
+        const fileIds = ownFiles.map((f: { id: string }) => f.id);
+        setLinkedFileIds(fileIds);
+        setInitialLinkedFileIds(fileIds);
+      }
+    } catch (err) {
+      console.error("Error loading linked files:", err);
+    }
+  };
+
+  // Aktualisiere Datei-Verknüpfungen nach dem Speichern
+  const updateFileLinks = async (savedThemeId: string, savedThemeName: string) => {
+    if (!user) return;
+
+    const token = await user.getIdToken();
+
+    // Finde hinzugefügte Dateien
+    const addedFileIds = linkedFileIds.filter(
+      (id) => !initialLinkedFileIds.includes(id)
+    );
+
+    // Finde entfernte Dateien
+    const removedFileIds = initialLinkedFileIds.filter(
+      (id) => !linkedFileIds.includes(id)
+    );
+
+    // Für jede hinzugefügte Datei: Theme-ID hinzufügen
+    for (const fileId of addedFileIds) {
+      try {
+        // Hole aktuelle Datei-Daten
+        const fileResponse = await fetch(`/api/school-files/${fileId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (fileResponse.ok) {
+          const file = await fileResponse.json();
+          const currentThemeIds = file.linkedThemeIds || [];
+          const currentThemeNames = file.linkedThemeNames || [];
+
+          // Füge neues Thema hinzu wenn nicht schon vorhanden
+          if (!currentThemeIds.includes(savedThemeId)) {
+            await fetch(`/api/school-files/${fileId}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                linkedThemeIds: [...currentThemeIds, savedThemeId],
+                linkedThemeNames: [...currentThemeNames, savedThemeName],
+              }),
+            });
+          }
+        }
+      } catch (err) {
+        console.error(`Error adding theme link to file ${fileId}:`, err);
+      }
+    }
+
+    // Für jede entfernte Datei: Theme-ID entfernen
+    for (const fileId of removedFileIds) {
+      try {
+        const fileResponse = await fetch(`/api/school-files/${fileId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (fileResponse.ok) {
+          const file = await fileResponse.json();
+          const currentThemeIds = file.linkedThemeIds || [];
+          const currentThemeNames = file.linkedThemeNames || [];
+
+          // Entferne Thema
+          const idIndex = currentThemeIds.indexOf(savedThemeId);
+          if (idIndex !== -1) {
+            const newThemeIds = currentThemeIds.filter(
+              (id: string) => id !== savedThemeId
+            );
+            const newThemeNames = currentThemeNames.filter(
+              (_: string, i: number) => i !== idIndex
+            );
+
+            await fetch(`/api/school-files/${fileId}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                linkedThemeIds: newThemeIds,
+                linkedThemeNames: newThemeNames,
+              }),
+            });
+          }
+        }
+      } catch (err) {
+        console.error(`Error removing theme link from file ${fileId}:`, err);
+      }
+    }
+  };
 
   // Bild-Upload Handler
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,6 +372,14 @@ export default function CustomThemeForm({
       }
 
       const data = await response.json();
+      const savedThemeId = data.themeId || themeId || "";
+
+      // Aktualisiere Datei-Verknüpfungen
+      if (linkedFileIds.length > 0 || initialLinkedFileIds.length > 0) {
+        await updateFileLinks(savedThemeId, thema);
+        // Aktualisiere initialLinkedFileIds nach dem Speichern
+        setInitialLinkedFileIds([...linkedFileIds]);
+      }
 
       if (submitForReview) {
         alert("Thema wurde zur Prüfung eingereicht!");
@@ -259,7 +392,7 @@ export default function CustomThemeForm({
       }
 
       if (onSuccess) {
-        onSuccess(data.themeId || themeId || "");
+        onSuccess(savedThemeId);
       }
     } catch (error) {
       console.error("Error saving theme:", error);
@@ -527,6 +660,36 @@ export default function CustomThemeForm({
               placeholder="https://..."
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Dateien-Verknüpfung */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Paperclip className="h-5 w-5" />
+                Eigene Dateien verknüpfen
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Verknüpfen Sie Ihre eigenen Schul-Dateien mit diesem Thema
+              </CardDescription>
+            </div>
+            {linkedFileIds.length > 0 && (
+              <Badge variant="secondary" className="text-sm">
+                {linkedFileIds.length} verknüpft
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <FileSelector
+            selectedFileIds={linkedFileIds}
+            onSelectionChange={setLinkedFileIds}
+            disabled={loading}
+            ownFilesOnly={true}
+          />
         </CardContent>
       </Card>
 
