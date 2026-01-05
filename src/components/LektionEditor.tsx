@@ -199,7 +199,7 @@ export default function LektionEditor({
 
           {/* KI Zusammenfassung */}
           <div>
-            <Label htmlFor="kiZusammenfassung">KI Zusammenfassung</Label>
+            <Label htmlFor="kiZusammenfassung">Zusammenfassung</Label>
             <Textarea
               id="kiZusammenfassung"
               value={kiZusammenfassung}
