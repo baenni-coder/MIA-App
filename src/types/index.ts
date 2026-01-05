@@ -138,6 +138,7 @@ export interface Teacher {
   kanton?: Kanton; // Unterrichtskanton (für kantonsspezifische Funktionen)
   role: UserRole; // Rolle des Benutzers
   schule?: Schule | null;
+  schoolApproved: boolean; // true wenn Schulzugehörigkeit genehmigt wurde
   createdAt: Date;
 }
 
@@ -298,6 +299,9 @@ export interface Notification {
 // Status für Schulwechsel-Anfragen
 export type SchoolChangeStatus = "pending" | "approved" | "rejected";
 
+// Typ der Schulanfrage
+export type SchoolRequestType = "join" | "change"; // join = Neuregistrierung, change = Wechsel
+
 // Schulwechsel-Anfrage
 export interface SchoolChangeRequest {
   id: string;
@@ -307,7 +311,10 @@ export interface SchoolChangeRequest {
   teacherName: string; // Name des Lehrers
   teacherEmail: string; // E-Mail des Lehrers
 
-  // Aktuelle Schule
+  // Typ der Anfrage
+  requestType: SchoolRequestType; // "join" für Neuregistrierung, "change" für Wechsel
+
+  // Aktuelle Schule (leer bei "join")
   currentSchuleId: string;
   currentSchuleName: string;
 

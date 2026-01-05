@@ -6,6 +6,7 @@ import {
   createSchoolChangeRequest,
   getPendingRequestForTeacher,
 } from "@/lib/firestore/school-change-requests";
+import { notifySuperAdminsAboutSchoolRequest } from "@/lib/firestore/notifications";
 
 export async function POST(request: Request) {
   try {
@@ -62,12 +63,14 @@ export async function POST(request: Request) {
     }
 
     // 4. Profil erstellen - role IMMER auf "teacher" setzen (nicht vom Client übernehmen!)
+    // schoolApproved: false - erfordert Genehmigung durch Super-Admin
     const profileData: Record<string, unknown> = {
       email,
       name,
       schuleId,
       stufe,
       role: "teacher", // Hardcoded - keine Privilege Escalation!
+      schoolApproved: false, // Schulzugehörigkeit muss erst genehmigt werden
       createdAt: new Date().toISOString(),
     };
 
@@ -78,7 +81,44 @@ export async function POST(request: Request) {
 
     await adminDb.collection("teachers").doc(userId).set(profileData);
 
-    return NextResponse.json({ success: true });
+    // 5. Schulbeitritts-Anfrage erstellen
+    let schuleName = "Unbekannt";
+    try {
+      const schule = await getSchuleById(schuleId);
+      if (schule) {
+        schuleName = schule.name;
+      }
+    } catch {
+      // Ignorieren - Name bleibt "Unbekannt"
+    }
+
+    const requestId = await createSchoolChangeRequest({
+      teacherId: userId,
+      teacherName: name,
+      teacherEmail: email,
+      currentSchuleId: "", // Leer bei Neuregistrierung
+      currentSchuleName: "", // Leer bei Neuregistrierung
+      newSchuleId: schuleId,
+      newSchuleName: schuleName,
+      requestType: "join", // Schulbeitritt
+    });
+
+    // 6. Super-Admins benachrichtigen
+    await notifySuperAdminsAboutSchoolRequest({
+      requestId,
+      teacherId: userId,
+      teacherName: name,
+      teacherEmail: email,
+      requestType: "join",
+      currentSchuleName: "",
+      newSchuleName: schuleName,
+    });
+
+    return NextResponse.json({
+      success: true,
+      schoolApprovalPending: true,
+      message: "Registrierung erfolgreich. Ihre Schulzugehörigkeit muss noch von einem Administrator genehmigt werden.",
+    });
   } catch (error) {
     console.error("Error creating teacher profile:", error);
 
@@ -291,6 +331,18 @@ export async function PUT(request: Request) {
         currentSchuleId: teacherData.schuleId,
         currentSchuleName,
         newSchuleId: schuleId,
+        newSchuleName: targetSchuleName,
+        requestType: "change", // Schulwechsel
+      });
+
+      // Super-Admins benachrichtigen
+      await notifySuperAdminsAboutSchoolRequest({
+        requestId,
+        teacherId: userId,
+        teacherName: teacherData.name || teacherData.email,
+        teacherEmail: teacherData.email,
+        requestType: "change",
+        currentSchuleName,
         newSchuleName: targetSchuleName,
       });
 

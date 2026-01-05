@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SchoolChangeRequest, SchoolChangeStatus } from "@/types";
+import { SchoolChangeRequest, SchoolChangeStatus, SchoolRequestType } from "@/types";
 import {
   Loader2,
   Building2,
@@ -33,6 +33,7 @@ import {
   Calendar,
   RefreshCw,
   AlertTriangle,
+  UserPlus,
 } from "lucide-react";
 
 export default function SchoolChangeRequestsPage() {
@@ -212,6 +213,27 @@ export default function SchoolChangeRequestsPage() {
     }
   };
 
+  const getRequestTypeBadge = (requestType?: SchoolRequestType) => {
+    if (requestType === "join") {
+      return (
+        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+          <UserPlus className="h-3 w-3 mr-1" />
+          Neuregistrierung
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+        <ArrowRight className="h-3 w-3 mr-1" />
+        Schulwechsel
+      </Badge>
+    );
+  };
+
+  const getRequestTypeLabel = (requestType?: SchoolRequestType) => {
+    return requestType === "join" ? "Schulbeitritt" : "Schulwechsel";
+  };
+
   // Filter requests based on active tab
   const filteredRequests =
     activeTab === "all"
@@ -241,13 +263,13 @@ export default function SchoolChangeRequestsPage() {
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <Building2 className="h-6 w-6" />
-                Schulwechsel-Anfragen
+                Schulanfragen
                 {pendingCount > 0 && (
                   <Badge variant="destructive">{pendingCount}</Badge>
                 )}
               </h1>
               <p className="text-muted-foreground">
-                Genehmigen oder lehnen Sie Schulwechsel-Anfragen ab
+                Genehmigen oder lehnen Sie Schulbeitritts- und Schulwechsel-Anfragen ab
               </p>
             </div>
             <Button variant="outline" onClick={() => loadRequests()}>
@@ -327,31 +349,48 @@ export default function SchoolChangeRequestsPage() {
                                 </p>
                               </div>
                             </div>
-                            {getStatusBadge(request.status)}
+                            <div className="flex items-center gap-2">
+                              {getRequestTypeBadge(request.requestType)}
+                              {getStatusBadge(request.status)}
+                            </div>
                           </div>
 
-                          {/* School Change */}
-                          <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
-                            <div className="flex-1">
-                              <p className="text-xs text-muted-foreground mb-1">
-                                Aktuelle Schule
+                          {/* School Info - unterschiedliche Darstellung für Join vs Change */}
+                          {request.requestType === "join" ? (
+                            // Schulbeitritt: Nur die gewünschte Schule zeigen
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <p className="text-xs text-blue-700 mb-1">
+                                Möchte beitreten zu
                               </p>
-                              <p className="font-medium flex items-center gap-2">
-                                <Building2 className="h-4 w-4" />
-                                {request.currentSchuleName}
-                              </p>
-                            </div>
-                            <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
-                            <div className="flex-1">
-                              <p className="text-xs text-muted-foreground mb-1">
-                                Neue Schule
-                              </p>
-                              <p className="font-medium flex items-center gap-2 text-primary">
+                              <p className="font-medium flex items-center gap-2 text-blue-900">
                                 <Building2 className="h-4 w-4" />
                                 {request.newSchuleName}
                               </p>
                             </div>
-                          </div>
+                          ) : (
+                            // Schulwechsel: Von → Zu
+                            <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
+                              <div className="flex-1">
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Aktuelle Schule
+                                </p>
+                                <p className="font-medium flex items-center gap-2">
+                                  <Building2 className="h-4 w-4" />
+                                  {request.currentSchuleName || "Keine"}
+                                </p>
+                              </div>
+                              <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                              <div className="flex-1">
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Neue Schule
+                                </p>
+                                <p className="font-medium flex items-center gap-2 text-primary">
+                                  <Building2 className="h-4 w-4" />
+                                  {request.newSchuleName}
+                                </p>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Timestamps */}
                           <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -428,31 +467,50 @@ export default function SchoolChangeRequestsPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-600" />
-                Schulwechsel genehmigen?
+                {getRequestTypeLabel(selectedRequest?.requestType)} genehmigen?
               </DialogTitle>
               <DialogDescription>
-                Möchten Sie den Schulwechsel für{" "}
-                <strong>{selectedRequest?.teacherName}</strong> genehmigen?
+                {selectedRequest?.requestType === "join" ? (
+                  <>
+                    Möchten Sie <strong>{selectedRequest?.teacherName}</strong>{" "}
+                    Zugang zur Schule gewähren?
+                  </>
+                ) : (
+                  <>
+                    Möchten Sie den Schulwechsel für{" "}
+                    <strong>{selectedRequest?.teacherName}</strong> genehmigen?
+                  </>
+                )}
               </DialogDescription>
             </DialogHeader>
 
             {selectedRequest && (
               <div className="py-4">
-                <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-1">Von</p>
-                    <p className="font-medium">
-                      {selectedRequest.currentSchuleName}
-                    </p>
-                  </div>
-                  <ArrowRight className="h-5 w-5 text-muted-foreground" />
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-1">Zu</p>
-                    <p className="font-medium text-primary">
+                {selectedRequest.requestType === "join" ? (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-700 mb-1">Beitritt zu</p>
+                    <p className="font-medium flex items-center gap-2 text-blue-900">
+                      <Building2 className="h-4 w-4" />
                       {selectedRequest.newSchuleName}
                     </p>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground mb-1">Von</p>
+                      <p className="font-medium">
+                        {selectedRequest.currentSchuleName || "Keine"}
+                      </p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground mb-1">Zu</p>
+                      <p className="font-medium text-primary">
+                        {selectedRequest.newSchuleName}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -496,7 +554,7 @@ export default function SchoolChangeRequestsPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-red-600" />
-                Schulwechsel ablehnen
+                {getRequestTypeLabel(selectedRequest?.requestType)} ablehnen
               </DialogTitle>
               <DialogDescription>
                 Bitte geben Sie einen Grund für die Ablehnung an.
@@ -505,19 +563,29 @@ export default function SchoolChangeRequestsPage() {
 
             {selectedRequest && (
               <div className="py-4 space-y-4">
-                <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-1">Von</p>
-                    <p className="font-medium">
-                      {selectedRequest.currentSchuleName}
+                {selectedRequest.requestType === "join" ? (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-700 mb-1">Beitrittsanfrage für</p>
+                    <p className="font-medium flex items-center gap-2 text-blue-900">
+                      <Building2 className="h-4 w-4" />
+                      {selectedRequest.newSchuleName}
                     </p>
                   </div>
-                  <ArrowRight className="h-5 w-5 text-muted-foreground" />
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground mb-1">Zu</p>
-                    <p className="font-medium">{selectedRequest.newSchuleName}</p>
+                ) : (
+                  <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground mb-1">Von</p>
+                      <p className="font-medium">
+                        {selectedRequest.currentSchuleName || "Keine"}
+                      </p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground mb-1">Zu</p>
+                      <p className="font-medium">{selectedRequest.newSchuleName}</p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
@@ -526,7 +594,11 @@ export default function SchoolChangeRequestsPage() {
                   <Textarea
                     value={rejectNotes}
                     onChange={(e) => setRejectNotes(e.target.value)}
-                    placeholder="Bitte erklären Sie, warum der Schulwechsel abgelehnt wird..."
+                    placeholder={
+                      selectedRequest.requestType === "join"
+                        ? "Bitte erklären Sie, warum der Schulbeitritt abgelehnt wird..."
+                        : "Bitte erklären Sie, warum der Schulwechsel abgelehnt wird..."
+                    }
                     rows={4}
                   />
                 </div>

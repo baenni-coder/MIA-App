@@ -1,10 +1,10 @@
 import { getAdminDb } from "@/lib/firebase/admin";
-import { SchoolChangeRequest, SchoolChangeStatus } from "@/types";
+import { SchoolChangeRequest, SchoolChangeStatus, SchoolRequestType } from "@/types";
 
 const COLLECTION = "school_change_requests";
 
 /**
- * Erstellt eine neue Schulwechsel-Anfrage
+ * Erstellt eine neue Schulwechsel- oder Schulbeitritts-Anfrage
  */
 export async function createSchoolChangeRequest(data: {
   teacherId: string;
@@ -14,23 +14,27 @@ export async function createSchoolChangeRequest(data: {
   currentSchuleName: string;
   newSchuleId: string;
   newSchuleName: string;
+  requestType?: SchoolRequestType; // "join" für Neuregistrierung, "change" für Wechsel
 }): Promise<string> {
   const adminDb = getAdminDb();
 
-  // Prüfe ob bereits eine offene Anfrage existiert
-  const existingQuery = await adminDb
-    .collection(COLLECTION)
-    .where("teacherId", "==", data.teacherId)
-    .where("status", "==", "pending")
-    .get();
+  // Prüfe ob bereits eine offene Anfrage existiert (außer bei join-Requests während Registrierung)
+  if (data.requestType !== "join") {
+    const existingQuery = await adminDb
+      .collection(COLLECTION)
+      .where("teacherId", "==", data.teacherId)
+      .where("status", "==", "pending")
+      .get();
 
-  if (!existingQuery.empty) {
-    throw new Error("Es existiert bereits eine offene Schulwechsel-Anfrage");
+    if (!existingQuery.empty) {
+      throw new Error("Es existiert bereits eine offene Schulwechsel-Anfrage");
+    }
   }
 
   const now = new Date();
   const docRef = await adminDb.collection(COLLECTION).add({
     ...data,
+    requestType: data.requestType || "change", // Default: change
     status: "pending" as SchoolChangeStatus,
     createdAt: now,
     updatedAt: now,
@@ -160,7 +164,7 @@ export async function approveSchoolChangeRequest(
   requestId: string,
   reviewerId: string,
   reviewerName: string
-): Promise<void> {
+): Promise<SchoolChangeRequest> {
   const adminDb = getAdminDb();
   const now = new Date();
 
@@ -187,13 +191,16 @@ export async function approveSchoolChangeRequest(
     updatedAt: now,
   });
 
-  // Update Lehrer-Profil mit neuer Schule
+  // Update Lehrer-Profil mit neuer Schule UND setze schoolApproved auf true
   const teacherRef = adminDb.collection("teachers").doc(request.teacherId);
   batch.update(teacherRef, {
     schuleId: request.newSchuleId,
+    schoolApproved: true, // Schulzugehörigkeit jetzt genehmigt
   });
 
   await batch.commit();
+
+  return request;
 }
 
 /**
@@ -204,7 +211,7 @@ export async function rejectSchoolChangeRequest(
   reviewerId: string,
   reviewerName: string,
   reviewNotes?: string
-): Promise<void> {
+): Promise<SchoolChangeRequest> {
   const adminDb = getAdminDb();
   const now = new Date();
 
@@ -227,6 +234,8 @@ export async function rejectSchoolChangeRequest(
     reviewNotes: reviewNotes || undefined,
     updatedAt: now,
   });
+
+  return request;
 }
 
 /**
