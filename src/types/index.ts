@@ -255,7 +255,10 @@ export type NotificationType =
   | "theme_submitted"
   | "theme_approved"
   | "theme_rejected"
-  | "theme_updated";
+  | "theme_updated"
+  | "school_change_requested"
+  | "school_change_approved"
+  | "school_change_rejected";
 
 // Notification
 export interface Notification {
@@ -286,6 +289,44 @@ export interface Notification {
   // Anzeige
   message: string;
   actionUrl?: string; // Link zum Thema
+}
+
+// ============================================
+// School Change Requests (Schulwechsel-Anfragen)
+// ============================================
+
+// Status für Schulwechsel-Anfragen
+export type SchoolChangeStatus = "pending" | "approved" | "rejected";
+
+// Schulwechsel-Anfrage
+export interface SchoolChangeRequest {
+  id: string;
+
+  // Antragsteller
+  teacherId: string; // User ID des Lehrers
+  teacherName: string; // Name des Lehrers
+  teacherEmail: string; // E-Mail des Lehrers
+
+  // Aktuelle Schule
+  currentSchuleId: string;
+  currentSchuleName: string;
+
+  // Neue Schule (beantragt)
+  newSchuleId: string;
+  newSchuleName: string;
+
+  // Status
+  status: SchoolChangeStatus;
+
+  // Review-Informationen
+  reviewedBy?: string; // Super Admin User ID
+  reviewedByName?: string; // Super Admin Name
+  reviewedAt?: Date;
+  reviewNotes?: string; // Begründung bei Ablehnung
+
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // ============================================
