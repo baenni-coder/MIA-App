@@ -188,13 +188,15 @@ export async function getStudentById(id: string): Promise<Student | null> {
 export async function getStudentsByClass(classId: string): Promise<Student[]> {
   try {
     const adminDb = getAdminDb();
+    // Note: Using only .where() without .orderBy() to avoid composite index requirement
     const snapshot = await adminDb
       .collection(STUDENTS_COLLECTION)
       .where("classId", "==", classId)
-      .orderBy("name")
       .get();
 
-    return snapshot.docs.map((doc) => docToStudent(doc.id, doc.data()));
+    const students = snapshot.docs.map((doc) => docToStudent(doc.id, doc.data()));
+    // Sort by name in memory
+    return students.sort((a, b) => a.name.localeCompare(b.name));
   } catch (error) {
     console.error("Error getting students by class:", error);
     throw new Error("Failed to get students");
@@ -207,13 +209,15 @@ export async function getStudentsByClass(classId: string): Promise<Student[]> {
 export async function getStudentsBySchool(schoolId: string): Promise<Student[]> {
   try {
     const adminDb = getAdminDb();
+    // Note: Using only .where() without .orderBy() to avoid composite index requirement
     const snapshot = await adminDb
       .collection(STUDENTS_COLLECTION)
       .where("schoolId", "==", schoolId)
-      .orderBy("name")
       .get();
 
-    return snapshot.docs.map((doc) => docToStudent(doc.id, doc.data()));
+    const students = snapshot.docs.map((doc) => docToStudent(doc.id, doc.data()));
+    // Sort by name in memory
+    return students.sort((a, b) => a.name.localeCompare(b.name));
   } catch (error) {
     console.error("Error getting students by school:", error);
     throw new Error("Failed to get students");
@@ -226,13 +230,15 @@ export async function getStudentsBySchool(schoolId: string): Promise<Student[]> 
 export async function getStudentsByTeacher(teacherId: string): Promise<Student[]> {
   try {
     const adminDb = getAdminDb();
+    // Note: Using only .where() without .orderBy() to avoid composite index requirement
     const snapshot = await adminDb
       .collection(STUDENTS_COLLECTION)
       .where("teacherId", "==", teacherId)
-      .orderBy("name")
       .get();
 
-    return snapshot.docs.map((doc) => docToStudent(doc.id, doc.data()));
+    const students = snapshot.docs.map((doc) => docToStudent(doc.id, doc.data()));
+    // Sort by name in memory
+    return students.sort((a, b) => a.name.localeCompare(b.name));
   } catch (error) {
     console.error("Error getting students by teacher:", error);
     throw new Error("Failed to get students");
