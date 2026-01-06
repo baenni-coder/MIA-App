@@ -93,13 +93,16 @@ export async function getClassesByTeacher(
 ): Promise<SchoolClass[]> {
   try {
     const adminDb = getAdminDb();
+    // Note: Using only .where() without .orderBy() to avoid composite index requirement
+    // Sorting is done in memory instead
     const snapshot = await adminDb
       .collection(CLASSES_COLLECTION)
       .where("teacherId", "==", teacherId)
-      .orderBy("name")
       .get();
 
-    return snapshot.docs.map((doc) => docToSchoolClass(doc.id, doc.data()));
+    const classes = snapshot.docs.map((doc) => docToSchoolClass(doc.id, doc.data()));
+    // Sort by name in memory
+    return classes.sort((a, b) => a.name.localeCompare(b.name));
   } catch (error) {
     console.error("Error getting classes by teacher:", error);
     throw new Error("Failed to get classes");
@@ -114,13 +117,16 @@ export async function getClassesBySchool(
 ): Promise<SchoolClass[]> {
   try {
     const adminDb = getAdminDb();
+    // Note: Using only .where() without .orderBy() to avoid composite index requirement
+    // Sorting is done in memory instead
     const snapshot = await adminDb
       .collection(CLASSES_COLLECTION)
       .where("schoolId", "==", schoolId)
-      .orderBy("name")
       .get();
 
-    return snapshot.docs.map((doc) => docToSchoolClass(doc.id, doc.data()));
+    const classes = snapshot.docs.map((doc) => docToSchoolClass(doc.id, doc.data()));
+    // Sort by name in memory
+    return classes.sort((a, b) => a.name.localeCompare(b.name));
   } catch (error) {
     console.error("Error getting classes by school:", error);
     throw new Error("Failed to get classes");

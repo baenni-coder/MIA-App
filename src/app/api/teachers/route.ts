@@ -164,10 +164,49 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
+    const schuleId = searchParams.get("schuleId");
 
+    const adminDb = getAdminDb();
+
+    // CASE 1: Liste von Lehrern einer Schule (für Klassen-Transfer)
+    if (schuleId) {
+      // User muss zur gleichen Schule gehören oder Admin sein
+      const currentUserDoc = await adminDb.collection("teachers").doc(authenticatedUserId).get();
+      if (!currentUserDoc.exists) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+      const currentUserData = currentUserDoc.data()!;
+      const userRole = currentUserData.role;
+
+      // Berechtigung prüfen: Gleiche Schule oder Admin
+      if (currentUserData.schuleId !== schuleId && userRole !== "picts_admin" && userRole !== "super_admin") {
+        return NextResponse.json(
+          { error: "Forbidden - Cannot access teachers from other schools" },
+          { status: 403 }
+        );
+      }
+
+      // Alle Lehrer der Schule laden (keine Studenten)
+      const teachersSnapshot = await adminDb
+        .collection("teachers")
+        .where("schuleId", "==", schuleId)
+        .get();
+
+      const teachers = teachersSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        name: doc.data().name || doc.data().email,
+        email: doc.data().email,
+        stufe: doc.data().stufe,
+        role: doc.data().role || "teacher",
+      }));
+
+      return NextResponse.json({ teachers });
+    }
+
+    // CASE 2: Einzelnes Profil (bestehende Logik)
     if (!userId) {
       return NextResponse.json(
-        { error: "userId is required" },
+        { error: "userId or schuleId is required" },
         { status: 400 }
       );
     }
@@ -180,7 +219,6 @@ export async function GET(request: Request) {
       );
     }
 
-    const adminDb = getAdminDb();
     const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
 
     if (!teacherDoc.exists) {
