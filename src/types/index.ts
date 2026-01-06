@@ -259,7 +259,9 @@ export type NotificationType =
   | "theme_updated"
   | "school_change_requested"
   | "school_change_approved"
-  | "school_change_rejected";
+  | "school_change_rejected"
+  | "badge_earned"
+  | "theme_completed";
 
 // Notification
 export interface Notification {

@@ -8,6 +8,7 @@ import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { cn } from "@/lib/utils";
 import { Student } from "@/types";
+import NotificationBell from "./NotificationBell";
 import {
   LogOut,
   LayoutDashboard,
@@ -18,6 +19,7 @@ import {
   ChevronRight,
   User,
   Trophy,
+  FileDown,
 } from "lucide-react";
 
 interface NavItem {
@@ -79,6 +81,11 @@ export default function StudentDashboardLayout({
       label: "Badges",
       icon: <Trophy className="h-5 w-5" />,
       path: "/schueler/badges",
+    },
+    {
+      label: "Export",
+      icon: <FileDown className="h-5 w-5" />,
+      path: "/schueler/export",
     },
     {
       label: "Profil",
@@ -200,7 +207,9 @@ export default function StudentDashboardLayout({
               </span>
             </div>
 
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="outline" size="icon" className="border-blue-200">
                   <Menu className="h-5 w-5" />
@@ -253,6 +262,7 @@ export default function StudentDashboardLayout({
                 </div>
               </SheetContent>
             </Sheet>
+            </div>
           </div>
         </header>
 
@@ -264,6 +274,7 @@ export default function StudentDashboardLayout({
             </h1>
           </div>
           <div className="flex items-center gap-4">
+            <NotificationBell />
             <span className="text-sm text-muted-foreground">
               {studentProfile?.name || user?.email}
             </span>

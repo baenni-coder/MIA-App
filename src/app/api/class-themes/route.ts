@@ -6,6 +6,7 @@ import {
   getCompletedThemesForClass,
 } from "@/lib/firestore/student-progress";
 import { teacherHasAccessToClass, getClassById } from "@/lib/firestore/classes";
+import { notifyClassThemeCompleted } from "@/lib/firestore/notifications";
 
 /**
  * GET /api/class-themes
@@ -202,6 +203,13 @@ export async function POST(request: Request) {
         zeitraum,
         markedCompletedBy: authenticatedUserId,
         markedCompletedByName: teacherData.name,
+      });
+
+      // Benachrichtige alle Schüler der Klasse
+      await notifyClassThemeCompleted({
+        classId,
+        themeName,
+        teacherName: teacherData.name,
       });
 
       return NextResponse.json({ success: true, id });
