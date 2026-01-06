@@ -26,6 +26,7 @@ import {
   HelpCircle,
   Building2,
   ArrowRightLeft,
+  Users,
 } from "lucide-react";
 import { Kanton } from "@/types";
 
@@ -152,6 +153,11 @@ export default function DashboardLayout({
       label: "FAQ",
       icon: <HelpCircle className="h-5 w-5" />,
       path: "/dashboard/faq",
+    },
+    {
+      label: "Meine Klassen",
+      icon: <Users className="h-5 w-5" />,
+      path: "/dashboard/klassen",
     },
     {
       label: "Admin",

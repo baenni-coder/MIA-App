@@ -181,5 +181,206 @@ service cloud.firestore {
       // Löschen: Nur Empfänger
       allow delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
     }
+
+    // ============================================
+    // Students Collection (Schüler-Profile)
+    // ============================================
+
+    // Helper: Holt Student Profil
+    function getStudent(userId) {
+      return get(/databases/$(database)/documents/students/$(userId));
+    }
+
+    // Helper: Prüft ob User ein Schüler ist
+    function isStudent(userId) {
+      return exists(/databases/$(database)/documents/students/$(userId));
+    }
+
+    // Helper: Prüft ob Lehrer Zugriff auf Schüler hat
+    function teacherHasStudentAccess(teacherId, studentId) {
+      let student = getStudent(studentId);
+      return student.data.teacherId == teacherId;
+    }
+
+    match /students/{studentId} {
+      // Lesen: Eigenes Profil oder zuständiger Lehrer oder Admin
+      allow read: if isAuthenticated() && (
+        isOwner(studentId) ||
+        (exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+         resource.data.teacherId == request.auth.uid) ||
+        isPICTSAdmin(request.auth.uid)
+      );
+
+      // Erstellen: Nur Lehrer (über API)
+      allow create: if false; // Nur über Admin SDK
+
+      // Aktualisieren: Nur Lehrer des Schülers
+      allow update: if isAuthenticated() &&
+        exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+        resource.data.teacherId == request.auth.uid;
+
+      // Löschen: Nur Lehrer des Schülers oder Admin
+      allow delete: if isAuthenticated() && (
+        (exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+         resource.data.teacherId == request.auth.uid) ||
+        isSuperAdmin(request.auth.uid)
+      );
+    }
+
+    // ============================================
+    // Classes Collection (Schulklassen)
+    // ============================================
+
+    match /classes/{classId} {
+      // Lesen: Klassenlehrer, Schüler der Klasse, oder Admin
+      allow read: if isAuthenticated() && (
+        resource.data.teacherId == request.auth.uid ||
+        (isStudent(request.auth.uid) &&
+         getStudent(request.auth.uid).data.classId == classId) ||
+        isPICTSAdmin(request.auth.uid)
+      );
+
+      // Erstellen: Nur Lehrer
+      allow create: if isAuthenticated() &&
+        exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+        request.resource.data.teacherId == request.auth.uid;
+
+      // Aktualisieren: Nur Klassenlehrer
+      allow update: if isAuthenticated() &&
+        resource.data.teacherId == request.auth.uid;
+
+      // Löschen: Nur Klassenlehrer oder Admin
+      allow delete: if isAuthenticated() && (
+        resource.data.teacherId == request.auth.uid ||
+        isSuperAdmin(request.auth.uid)
+      );
+    }
+
+    // ============================================
+    // Student Progress Collection (Schüler-Bewertungen)
+    // ============================================
+
+    match /student_progress/{progressId} {
+      // Lesen: Eigene Bewertungen oder zuständiger Lehrer
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+         teacherHasStudentAccess(request.auth.uid, resource.data.studentId))
+      );
+
+      // Erstellen: Nur der Schüler selbst
+      allow create: if isAuthenticated() &&
+        isStudent(request.auth.uid) &&
+        request.resource.data.studentId == request.auth.uid;
+
+      // Aktualisieren: Schüler (Bewertungen) oder Lehrer (Kommentare)
+      allow update: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+         teacherHasStudentAccess(request.auth.uid, resource.data.studentId))
+      );
+
+      // Löschen: Nur Admin
+      allow delete: if isAuthenticated() && isSuperAdmin(request.auth.uid);
+    }
+
+    // ============================================
+    // Class Theme Progress Collection (Bearbeitete Themen)
+    // ============================================
+
+    match /class_theme_progress/{progressId} {
+      // Lesen: Klassenlehrer oder Schüler der Klasse
+      allow read: if isAuthenticated() && (
+        resource.data.markedCompletedBy == request.auth.uid ||
+        (isStudent(request.auth.uid) &&
+         getStudent(request.auth.uid).data.classId == resource.data.classId)
+      );
+
+      // Erstellen: Nur Klassenlehrer
+      allow create: if isAuthenticated() &&
+        exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+        request.resource.data.markedCompletedBy == request.auth.uid;
+
+      // Aktualisieren: Nur der markierende Lehrer
+      allow update: if isAuthenticated() &&
+        resource.data.markedCompletedBy == request.auth.uid;
+
+      // Löschen: Nur der markierende Lehrer oder Admin
+      allow delete: if isAuthenticated() && (
+        resource.data.markedCompletedBy == request.auth.uid ||
+        isSuperAdmin(request.auth.uid)
+      );
+    }
+
+    // ============================================
+    // Badges Collection (Badge-Definitionen)
+    // ============================================
+
+    match /badges/{badgeId} {
+      // Lesen: Alle authentifizierten User
+      allow read: if isAuthenticated();
+
+      // Erstellen: Nur Lehrer (Custom Badges)
+      allow create: if isAuthenticated() &&
+        exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+
+      // Aktualisieren: Nur Ersteller oder Admin
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        isSuperAdmin(request.auth.uid)
+      );
+
+      // Löschen: Nur Ersteller oder Admin
+      allow delete: if isAuthenticated() && (
+        (resource.data.createdBy == request.auth.uid && resource.data.isSystem == false) ||
+        isSuperAdmin(request.auth.uid)
+      );
+    }
+
+    // ============================================
+    // Student Badges Collection (Vergebene Badges)
+    // ============================================
+
+    match /student_badges/{badgeId} {
+      // Lesen: Eigene Badges oder Lehrer
+      allow read: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        exists(/databases/$(database)/documents/teachers/$(request.auth.uid))
+      );
+
+      // Erstellen: System oder Lehrer
+      allow create: if isAuthenticated() &&
+        exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+
+      // Aktualisieren: Nur für notified Flag durch Schüler
+      allow update: if isAuthenticated() &&
+        resource.data.studentId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["notified"]);
+
+      // Löschen: Nur Admin
+      allow delete: if isAuthenticated() && isSuperAdmin(request.auth.uid);
+    }
+
+    // ============================================
+    // Student Notifications Collection
+    // ============================================
+
+    match /student_notifications/{notificationId} {
+      // Lesen: Nur der Schüler
+      allow read: if isAuthenticated() && resource.data.studentId == request.auth.uid;
+
+      // Erstellen: System oder Lehrer
+      allow create: if isAuthenticated();
+
+      // Aktualisieren: Nur für isRead durch Schüler
+      allow update: if isAuthenticated() &&
+        resource.data.studentId == request.auth.uid;
+
+      // Löschen: Nur der Schüler oder Admin
+      allow delete: if isAuthenticated() && (
+        resource.data.studentId == request.auth.uid ||
+        isSuperAdmin(request.auth.uid)
+      );
+    }
   }
 }

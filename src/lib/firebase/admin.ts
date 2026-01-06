@@ -40,3 +40,13 @@ export const getAdminDb = () => {
   initializeAdmin();
   return admin.firestore();
 };
+
+export const getAdminApp = () => {
+  initializeAdmin();
+  return admin.apps[0]!;
+};
+
+export const getAdminStorage = () => {
+  initializeAdmin();
+  return admin.storage();
+};
