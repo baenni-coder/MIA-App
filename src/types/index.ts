@@ -125,8 +125,8 @@ export interface Regelstandard {
   klassenstufe: string; // z.B. "3./4."
 }
 
-// Benutzer-Rollen
-export type UserRole = "teacher" | "picts_admin" | "super_admin";
+// Benutzer-Rollen (erweitert um student)
+export type UserRole = "student" | "teacher" | "picts_admin" | "super_admin";
 
 // Lehrer
 export interface Teacher {
@@ -583,3 +583,219 @@ export interface TempLektion {
   kiZusammenfassung?: string;
   order: number;
 }
+
+// ============================================
+// Schüler & Klassen (Kompetenzenpass Integration)
+// ============================================
+
+// Schüler-Profil
+export interface Student {
+  id: string; // Firebase UID
+  email: string;
+  name: string;
+  role: "student";
+  classId: string; // Zugehörige Klasse
+  className?: string; // Aufgelöster Klassenname
+  schoolId: string; // Schule (für Zugriffskontrolle)
+  teacherId: string; // Hauptverantwortliche Lehrperson
+  teacherName?: string; // Name der Lehrperson
+  createdAt: Date;
+  lastActive?: Date;
+}
+
+// Schulklasse
+export interface SchoolClass {
+  id: string;
+  name: string; // z.B. "5a", "6b"
+  displayName?: string; // z.B. "5. Klasse A"
+  grade: Stufe; // Klassenstufe für Kompetenz-Filterung
+  schoolId: string;
+  teacherId: string; // Klassenlehrer
+  teacherName?: string;
+  studentCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ============================================
+// Schüler-Fortschritt (Kompetenzbewertung)
+// ============================================
+
+// Fortschritt eines Schülers
+export interface StudentProgress {
+  id: string; // = studentId
+  studentId: string;
+  classId: string;
+  ratings: {
+    [competencyId: string]: number; // 0-5 Sterne
+  };
+  comments: {
+    [competencyId: string]: string; // Lehrer-Kommentare
+  };
+  pendingReviews: {
+    [competencyId: string]: string; // Review-Request IDs
+  };
+  lastUpdated: Date;
+}
+
+// Verlaufs-Eintrag für Bewertungsänderungen
+export interface ProgressHistoryEntry {
+  id: string;
+  studentId: string;
+  competencyId: string;
+  competencyName?: string;
+  oldRating: number;
+  newRating: number;
+  changedBy: "student" | string; // "student" oder odertId
+  changedByName?: string;
+  timestamp: Date;
+}
+
+// ============================================
+// Klassen-Themen-Fortschritt
+// ============================================
+
+// Bearbeitete Themen pro Klasse
+export interface ClassThemeProgress {
+  id: string;
+  classId: string;
+  className: string;
+  themeId: string; // Airtable oder Custom Theme ID
+  themeName: string;
+  themeDescription?: string;
+  competencyIds: string[]; // Verknüpfte Kompetenzen
+  competencyNames?: string[];
+  zeitraum?: Zeitraum;
+  markedCompletedBy: string; // Lehrer UID
+  markedCompletedByName: string;
+  markedCompletedAt: Date;
+  createdAt: Date;
+}
+
+// ============================================
+// Badge-System (Gamification)
+// ============================================
+
+// Badge-Seltenheit
+export type BadgeRarity = "common" | "rare" | "epic" | "legendary";
+
+// Badge-Kriterien-Typen
+export type BadgeCriteriaType =
+  | "competency_count" // X Kompetenzen bewertet
+  | "star_count" // X Kompetenzen mit Y+ Sternen
+  | "area_complete" // Bereich komplett
+  | "perfect_rating" // X Kompetenzen mit 5 Sternen
+  | "streak" // X Tage hintereinander aktiv
+  | "time_based" // Bestimmte Uhrzeit/Tag
+  | "theme_count" // X Themen abgeschlossen
+  | "manual"; // Manuell vergeben
+
+// Badge-Kriterien
+export interface BadgeCriteria {
+  type: BadgeCriteriaType;
+  threshold?: number; // z.B. 10 für "10 Kompetenzen"
+  areaId?: string; // Für Bereichs-bezogene Badges
+  minStars?: number; // Mindest-Sterne (z.B. 3)
+  description: string; // Beschreibung für UI
+}
+
+// Badge-Definition
+export interface Badge {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  rarity: BadgeRarity;
+  color: string; // Hex-Farbe basierend auf Rarity
+  criteria: BadgeCriteria;
+  isSystem: boolean; // true = automatisch vergeben, false = manuell
+  createdBy?: string; // Bei Custom Badges
+  createdByName?: string;
+  createdAt: Date;
+  order: number; // Für Sortierung
+}
+
+// Vergebenes Badge an Schüler
+export interface StudentBadge {
+  id: string;
+  studentId: string;
+  studentName?: string;
+  badgeId: string;
+  badgeName: string;
+  badgeEmoji: string;
+  badgeRarity: BadgeRarity;
+  awardedAt: Date;
+  awardedBy: "system" | string; // "system" oder odertId
+  awardedByName?: string;
+  reason?: string; // Optional: Begründung (bei manueller Vergabe)
+  notified: boolean; // Wurde der Schüler benachrichtigt?
+}
+
+// ============================================
+// Kompetenz-Review (Schüler beantragt Höherstufung)
+// ============================================
+
+export type CompetencyReviewStatus = "pending" | "approved" | "rejected";
+
+export interface CompetencyReview {
+  id: string;
+  studentId: string;
+  studentName: string;
+  classId: string;
+  competencyId: string;
+  competencyName: string;
+  competencyLpCode?: string;
+  oldRating: number;
+  requestedRating: number;
+  status: CompetencyReviewStatus;
+  reviewedBy?: string;
+  reviewedByName?: string;
+  reviewedAt?: Date;
+  feedback?: string;
+  createdAt: Date;
+}
+
+// ============================================
+// Notification-Erweiterungen für Schüler
+// ============================================
+
+// Erweiterte Notification-Typen (zu bestehenden hinzufügen)
+export type StudentNotificationType =
+  | "badge_earned" // Neues Badge erhalten
+  | "teacher_comment" // Lehrer hat kommentiert
+  | "review_approved" // Review wurde genehmigt
+  | "review_rejected" // Review wurde abgelehnt
+  | "theme_completed"; // Thema wurde als bearbeitet markiert
+
+// Schüler-Notification
+export interface StudentNotification {
+  id: string;
+  studentId: string;
+  type: StudentNotificationType;
+  title: string;
+  message: string;
+  actionUrl?: string;
+  relatedId?: string; // Badge ID, Competency ID, etc.
+  isRead: boolean;
+  createdAt: Date;
+}
+
+// ============================================
+// Konstanten für Badges
+// ============================================
+
+// Farben für Badge-Raritäten
+export const BADGE_RARITY_COLORS: Record<BadgeRarity, string> = {
+  common: "#22c55e", // Grün
+  rare: "#3b82f6", // Blau
+  epic: "#a855f7", // Lila
+  legendary: "#f59e0b", // Gold
+};
+
+// Beschreibungen für Badge-Raritäten
+export const BADGE_RARITY_LABELS: Record<BadgeRarity, string> = {
+  common: "Gewöhnlich",
+  rare: "Selten",
+  epic: "Episch",
+  legendary: "Legendär",
+};

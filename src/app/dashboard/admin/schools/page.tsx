@@ -74,12 +74,14 @@ interface Stats {
 }
 
 const ROLE_LABELS: Record<UserRole, string> = {
+  student: "Schüler:in",
   teacher: "Lehrperson",
   picts_admin: "PICTS-Admin",
   super_admin: "Super-Admin",
 };
 
 const ROLE_BADGES: Record<UserRole, { variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode }> = {
+  student: { variant: "outline", icon: <Users className="h-3 w-3" /> },
   teacher: { variant: "secondary", icon: <Users className="h-3 w-3" /> },
   picts_admin: { variant: "default", icon: <Shield className="h-3 w-3" /> },
   super_admin: { variant: "destructive", icon: <Crown className="h-3 w-3" /> },
