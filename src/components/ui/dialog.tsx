@@ -96,4 +96,25 @@ const DialogFooter = ({
 );
 DialogFooter.displayName = "DialogFooter";
 
-export { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription };
+interface DialogTriggerProps {
+  asChild?: boolean;
+  children: React.ReactNode;
+  onClick?: () => void;
+}
+
+const DialogTrigger = ({ asChild, children, onClick }: DialogTriggerProps) => {
+  if (asChild && React.isValidElement(children)) {
+    const child = children as React.ReactElement<Record<string, unknown>>;
+    return React.cloneElement(child, {
+      onClick: (e: React.MouseEvent) => {
+        const originalOnClick = child.props.onClick as ((e: React.MouseEvent) => void) | undefined;
+        if (originalOnClick) originalOnClick(e);
+        if (onClick) onClick();
+      },
+    });
+  }
+  return <button onClick={onClick}>{children}</button>;
+};
+DialogTrigger.displayName = "DialogTrigger";
+
+export { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogTrigger };
