@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SchoolClass, Stufe } from "@/types";
+import { SchoolClass, Stufe, Teacher } from "@/types";
 import {
   Plus,
   Users,
@@ -38,6 +38,8 @@ import {
   Trash2,
   Edit,
   Loader2,
+  UserPlus,
+  ArrowRightLeft,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -54,8 +56,14 @@ const STUFEN: Stufe[] = [
   "9. Klasse",
 ];
 
+interface TeacherOption {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export default function KlassenPage() {
-  const { user, getAuthToken } = useAuth();
+  const { user, userProfile, getAuthToken, isAdmin } = useAuth();
   const router = useRouter();
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,9 +72,20 @@ export default function KlassenPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Transfer Dialog State
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferClass, setTransferClass] = useState<SchoolClass | null>(null);
+  const [availableTeachers, setAvailableTeachers] = useState<TeacherOption[]>([]);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [teachersLoading, setTeachersLoading] = useState(false);
+
   // Formular-State
   const [className, setClassName] = useState("");
-  const [classGrade, setClassGrade] = useState<Stufe>("5. Klasse");
+  // Standard-Stufe aus Lehrer-Profil oder Fallback
+  const teacherProfile = userProfile as Teacher | null;
+  const defaultGrade: Stufe = teacherProfile?.stufe || "5. Klasse";
+  const [classGrade, setClassGrade] = useState<Stufe>(defaultGrade);
 
   const loadClasses = useCallback(async () => {
     if (!user) return;
@@ -92,11 +111,80 @@ export default function KlassenPage() {
     loadClasses();
   }, [loadClasses]);
 
+  // Wenn sich das Profil ändert, Standard-Stufe aktualisieren
+  useEffect(() => {
+    if (teacherProfile?.stufe && !editingClass) {
+      setClassGrade(teacherProfile.stufe);
+    }
+  }, [teacherProfile?.stufe, editingClass]);
+
   const resetForm = () => {
     setClassName("");
-    setClassGrade("5. Klasse");
+    setClassGrade(defaultGrade);
     setEditingClass(null);
     setError("");
+  };
+
+  // Lehrpersonen der gleichen Schule laden für Transfer
+  const loadTeachersForTransfer = async () => {
+    if (!user || !teacherProfile?.schuleId) return;
+    setTeachersLoading(true);
+    try {
+      const token = await getAuthToken();
+      // API-Endpunkt für Lehrpersonen der Schule
+      const response = await fetch(`/api/teachers?schuleId=${teacherProfile.schuleId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Eigene ID ausfiltern
+        const teachers = (data.teachers || []).filter(
+          (t: TeacherOption) => t.id !== user.uid
+        );
+        setAvailableTeachers(teachers);
+      }
+    } catch (error) {
+      console.error("Error loading teachers:", error);
+    } finally {
+      setTeachersLoading(false);
+    }
+  };
+
+  const handleOpenTransferDialog = (schoolClass: SchoolClass) => {
+    setTransferClass(schoolClass);
+    setSelectedTeacherId("");
+    setTransferDialogOpen(true);
+    loadTeachersForTransfer();
+  };
+
+  const handleTransferClass = async () => {
+    if (!user || !transferClass || !selectedTeacherId) return;
+    setTransferLoading(true);
+    try {
+      const token = await getAuthToken();
+      const response = await fetch(`/api/classes/${transferClass.id}/transfer`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ newTeacherId: selectedTeacherId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Fehler bei der Übergabe");
+      }
+
+      setTransferDialogOpen(false);
+      setTransferClass(null);
+      loadClasses();
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : "Ein Fehler ist aufgetreten");
+    } finally {
+      setTransferLoading(false);
+    }
   };
 
   const handleOpenDialog = (schoolClass?: SchoolClass) => {
@@ -343,14 +431,24 @@ export default function KlassenPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleOpenDialog(schoolClass)}
+                          title="Bearbeiten"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleOpenTransferDialog(schoolClass)}
+                          title="Klasse übergeben"
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="text-destructive hover:text-destructive"
                           onClick={() => handleDelete(schoolClass.id)}
+                          title="Löschen"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -371,6 +469,79 @@ export default function KlassenPage() {
             </div>
           )}
         </div>
+
+        {/* Transfer Dialog */}
+        <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Klasse übergeben</DialogTitle>
+              <DialogDescription>
+                Übergib die Klasse &quot;{transferClass?.displayName || transferClass?.name}&quot; an eine andere Lehrperson.
+                Diese Person wird dann zum Klassenlehrer und kann die Klasse verwalten.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {teachersLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : availableTeachers.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  <UserPlus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>Keine anderen Lehrpersonen in deiner Schule gefunden.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Neue Lehrperson auswählen</Label>
+                  <Select
+                    value={selectedTeacherId}
+                    onValueChange={setSelectedTeacherId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Lehrperson wählen..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTeachers.map((teacher) => (
+                        <SelectItem key={teacher.id} value={teacher.id}>
+                          {teacher.name} ({teacher.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {selectedTeacherId && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+                  <p className="text-sm text-amber-800">
+                    <strong>Hinweis:</strong> Nach der Übergabe hast du keinen Zugriff mehr auf diese Klasse,
+                    es sei denn, du bist PICTS-Admin.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTransferDialogOpen(false)}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                onClick={handleTransferClass}
+                disabled={transferLoading || !selectedTeacherId}
+              >
+                {transferLoading && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                Übergeben
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     </ProtectedRoute>
   );
