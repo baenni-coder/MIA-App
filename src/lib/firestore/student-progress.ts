@@ -845,6 +845,174 @@ export async function initializeSystemBadges(): Promise<void> {
 }
 
 /**
+ * Holt alle Badges (System + Custom)
+ */
+export async function getAllBadges(schoolId?: string): Promise<Badge[]> {
+  const adminDb = getAdminDb();
+
+  // System-Badges holen
+  const systemSnapshot = await adminDb
+    .collection(BADGES_COLLECTION)
+    .where("isSystem", "==", true)
+    .get();
+
+  const systemBadges = systemSnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      name: data.name,
+      emoji: data.emoji,
+      description: data.description,
+      rarity: data.rarity as BadgeRarity,
+      color: data.color,
+      criteria: data.criteria,
+      isSystem: data.isSystem,
+      createdBy: data.createdBy,
+      createdByName: data.createdByName,
+      createdAt: timestampToDate(data.createdAt),
+      order: data.order || 0,
+    } as Badge;
+  });
+
+  // Custom-Badges für die Schule holen (falls schoolId angegeben)
+  let customBadges: Badge[] = [];
+  if (schoolId) {
+    const customSnapshot = await adminDb
+      .collection(BADGES_COLLECTION)
+      .where("isSystem", "==", false)
+      .where("schoolId", "==", schoolId)
+      .get();
+
+    customBadges = customSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        emoji: data.emoji,
+        description: data.description,
+        rarity: data.rarity as BadgeRarity,
+        color: data.color,
+        criteria: data.criteria,
+        isSystem: data.isSystem,
+        createdBy: data.createdBy,
+        createdByName: data.createdByName,
+        schoolId: data.schoolId,
+        createdAt: timestampToDate(data.createdAt),
+        order: data.order || 100,
+      } as Badge;
+    });
+  }
+
+  // Kombinieren und sortieren
+  const allBadges = [...systemBadges, ...customBadges];
+  return allBadges.sort((a, b) => a.order - b.order);
+}
+
+/**
+ * Erstellt ein Custom-Badge
+ */
+export async function createCustomBadge(data: {
+  name: string;
+  emoji: string;
+  description: string;
+  rarity: BadgeRarity;
+  createdBy: string;
+  createdByName: string;
+  schoolId: string;
+}): Promise<string> {
+  const adminDb = getAdminDb();
+
+  const badge: Omit<Badge, "id"> = {
+    name: data.name,
+    emoji: data.emoji,
+    description: data.description,
+    rarity: data.rarity,
+    color:
+      data.rarity === "common"
+        ? "#22c55e"
+        : data.rarity === "rare"
+        ? "#3b82f6"
+        : data.rarity === "epic"
+        ? "#a855f7"
+        : "#f59e0b",
+    criteria: {
+      type: "manual",
+      description: "Manuell vom Lehrer vergeben",
+    },
+    isSystem: false,
+    createdBy: data.createdBy,
+    createdByName: data.createdByName,
+    schoolId: data.schoolId,
+    createdAt: new Date(),
+    order: 100, // Custom badges kommen nach System-Badges
+  };
+
+  const docRef = await adminDb.collection(BADGES_COLLECTION).add(badge);
+  return docRef.id;
+}
+
+/**
+ * Löscht ein Custom-Badge
+ */
+export async function deleteCustomBadge(badgeId: string): Promise<void> {
+  const adminDb = getAdminDb();
+
+  // Prüfen ob es ein System-Badge ist
+  const badgeDoc = await adminDb.collection(BADGES_COLLECTION).doc(badgeId).get();
+  if (!badgeDoc.exists) {
+    throw new Error("Badge nicht gefunden");
+  }
+
+  const badgeData = badgeDoc.data()!;
+  if (badgeData.isSystem) {
+    throw new Error("System-Badges können nicht gelöscht werden");
+  }
+
+  // Badge löschen
+  await adminDb.collection(BADGES_COLLECTION).doc(badgeId).delete();
+}
+
+/**
+ * Holt alle vergebenen Badges für Schüler einer Klasse
+ */
+export async function getStudentBadgesForClass(
+  classId: string
+): Promise<{ studentId: string; badges: StudentBadge[] }[]> {
+  const adminDb = getAdminDb();
+
+  // Erst alle Schüler der Klasse holen
+  const studentsSnapshot = await adminDb
+    .collection("students")
+    .where("classId", "==", classId)
+    .get();
+
+  const studentIds = studentsSnapshot.docs.map((doc) => doc.id);
+
+  if (studentIds.length === 0) {
+    return [];
+  }
+
+  // Dann alle Badges für diese Schüler holen
+  // Firestore erlaubt max 10 IDs in "in" Query, also aufteilen
+  const results: { studentId: string; badges: StudentBadge[] }[] = [];
+
+  for (const studentId of studentIds) {
+    const badges = await getStudentBadges(studentId);
+    results.push({ studentId, badges });
+  }
+
+  return results;
+}
+
+/**
+ * Entfernt ein Badge von einem Schüler
+ */
+export async function revokeBadge(studentBadgeId: string): Promise<void> {
+  const adminDb = getAdminDb();
+  await adminDb.collection(STUDENT_BADGES_COLLECTION).doc(studentBadgeId).delete();
+}
+
+/**
  * Holt Fortschrittsstatistiken für eine Klasse
  */
 export async function getClassProgressStats(

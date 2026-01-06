@@ -711,6 +711,7 @@ export interface Badge {
   isSystem: boolean; // true = automatisch vergeben, false = manuell
   createdBy?: string; // Bei Custom Badges
   createdByName?: string;
+  schoolId?: string; // Bei Custom Badges - für welche Schule
   createdAt: Date;
   order: number; // Für Sortierung
 }
