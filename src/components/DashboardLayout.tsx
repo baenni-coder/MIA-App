@@ -28,6 +28,7 @@ import {
   ArrowRightLeft,
   Users,
   Award,
+  BarChart3,
 } from "lucide-react";
 import { Kanton } from "@/types";
 
@@ -164,6 +165,11 @@ export default function DashboardLayout({
       label: "Badges",
       icon: <Award className="h-5 w-5" />,
       path: "/dashboard/badges",
+    },
+    {
+      label: "Statistiken",
+      icon: <BarChart3 className="h-5 w-5" />,
+      path: "/dashboard/statistiken",
     },
     {
       label: "Admin",

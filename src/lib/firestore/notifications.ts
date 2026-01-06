@@ -497,3 +497,116 @@ export async function notifySchoolRequestRejected(data: {
     console.error("Error notifying school request rejected:", error);
   }
 }
+
+// ============================================
+// Student Notifications
+// ============================================
+
+/**
+ * Erstellt eine einfache Notification für einen Schüler
+ */
+export async function createStudentNotification(data: {
+  recipientId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  actionUrl?: string;
+}): Promise<string> {
+  try {
+    const adminDb = getAdminDb();
+    const now = new Date();
+
+    const notificationData = {
+      recipientId: data.recipientId,
+      recipientRole: "student" as UserRole,
+      type: data.type,
+      themeId: "",
+      themeTitle: data.title,
+      createdBy: "system",
+      createdByName: "System",
+      createdByEmail: "",
+      schuleId: "",
+      message: data.message,
+      actionUrl: data.actionUrl,
+      read: false,
+      createdAt: now,
+    };
+
+    const docRef = await adminDb
+      .collection(NOTIFICATIONS_COLLECTION)
+      .add(notificationData);
+
+    return docRef.id;
+  } catch (error) {
+    console.error("Error creating student notification:", error);
+    throw new Error("Failed to create student notification");
+  }
+}
+
+/**
+ * Benachrichtigt einen Schüler über ein neues Badge
+ */
+export async function notifyStudentBadgeEarned(data: {
+  studentId: string;
+  badgeName: string;
+  badgeEmoji: string;
+}): Promise<void> {
+  try {
+    await createStudentNotification({
+      recipientId: data.studentId,
+      type: "badge_earned" as NotificationType,
+      title: "Neues Badge erhalten!",
+      message: `Herzlichen Glückwunsch! Du hast das Badge "${data.badgeEmoji} ${data.badgeName}" erhalten!`,
+      actionUrl: "/schueler/badges",
+    });
+  } catch (error) {
+    console.error("Error notifying student about badge:", error);
+  }
+}
+
+/**
+ * Benachrichtigt alle Schüler einer Klasse über ein neues Thema
+ */
+export async function notifyClassThemeCompleted(data: {
+  classId: string;
+  themeName: string;
+  teacherName: string;
+}): Promise<void> {
+  try {
+    const adminDb = getAdminDb();
+
+    // Finde alle Schüler der Klasse
+    const studentsSnapshot = await adminDb
+      .collection("students")
+      .where("classId", "==", data.classId)
+      .get();
+
+    if (studentsSnapshot.empty) return;
+
+    const batch = adminDb.batch();
+
+    studentsSnapshot.docs.forEach((doc) => {
+      const notifRef = adminDb.collection(NOTIFICATIONS_COLLECTION).doc();
+
+      batch.set(notifRef, {
+        recipientId: doc.id,
+        recipientRole: "student",
+        type: "theme_completed",
+        themeId: "",
+        themeTitle: "Neues Thema abgeschlossen",
+        createdBy: "system",
+        createdByName: data.teacherName,
+        createdByEmail: "",
+        schuleId: "",
+        message: `${data.teacherName} hat das Thema "${data.themeName}" für eure Klasse als bearbeitet markiert. Vergiss nicht, deine Kompetenzen zu bewerten!`,
+        actionUrl: "/schueler/kompetenzen",
+        read: false,
+        createdAt: new Date(),
+      });
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error("Error notifying class about theme:", error);
+  }
+}

@@ -7,6 +7,7 @@ import {
   Badge,
   BadgeRarity,
 } from "@/types";
+import { notifyStudentBadgeEarned } from "./notifications";
 
 const PROGRESS_COLLECTION = "student_progress";
 const HISTORY_COLLECTION = "progress_history";
@@ -550,6 +551,13 @@ export async function checkAndAwardAutoBadges(
             awardedByName: data.awardedByName,
             reason: data.reason,
             notified: data.notified,
+          });
+
+          // Schüler über neues Badge benachrichtigen
+          await notifyStudentBadgeEarned({
+            studentId,
+            badgeName: badge.name,
+            badgeEmoji: badge.emoji,
           });
         }
       } catch (error) {
