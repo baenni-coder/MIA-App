@@ -145,8 +145,8 @@ export default function ClassDetailPage({
         fetch(`/api/class-themes?classId=${classId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        // Load themes for the class grade
-        fetch(`/api/themen?stufe=${encodeURIComponent(classData.class.grade)}`, {
+        // Load themes for the class grade (grouped=true returns object with zeitraum keys)
+        fetch(`/api/themen?stufe=${encodeURIComponent(classData.class.grade)}&grouped=true`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
