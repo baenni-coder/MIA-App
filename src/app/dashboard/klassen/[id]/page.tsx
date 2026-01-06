@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { SchoolClass, Student } from "@/types";
+import { SchoolClass, Student, ClassThemeProgress, Thema } from "@/types";
 import {
   ArrowLeft,
   Users,
@@ -40,7 +40,18 @@ import {
   Copy,
   Check,
   AlertCircle,
+  BookOpen,
+  Plus,
+  Search,
+  CheckCircle2,
+  X,
 } from "lucide-react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 interface BulkImportResult {
   email: string;
@@ -95,6 +106,15 @@ export default function ClassDetailPage({
   // Copy state
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Theme progress state
+  const [completedThemes, setCompletedThemes] = useState<ClassThemeProgress[]>([]);
+  const [availableThemes, setAvailableThemes] = useState<Thema[]>([]);
+  const [markThemeDialogOpen, setMarkThemeDialogOpen] = useState(false);
+  const [themeSearchQuery, setThemeSearchQuery] = useState("");
+  const [markThemeLoading, setMarkThemeLoading] = useState<string | null>(null);
+  const [unmarkThemeId, setUnmarkThemeId] = useState<string | null>(null);
+  const [unmarkLoading, setUnmarkLoading] = useState(false);
+
   const loadClassData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -117,14 +137,42 @@ export default function ClassDetailPage({
       const classData = await classResponse.json();
       setSchoolClass(classData.class);
 
-      // Load students
-      const studentsResponse = await fetch(`/api/students?classId=${classId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Load students, completed themes, and available themes in parallel
+      const [studentsResponse, themesResponse, availableResponse] = await Promise.all([
+        fetch(`/api/students?classId=${classId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`/api/class-themes?classId=${classId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        // Load themes for the class grade
+        fetch(`/api/themen?stufe=${encodeURIComponent(classData.class.grade)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
       if (studentsResponse.ok) {
         const studentsData = await studentsResponse.json();
         setStudents(studentsData.students || []);
+      }
+
+      if (themesResponse.ok) {
+        const themesData = await themesResponse.json();
+        setCompletedThemes(themesData.themes || []);
+      }
+
+      if (availableResponse.ok) {
+        const availableData = await availableResponse.json();
+        // Flatten grouped themes into a single array
+        const allThemes: Thema[] = [];
+        if (availableData && typeof availableData === "object") {
+          Object.values(availableData).forEach((group) => {
+            if (Array.isArray(group)) {
+              allThemes.push(...group);
+            }
+          });
+        }
+        setAvailableThemes(allThemes);
       }
     } catch (error) {
       console.error("Error loading class data:", error);
@@ -351,6 +399,91 @@ export default function ClassDetailPage({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // Mark theme as completed
+  const handleMarkTheme = async (theme: Thema) => {
+    if (!schoolClass) return;
+    setMarkThemeLoading(theme.id);
+
+    try {
+      const token = await getAuthToken();
+      const response = await fetch("/api/class-themes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          classId,
+          themeId: theme.id,
+          themeName: theme.thema,
+          themeDescription: theme.beschreibung,
+          competencyIds: theme.kompetenzen?.map((k) => k.id) || [],
+          competencyNames: theme.kompetenzen?.map((k) => k.name || k.lpCode || "Unbekannt") || [],
+          zeitraum: theme.zeitraum,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Fehler beim Markieren");
+      }
+
+      loadClassData();
+      setMarkThemeDialogOpen(false);
+      setThemeSearchQuery("");
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : "Ein Fehler ist aufgetreten");
+    } finally {
+      setMarkThemeLoading(null);
+    }
+  };
+
+  // Unmark theme
+  const handleUnmarkTheme = async () => {
+    if (!unmarkThemeId) return;
+    setUnmarkLoading(true);
+
+    try {
+      const token = await getAuthToken();
+      const response = await fetch(
+        `/api/class-themes?classId=${classId}&themeId=${unmarkThemeId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Fehler beim Entfernen");
+      }
+
+      setUnmarkThemeId(null);
+      loadClassData();
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : "Ein Fehler ist aufgetreten");
+    } finally {
+      setUnmarkLoading(false);
+    }
+  };
+
+  // Filter themes for marking
+  const completedThemeIds = new Set(completedThemes.map((t) => t.themeId));
+  const filteredThemesForMarking = availableThemes.filter((theme) => {
+    // Exclude already completed
+    if (completedThemeIds.has(theme.id)) return false;
+    // Apply search filter
+    if (themeSearchQuery) {
+      const query = themeSearchQuery.toLowerCase();
+      return (
+        theme.thema?.toLowerCase().includes(query) ||
+        theme.beschreibung?.toLowerCase().includes(query) ||
+        theme.lehrmittel?.toLowerCase().includes(query)
+      );
+    }
+    return true;
+  });
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -415,104 +548,195 @@ export default function ClassDetailPage({
             </div>
           </div>
 
-          {/* Students List */}
-          {students.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Users className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Noch keine Schüler:innen</h3>
-                <p className="text-muted-foreground text-center max-w-sm mt-2">
-                  Füge Schüler:innen einzeln hinzu oder nutze den Bulk-Import für
-                  mehrere auf einmal.
-                </p>
-                <div className="flex gap-2 mt-4">
-                  <Button variant="outline" onClick={() => setBulkDialogOpen(true)}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Bulk-Import
+          {/* Tabs */}
+          <Tabs defaultValue="students" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="students" className="gap-2">
+                <Users className="h-4 w-4" />
+                Schüler:innen ({students.length})
+              </TabsTrigger>
+              <TabsTrigger value="themes" className="gap-2">
+                <BookOpen className="h-4 w-4" />
+                Bearbeitete Themen ({completedThemes.length})
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Students Tab */}
+            <TabsContent value="students">
+              {students.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">Noch keine Schüler:innen</h3>
+                    <p className="text-muted-foreground text-center max-w-sm mt-2">
+                      Füge Schüler:innen einzeln hinzu oder nutze den Bulk-Import für
+                      mehrere auf einmal.
+                    </p>
+                    <div className="flex gap-2 mt-4">
+                      <Button variant="outline" onClick={() => setBulkDialogOpen(true)}>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Bulk-Import
+                      </Button>
+                      <Button onClick={() => setAddDialogOpen(true)}>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Schüler:in hinzufügen
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Schüler:innen</CardTitle>
+                    <CardDescription>
+                      Verwalte die Schüler:innen dieser Klasse
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-medium">Name</th>
+                            <th className="px-4 py-3 text-left font-medium">E-Mail</th>
+                            <th className="px-4 py-3 text-left font-medium">Status</th>
+                            <th className="px-4 py-3 text-right font-medium">Aktionen</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {students.map((student, idx) => (
+                            <tr
+                              key={student.id}
+                              className={idx % 2 === 0 ? "bg-background" : "bg-muted/30"}
+                            >
+                              <td className="px-4 py-3 font-medium">{student.name}</td>
+                              <td className="px-4 py-3 text-muted-foreground">
+                                <div className="flex items-center gap-2">
+                                  <Mail className="h-4 w-4" />
+                                  {student.email}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                {student.lastActive ? (
+                                  <Badge variant="default">Aktiv</Badge>
+                                ) : (
+                                  <Badge variant="secondary">Noch nie angemeldet</Badge>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleOpenEdit(student)}
+                                    title="Bearbeiten"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setResetPasswordId(student.id)}
+                                    title="Passwort zurücksetzen"
+                                  >
+                                    <Key className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => setDeleteStudentId(student.id)}
+                                    title="Löschen"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Themes Tab */}
+            <TabsContent value="themes">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Bearbeitete Themen</CardTitle>
+                    <CardDescription>
+                      Markiere Themen, die ihr im Unterricht behandelt habt. Diese werden den Schüler:innen angezeigt.
+                    </CardDescription>
+                  </div>
+                  <Button onClick={() => setMarkThemeDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Thema markieren
                   </Button>
-                  <Button onClick={() => setAddDialogOpen(true)}>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Schüler:in hinzufügen
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Schüler:innen</CardTitle>
-                <CardDescription>
-                  Verwalte die Schüler:innen dieser Klasse
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-medium">Name</th>
-                        <th className="px-4 py-3 text-left font-medium">E-Mail</th>
-                        <th className="px-4 py-3 text-left font-medium">Status</th>
-                        <th className="px-4 py-3 text-right font-medium">Aktionen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {students.map((student, idx) => (
-                        <tr
-                          key={student.id}
-                          className={idx % 2 === 0 ? "bg-background" : "bg-muted/30"}
+                </CardHeader>
+                <CardContent>
+                  {completedThemes.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium">Noch keine Themen markiert</h3>
+                      <p className="text-muted-foreground text-center max-w-sm mt-2">
+                        Markiere Themen als bearbeitet, damit deine Schüler:innen sehen können, welche Kompetenzen sie schon trainiert haben.
+                      </p>
+                      <Button className="mt-4" onClick={() => setMarkThemeDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Erstes Thema markieren
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {completedThemes.map((theme) => (
+                        <div
+                          key={theme.id}
+                          className="flex items-start justify-between p-4 bg-muted/30 rounded-lg border"
                         >
-                          <td className="px-4 py-3 font-medium">{student.name}</td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            <div className="flex items-center gap-2">
-                              <Mail className="h-4 w-4" />
-                              {student.email}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                              <h3 className="font-medium">{theme.themeName}</h3>
                             </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            {student.lastActive ? (
-                              <Badge variant="default">Aktiv</Badge>
-                            ) : (
-                              <Badge variant="secondary">Noch nie angemeldet</Badge>
+                            {theme.themeDescription && (
+                              <p className="text-sm text-muted-foreground line-clamp-2 ml-7">
+                                {theme.themeDescription}
+                              </p>
                             )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleOpenEdit(student)}
-                                title="Bearbeiten"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setResetPasswordId(student.id)}
-                                title="Passwort zurücksetzen"
-                              >
-                                <Key className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => setDeleteStudentId(student.id)}
-                                title="Löschen"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                            <div className="flex items-center gap-4 mt-2 ml-7 text-xs text-muted-foreground">
+                              <span>
+                                Markiert am{" "}
+                                {new Date(theme.markedCompletedAt).toLocaleDateString("de-CH")}
+                              </span>
+                              <span>{theme.competencyIds.length} Kompetenzen</span>
+                              {theme.zeitraum && (
+                                <Badge variant="outline" className="text-xs">
+                                  {theme.zeitraum}
+                                </Badge>
+                              )}
                             </div>
-                          </td>
-                        </tr>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => setUnmarkThemeId(theme.themeId)}
+                            title="Markierung entfernen"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Add Student Dialog */}
@@ -884,6 +1108,128 @@ Tom Test, tom@schule.ch`}
                 </DialogFooter>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Mark Theme Dialog */}
+        <Dialog
+          open={markThemeDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setMarkThemeDialogOpen(false);
+              setThemeSearchQuery("");
+            }
+          }}
+        >
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Thema als bearbeitet markieren</DialogTitle>
+              <DialogDescription>
+                Wähle ein Thema aus, das ihr im Unterricht behandelt habt.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4 flex-1 overflow-hidden flex flex-col">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Thema suchen..."
+                  value={themeSearchQuery}
+                  onChange={(e) => setThemeSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              {/* Theme List */}
+              <div className="flex-1 overflow-auto border rounded-lg">
+                {filteredThemesForMarking.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <BookOpen className="h-8 w-8 mb-2" />
+                    <p className="text-sm">
+                      {themeSearchQuery
+                        ? "Keine Themen gefunden"
+                        : "Alle Themen wurden bereits markiert"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {filteredThemesForMarking.map((theme) => (
+                      <div
+                        key={theme.id}
+                        className="flex items-center justify-between p-4 hover:bg-muted/50"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium truncate">{theme.thema}</h4>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                            {theme.lehrmittel && (
+                              <Badge variant="outline" className="text-xs">
+                                {theme.lehrmittel}
+                              </Badge>
+                            )}
+                            {theme.zeitraum && (
+                              <Badge variant="secondary" className="text-xs">
+                                {theme.zeitraum}
+                              </Badge>
+                            )}
+                            {theme.anzahlLektionen && (
+                              <span>{theme.anzahlLektionen} Lektionen</span>
+                            )}
+                            {theme.kompetenzen && theme.kompetenzen.length > 0 && (
+                              <span>{theme.kompetenzen.length} Kompetenzen</span>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleMarkTheme(theme)}
+                          disabled={markThemeLoading === theme.id}
+                        >
+                          {markThemeLoading === theme.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Check className="h-4 w-4 mr-1" />
+                              Markieren
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Unmark Theme Confirmation */}
+        <Dialog open={!!unmarkThemeId} onOpenChange={() => setUnmarkThemeId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Markierung entfernen?</DialogTitle>
+              <DialogDescription>
+                Möchtest du die Markierung für dieses Thema wirklich entfernen?
+                Die Schüler:innen sehen dann nicht mehr, dass dieses Thema bearbeitet wurde.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setUnmarkThemeId(null)}
+                disabled={unmarkLoading}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleUnmarkTheme}
+                disabled={unmarkLoading}
+              >
+                {unmarkLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Entfernen
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </DashboardLayout>
