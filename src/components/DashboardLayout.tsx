@@ -27,6 +27,7 @@ import {
   Building2,
   ArrowRightLeft,
   Users,
+  Award,
 } from "lucide-react";
 import { Kanton } from "@/types";
 
@@ -158,6 +159,11 @@ export default function DashboardLayout({
       label: "Meine Klassen",
       icon: <Users className="h-5 w-5" />,
       path: "/dashboard/klassen",
+    },
+    {
+      label: "Badges",
+      icon: <Award className="h-5 w-5" />,
+      path: "/dashboard/badges",
     },
     {
       label: "Admin",
