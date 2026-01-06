@@ -222,10 +222,8 @@ export async function GET(request: Request) {
     const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
 
     if (!teacherDoc.exists) {
-      return NextResponse.json(
-        { error: "Teacher not found" },
-        { status: 404 }
-      );
+      // Kein Lehrer gefunden - return empty (für AuthContext, damit dann students geprüft wird)
+      return NextResponse.json({});
     }
 
     const teacherData = teacherDoc.data();
