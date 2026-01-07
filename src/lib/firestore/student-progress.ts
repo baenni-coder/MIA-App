@@ -472,19 +472,28 @@ export async function awardBadge(data: {
     throw new Error("Schüler hat dieses Badge bereits");
   }
 
+  // Build badge without undefined values - Firestore doesn't accept undefined
   const studentBadge: Omit<StudentBadge, "id"> = {
     studentId: data.studentId,
-    studentName: data.studentName,
     badgeId: data.badgeId,
     badgeName: data.badgeName,
     badgeEmoji: data.badgeEmoji,
     badgeRarity: data.badgeRarity,
     awardedAt: new Date(),
     awardedBy: data.awardedBy,
-    awardedByName: data.awardedByName,
-    reason: data.reason,
     notified: false,
   };
+
+  // Only add optional fields if they have values
+  if (data.studentName) {
+    studentBadge.studentName = data.studentName;
+  }
+  if (data.awardedByName) {
+    studentBadge.awardedByName = data.awardedByName;
+  }
+  if (data.reason) {
+    studentBadge.reason = data.reason;
+  }
 
   const docRef = await adminDb.collection(STUDENT_BADGES_COLLECTION).add(studentBadge);
   return docRef.id;
