@@ -425,7 +425,10 @@ export default function ClassDetailPage({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Fehler beim Markieren");
+        const errorMsg = data.details
+          ? `${data.error}: ${data.details}`
+          : data.error || "Fehler beim Markieren";
+        throw new Error(errorMsg);
       }
 
       loadClassData();
