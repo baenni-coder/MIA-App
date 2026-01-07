@@ -192,6 +192,13 @@ export async function POST(request: Request) {
 
     // Markiere Thema als bearbeitet
     try {
+      console.log("[class-themes] Marking theme:", {
+        classId,
+        themeId,
+        themeName,
+        competencyCount: (competencyIds || []).length,
+      });
+
       const id = await markThemeAsCompleted({
         classId,
         className: schoolClass.displayName || schoolClass.name,
@@ -205,12 +212,20 @@ export async function POST(request: Request) {
         markedCompletedByName: teacherData.name,
       });
 
+      console.log("[class-themes] Theme marked successfully, id:", id);
+
       // Benachrichtige alle Schüler der Klasse
-      await notifyClassThemeCompleted({
-        classId,
-        themeName,
-        teacherName: teacherData.name,
-      });
+      try {
+        await notifyClassThemeCompleted({
+          classId,
+          themeName,
+          teacherName: teacherData.name,
+        });
+        console.log("[class-themes] Notifications sent");
+      } catch (notifyError) {
+        console.error("[class-themes] Notification error (non-fatal):", notifyError);
+        // Notification failure should not block the response
+      }
 
       return NextResponse.json({ success: true, id });
     } catch (error) {
@@ -221,8 +236,9 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error("Error marking theme as completed:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to mark theme as completed" },
+      { error: "Failed to mark theme as completed", details: errorMessage },
       { status: 500 }
     );
   }
