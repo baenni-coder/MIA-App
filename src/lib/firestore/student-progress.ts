@@ -259,20 +259,29 @@ export async function markThemeAsCompleted(data: {
     throw new Error("Thema wurde bereits als bearbeitet markiert");
   }
 
+  // Filter out undefined values - Firestore doesn't accept undefined
   const themeProgress: Omit<ClassThemeProgress, "id"> = {
     classId: data.classId,
     className: data.className,
     themeId: data.themeId,
     themeName: data.themeName,
-    themeDescription: data.themeDescription,
     competencyIds: data.competencyIds,
-    competencyNames: data.competencyNames,
-    zeitraum: data.zeitraum as ClassThemeProgress["zeitraum"],
     markedCompletedBy: data.markedCompletedBy,
     markedCompletedByName: data.markedCompletedByName,
     markedCompletedAt: new Date(),
     createdAt: new Date(),
   };
+
+  // Only add optional fields if they have values
+  if (data.themeDescription) {
+    themeProgress.themeDescription = data.themeDescription;
+  }
+  if (data.competencyNames && data.competencyNames.length > 0) {
+    themeProgress.competencyNames = data.competencyNames;
+  }
+  if (data.zeitraum) {
+    themeProgress.zeitraum = data.zeitraum as ClassThemeProgress["zeitraum"];
+  }
 
   const docRef = await adminDb.collection(CLASS_THEMES_COLLECTION).add(themeProgress);
   return docRef.id;
