@@ -122,7 +122,16 @@ export async function PUT(request: Request) {
     }
 
     const authenticatedUserId = decodedToken.uid;
-    const { studentId, competencyId, rating } = await request.json();
+    const body = await request.json();
+    const { studentId, competencyId, rating } = body;
+
+    console.log("[student-progress PUT] Request:", {
+      authenticatedUserId,
+      studentId,
+      competencyId,
+      rating,
+      isSameUser: authenticatedUserId === studentId,
+    });
 
     if (!studentId || !competencyId || rating === undefined) {
       return NextResponse.json(
@@ -141,8 +150,15 @@ export async function PUT(request: Request) {
 
     // Hole Schüler-Daten
     const student = await getStudentById(studentId);
+    console.log("[student-progress PUT] Student found:", student ? { id: student.id, classId: student.classId } : null);
+
     if (!student) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
+    }
+
+    if (!student.classId) {
+      console.error("[student-progress PUT] Student has no classId:", studentId);
+      return NextResponse.json({ error: "Student has no class assigned" }, { status: 400 });
     }
 
     // Bestimme wer die Änderung vornimmt
@@ -193,10 +209,15 @@ export async function PUT(request: Request) {
     );
 
     // Prüfe und vergebe automatische Badges
-    const progress = await getStudentProgress(studentId);
     let newBadges: unknown[] = [];
-    if (progress) {
-      newBadges = await checkAndAwardAutoBadges(studentId, student.name, progress);
+    try {
+      const progress = await getStudentProgress(studentId);
+      if (progress) {
+        newBadges = await checkAndAwardAutoBadges(studentId, student.name, progress);
+      }
+    } catch (badgeError) {
+      // Badge-Fehler sollten das Rating nicht blockieren
+      console.error("Error checking badges (non-fatal):", badgeError);
     }
 
     return NextResponse.json({
@@ -205,8 +226,9 @@ export async function PUT(request: Request) {
     });
   } catch (error) {
     console.error("Error updating student progress:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to update student progress" },
+      { error: "Failed to update student progress", details: errorMessage },
       { status: 500 }
     );
   }
