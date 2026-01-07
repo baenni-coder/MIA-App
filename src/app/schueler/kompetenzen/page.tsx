@@ -14,8 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Student, Kompetenz, StudentProgress, ClassThemeProgress, StudentBadge } from "@/types";
-import { useState, useEffect, useCallback } from "react";
-import { Star, Search, Filter, BookOpen, Sparkles, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { Star, Search, Filter, BookOpen, Sparkles, Loader2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -147,9 +148,11 @@ function BadgeEarnedDialog({
   );
 }
 
-export default function StudentKompetenzenPage() {
+function StudentKompetenzenContent() {
   const { user, userProfile } = useAuth();
   const studentProfile = userProfile as Student | null;
+  const searchParams = useSearchParams();
+  const highlightedCompRef = useRef<HTMLDivElement>(null);
 
   const [competencies, setCompetencies] = useState<Kompetenz[]>([]);
   const [progress, setProgress] = useState<StudentProgress | null>(null);
@@ -158,15 +161,24 @@ export default function StudentKompetenzenPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<StudentBadge[]>([]);
 
+  // URL params for highlighting
+  const highlightCompetencyId = searchParams.get("highlight");
+
   // Filter State
   const [searchQuery, setSearchQuery] = useState("");
   const [filterArea, setFilterArea] = useState<string>("all");
   const [filterZyklus, setFilterZyklus] = useState<string>("all");
   const [filterRating, setFilterRating] = useState<string>("all");
+  const [filterTreated, setFilterTreated] = useState<string>("all");
 
   // Selected Competency for Detail View
   const [selectedCompetency, setSelectedCompetency] = useState<Kompetenz | null>(
     null
+  );
+
+  // Get all competency IDs from completed themes
+  const treatedCompetencyIds = new Set(
+    completedThemes.flatMap((t) => t.competencyIds)
   );
 
   // Fetch data
@@ -208,6 +220,23 @@ export default function StudentKompetenzenPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Auto-open highlighted competency from URL
+  useEffect(() => {
+    if (highlightCompetencyId && competencies.length > 0 && !loading) {
+      const comp = competencies.find((c) => c.id === highlightCompetencyId);
+      if (comp) {
+        setSelectedCompetency(comp);
+        // Scroll to the highlighted competency card after a short delay
+        setTimeout(() => {
+          highlightedCompRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }, 100);
+      }
+    }
+  }, [highlightCompetencyId, competencies, loading]);
 
   // Update rating
   const handleRatingChange = async (competencyId: string, rating: number) => {
@@ -300,6 +329,13 @@ export default function StudentKompetenzenPage() {
       const rating = progress?.ratings[comp.id] || 0;
       if (filterRating === "unrated" && rating > 0) return false;
       if (filterRating === "rated" && rating === 0) return false;
+    }
+
+    // Treated filter (from completed themes)
+    if (filterTreated !== "all") {
+      const isTreated = treatedCompetencyIds.has(comp.id);
+      if (filterTreated === "treated" && !isTreated) return false;
+      if (filterTreated === "untreated" && isTreated) return false;
     }
 
     return true;
@@ -420,6 +456,18 @@ export default function StudentKompetenzenPage() {
                       <SelectItem value="rated">Bewertet</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  <Select value={filterTreated} onValueChange={setFilterTreated}>
+                    <SelectTrigger className="w-[160px]">
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Behandelt" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle Kompetenzen</SelectItem>
+                      <SelectItem value="treated">Im Unterricht behandelt</SelectItem>
+                      <SelectItem value="untreated">Noch nicht behandelt</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>
@@ -464,13 +512,18 @@ export default function StudentKompetenzenPage() {
                         const rating = progress?.ratings[comp.id] || 0;
                         const themes = getThemesForCompetency(comp.id);
                         const isSaving = savingId === comp.id;
+                        const isTreated = treatedCompetencyIds.has(comp.id);
+                        const isHighlighted = highlightCompetencyId === comp.id;
 
                         return (
                           <Card
                             key={comp.id}
+                            ref={isHighlighted ? highlightedCompRef : undefined}
                             className={cn(
                               "transition-all",
-                              rating > 0 && "border-green-200 bg-green-50/30"
+                              rating > 0 && "border-green-200 bg-green-50/30",
+                              isTreated && rating === 0 && "border-blue-200 bg-blue-50/30",
+                              isHighlighted && "ring-2 ring-blue-500 ring-offset-2"
                             )}
                           >
                             <CardContent className="py-3">
@@ -498,6 +551,15 @@ export default function StudentKompetenzenPage() {
                                         {z}
                                       </Badge>
                                     ))}
+                                    {isTreated && (
+                                      <Badge
+                                        variant="default"
+                                        className="text-xs bg-blue-500"
+                                      >
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Behandelt
+                                      </Badge>
+                                    )}
                                   </div>
                                   <h3 className="font-medium text-sm">
                                     {comp.name}
@@ -703,5 +765,24 @@ export default function StudentKompetenzenPage() {
         />
       </StudentDashboardLayout>
     </StudentProtectedRoute>
+  );
+}
+
+// Wrapper with Suspense for useSearchParams
+export default function StudentKompetenzenPage() {
+  return (
+    <Suspense
+      fallback={
+        <StudentProtectedRoute>
+          <StudentDashboardLayout>
+            <div className="flex items-center justify-center min-h-[400px]">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
+          </StudentDashboardLayout>
+        </StudentProtectedRoute>
+      }
+    >
+      <StudentKompetenzenContent />
+    </Suspense>
   );
 }

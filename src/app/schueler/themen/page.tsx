@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Student, ClassThemeProgress, Zeitraum } from "@/types";
-import { BookOpen, Calendar, Tag, Loader2 } from "lucide-react";
+import { BookOpen, Calendar, Tag, Loader2, Star } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 // Zeitraum Farben
@@ -39,9 +40,16 @@ const ZEITRAUM_LABELS: Record<Zeitraum, string> = {
 export default function StudentThemenPage() {
   const { user, userProfile } = useAuth();
   const studentProfile = userProfile as Student | null;
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [themes, setThemes] = useState<ClassThemeProgress[]>([]);
+
+  // Navigate to competency rating page
+  const handleCompetencyClick = (competencyId: string, competencyName: string) => {
+    // Navigate to kompetenzen page with highlight parameter
+    router.push(`/schueler/kompetenzen?highlight=${encodeURIComponent(competencyId)}&name=${encodeURIComponent(competencyName)}`);
+  };
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -205,27 +213,28 @@ export default function StudentThemenPage() {
                         </div>
                       </div>
 
-                      {/* Competency Names */}
+                      {/* Competency Names - Clickable for rating */}
                       {theme.competencyNames && theme.competencyNames.length > 0 && (
                         <div className="mt-3 pt-3 border-t">
-                          <p className="text-xs font-medium mb-2 text-muted-foreground">
+                          <p className="text-xs font-medium mb-2 text-muted-foreground flex items-center gap-1">
                             Behandelte Kompetenzen:
+                            <span className="text-blue-500">(klicken zum Bewerten)</span>
                           </p>
                           <div className="flex flex-wrap gap-1">
-                            {theme.competencyNames.slice(0, 5).map((name, idx) => (
+                            {theme.competencyNames.map((name, idx) => (
                               <Badge
                                 key={idx}
                                 variant="outline"
-                                className="text-xs bg-white"
+                                className="text-xs bg-white cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                                onClick={() => handleCompetencyClick(
+                                  theme.competencyIds[idx] || "",
+                                  name
+                                )}
                               >
+                                <Star className="h-3 w-3 mr-1 text-yellow-500" />
                                 {name}
                               </Badge>
                             ))}
-                            {theme.competencyNames.length > 5 && (
-                              <Badge variant="outline" className="text-xs bg-white">
-                                +{theme.competencyNames.length - 5} weitere
-                              </Badge>
-                            )}
                           </div>
                         </div>
                       )}
