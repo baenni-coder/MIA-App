@@ -185,10 +185,24 @@ async function createProgressHistoryEntry(data: {
   changedByName?: string;
 }): Promise<string> {
   const adminDb = getAdminDb();
+
+  // Build entry without undefined values - Firestore doesn't accept undefined
   const entry: Omit<ProgressHistoryEntry, "id"> = {
-    ...data,
+    studentId: data.studentId,
+    competencyId: data.competencyId,
+    oldRating: data.oldRating,
+    newRating: data.newRating,
+    changedBy: data.changedBy,
     timestamp: new Date(),
   };
+
+  // Only add optional fields if they have values
+  if (data.competencyName) {
+    entry.competencyName = data.competencyName;
+  }
+  if (data.changedByName) {
+    entry.changedByName = data.changedByName;
+  }
 
   const docRef = await adminDb.collection(HISTORY_COLLECTION).add(entry);
   return docRef.id;
