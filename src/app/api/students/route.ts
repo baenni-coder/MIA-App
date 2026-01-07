@@ -5,6 +5,7 @@ import {
   getStudentById,
   getStudentsByClass,
   getStudentsByTeacher,
+  updateStudentLastActive,
 } from "@/lib/firestore/students";
 import { teacherHasAccessToClass } from "@/lib/firestore/classes";
 
@@ -45,7 +46,9 @@ export async function GET(request: Request) {
     // Einzelner Schüler (für AuthContext)
     if (userId) {
       // Nur eigenen Datensatz oder als Lehrer
-      if (userId !== authenticatedUserId) {
+      const isOwnProfile = userId === authenticatedUserId;
+
+      if (!isOwnProfile) {
         // Prüfen ob der authentifizierte User ein Lehrer ist
         const adminDb = getAdminDb();
         const teacherDoc = await adminDb
@@ -66,6 +69,12 @@ export async function GET(request: Request) {
         // Kein Schüler gefunden - return empty (nicht error für AuthContext)
         return NextResponse.json({});
       }
+
+      // Update lastActive wenn der Schüler sein eigenes Profil lädt
+      if (isOwnProfile) {
+        await updateStudentLastActive(userId);
+      }
+
       return NextResponse.json(student);
     }
 
