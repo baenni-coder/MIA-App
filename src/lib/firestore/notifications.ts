@@ -610,3 +610,80 @@ export async function notifyClassThemeCompleted(data: {
     console.error("Error notifying class about theme:", error);
   }
 }
+
+/**
+ * Benachrichtigt einen Lehrer über eine neue ausstehende Bewertung
+ */
+export async function notifyTeacherPendingRating(data: {
+  teacherId: string;
+  studentName: string;
+  competencyName: string;
+  studentRating: number;
+}): Promise<void> {
+  try {
+    const adminDb = getAdminDb();
+
+    const stars = "⭐".repeat(data.studentRating);
+
+    await adminDb.collection(NOTIFICATIONS_COLLECTION).add({
+      recipientId: data.teacherId,
+      recipientRole: "teacher",
+      type: "pending_rating",
+      themeId: "",
+      themeTitle: "Neue Bewertung zur Bestätigung",
+      createdBy: "system",
+      createdByName: data.studentName,
+      createdByEmail: "",
+      schuleId: "",
+      message: `${data.studentName} hat sich bei "${data.competencyName}" mit ${stars} bewertet und wartet auf deine Bestätigung.`,
+      actionUrl: "/lehrer/bestaetigen",
+      read: false,
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    console.error("Error notifying teacher about pending rating:", error);
+  }
+}
+
+/**
+ * Benachrichtigt einen Schüler wenn seine Bewertung bestätigt wurde
+ */
+export async function notifyStudentRatingConfirmed(data: {
+  studentId: string;
+  competencyName: string;
+  wasAdjusted: boolean;
+  finalRating: number;
+  studentRating: number;
+}): Promise<void> {
+  try {
+    const adminDb = getAdminDb();
+
+    const stars = "⭐".repeat(data.finalRating);
+    let message: string;
+
+    if (data.wasAdjusted) {
+      const originalStars = "⭐".repeat(data.studentRating);
+      message = `Deine Bewertung bei "${data.competencyName}" wurde von ${originalStars} auf ${stars} angepasst.`;
+    } else {
+      message = `Deine Bewertung bei "${data.competencyName}" mit ${stars} wurde bestätigt!`;
+    }
+
+    await adminDb.collection(NOTIFICATIONS_COLLECTION).add({
+      recipientId: data.studentId,
+      recipientRole: "student",
+      type: "rating_confirmed",
+      themeId: "",
+      themeTitle: data.wasAdjusted ? "Bewertung angepasst" : "Bewertung bestätigt",
+      createdBy: "system",
+      createdByName: "System",
+      createdByEmail: "",
+      schuleId: "",
+      message,
+      actionUrl: "/schueler/kompetenzen",
+      read: false,
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    console.error("Error notifying student about rating confirmation:", error);
+  }
+}
