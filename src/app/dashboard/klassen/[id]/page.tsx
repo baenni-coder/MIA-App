@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { SchoolClass, Student, ClassThemeProgress, Thema } from "@/types";
+import { SchoolClass, Student, ClassThemeProgress, Thema, PendingRating } from "@/types";
 import {
   ArrowLeft,
   Users,
@@ -45,6 +45,8 @@ import {
   Search,
   CheckCircle2,
   X,
+  Clock,
+  Star,
 } from "lucide-react";
 import {
   Tabs,
@@ -115,6 +117,13 @@ export default function ClassDetailPage({
   const [unmarkThemeId, setUnmarkThemeId] = useState<string | null>(null);
   const [unmarkLoading, setUnmarkLoading] = useState(false);
 
+  // Pending ratings state
+  const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
+  const [adjustingRating, setAdjustingRating] = useState<PendingRating | null>(null);
+  const [adjustedValue, setAdjustedValue] = useState(0);
+
   const loadClassData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -137,8 +146,8 @@ export default function ClassDetailPage({
       const classData = await classResponse.json();
       setSchoolClass(classData.class);
 
-      // Load students, completed themes, and available themes in parallel
-      const [studentsResponse, themesResponse, availableResponse] = await Promise.all([
+      // Load students, completed themes, available themes, and pending ratings in parallel
+      const [studentsResponse, themesResponse, availableResponse, pendingResponse] = await Promise.all([
         fetch(`/api/students?classId=${classId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
@@ -147,6 +156,10 @@ export default function ClassDetailPage({
         }),
         // Load themes for the class grade (grouped=true returns object with zeitraum keys)
         fetch(`/api/themen?stufe=${encodeURIComponent(classData.class.grade)}&grouped=true`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        // Load pending ratings for this class
+        fetch(`/api/pending-ratings?classId=${classId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -173,6 +186,11 @@ export default function ClassDetailPage({
           });
         }
         setAvailableThemes(allThemes);
+      }
+
+      if (pendingResponse.ok) {
+        const pendingData = await pendingResponse.json();
+        setPendingRatings(pendingData.pendingRatings || []);
       }
     } catch (error) {
       console.error("Error loading class data:", error);
@@ -470,6 +488,113 @@ export default function ClassDetailPage({
     }
   };
 
+  // Confirm a pending rating (accept student's rating)
+  const handleConfirmRating = async (pendingRating: PendingRating) => {
+    setConfirmingId(pendingRating.id);
+
+    try {
+      const token = await getAuthToken();
+      const response = await fetch(`/api/pending-ratings/${pendingRating.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: "confirm" }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Fehler beim Bestätigen");
+      }
+
+      // Remove from local state
+      setPendingRatings((prev) => prev.filter((pr) => pr.id !== pendingRating.id));
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : "Ein Fehler ist aufgetreten");
+    } finally {
+      setConfirmingId(null);
+    }
+  };
+
+  // Open adjust dialog
+  const handleOpenAdjustDialog = (pendingRating: PendingRating) => {
+    setAdjustingRating(pendingRating);
+    setAdjustedValue(pendingRating.studentRating);
+    setAdjustDialogOpen(true);
+  };
+
+  // Adjust a pending rating (change to different rating)
+  const handleAdjustRating = async () => {
+    if (!adjustingRating) return;
+    setConfirmingId(adjustingRating.id);
+
+    try {
+      const token = await getAuthToken();
+      const response = await fetch(`/api/pending-ratings/${adjustingRating.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: "adjust",
+          teacherRating: adjustedValue,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Fehler beim Anpassen");
+      }
+
+      // Remove from local state
+      setPendingRatings((prev) => prev.filter((pr) => pr.id !== adjustingRating.id));
+      setAdjustDialogOpen(false);
+      setAdjustingRating(null);
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : "Ein Fehler ist aufgetreten");
+    } finally {
+      setConfirmingId(null);
+    }
+  };
+
+  // Confirm all pending ratings
+  const handleConfirmAll = async () => {
+    if (pendingRatings.length === 0) return;
+
+    const confirmAll = confirm(
+      `Möchtest du wirklich alle ${pendingRatings.length} Bewertungen bestätigen?`
+    );
+    if (!confirmAll) return;
+
+    setConfirmingId("all");
+
+    try {
+      const token = await getAuthToken();
+
+      // Confirm each rating one by one
+      for (const pr of pendingRatings) {
+        await fetch(`/api/pending-ratings/${pr.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ action: "confirm" }),
+        });
+      }
+
+      // Clear all from local state
+      setPendingRatings([]);
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : "Ein Fehler ist aufgetreten");
+      loadClassData(); // Reload to get current state
+    } finally {
+      setConfirmingId(null);
+    }
+  };
+
   // Filter themes for marking
   const completedThemeIds = new Set(completedThemes.map((t) => t.themeId));
   const filteredThemesForMarking = availableThemes.filter((theme) => {
@@ -552,8 +677,17 @@ export default function ClassDetailPage({
           </div>
 
           {/* Tabs */}
-          <Tabs defaultValue="students" className="space-y-4">
+          <Tabs defaultValue={pendingRatings.length > 0 ? "confirmations" : "students"} className="space-y-4">
             <TabsList>
+              <TabsTrigger value="confirmations" className="gap-2">
+                <Clock className="h-4 w-4" />
+                Bestätigungen
+                {pendingRatings.length > 0 && (
+                  <Badge variant="destructive" className="ml-1">
+                    {pendingRatings.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="students" className="gap-2">
                 <Users className="h-4 w-4" />
                 Schüler:innen ({students.length})
@@ -563,6 +697,89 @@ export default function ClassDetailPage({
                 Bearbeitete Themen ({completedThemes.length})
               </TabsTrigger>
             </TabsList>
+
+            {/* Confirmations Tab */}
+            <TabsContent value="confirmations">
+              {pendingRatings.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
+                    <h3 className="text-lg font-medium">Alles bestätigt!</h3>
+                    <p className="text-muted-foreground text-center max-w-sm mt-2">
+                      Es gibt keine ausstehenden Bewertungen zur Bestätigung.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Ausstehende Bestätigungen</CardTitle>
+                      <CardDescription>
+                        {pendingRatings.length} Bewertung{pendingRatings.length !== 1 && "en"} warten auf deine Bestätigung
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={handleConfirmAll}
+                      disabled={confirmingId === "all"}
+                    >
+                      {confirmingId === "all" ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                      )}
+                      Alle bestätigen
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {pendingRatings.map((pr) => (
+                        <div
+                          key={pr.id}
+                          className="flex items-center justify-between p-4 border rounded-lg bg-amber-50 border-amber-200"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium">{pr.studentName}</span>
+                              <Badge variant="outline">{pr.competencyName}</Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span>Selbstbewertung:</span>
+                              <span className="text-amber-600 font-medium">
+                                {"⭐".repeat(pr.studentRating)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenAdjustDialog(pr)}
+                              disabled={confirmingId === pr.id}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Anpassen
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleConfirmRating(pr)}
+                              disabled={confirmingId === pr.id}
+                            >
+                              {confirmingId === pr.id ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              ) : (
+                                <Check className="h-4 w-4 mr-1" />
+                              )}
+                              Bestätigen
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
 
             {/* Students Tab */}
             <TabsContent value="students">
@@ -880,6 +1097,77 @@ export default function ClassDetailPage({
                 </Button>
               </DialogFooter>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Adjust Rating Dialog */}
+        <Dialog open={adjustDialogOpen} onOpenChange={setAdjustDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Bewertung anpassen</DialogTitle>
+              <DialogDescription>
+                {adjustingRating && (
+                  <>
+                    Passe die Bewertung von <strong>{adjustingRating.studentName}</strong> für{" "}
+                    <strong>{adjustingRating.competencyName}</strong> an.
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            {adjustingRating && (
+              <div className="space-y-4">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800">
+                    Schüler-Selbstbewertung:{" "}
+                    <span className="font-medium">{"⭐".repeat(adjustingRating.studentRating)}</span>
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Deine Bewertung</Label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <Button
+                        key={rating}
+                        type="button"
+                        variant={adjustedValue === rating ? "default" : "outline"}
+                        size="lg"
+                        className="flex-1"
+                        onClick={() => setAdjustedValue(rating)}
+                      >
+                        <Star
+                          className={`h-5 w-5 ${
+                            adjustedValue >= rating
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center">
+                    Gewählt: {"⭐".repeat(adjustedValue)}
+                  </p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setAdjustDialogOpen(false)}
+                disabled={!!confirmingId}
+              >
+                Abbrechen
+              </Button>
+              <Button onClick={handleAdjustRating} disabled={!!confirmingId}>
+                {confirmingId ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4 mr-2" />
+                )}
+                Bewertung speichern
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

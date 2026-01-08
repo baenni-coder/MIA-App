@@ -13,10 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Student, Kompetenz, StudentProgress, ClassThemeProgress, StudentBadge } from "@/types";
+import { Student, Kompetenz, StudentProgress, ClassThemeProgress, StudentBadge, PendingRating } from "@/types";
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Star, Search, Filter, BookOpen, Sparkles, Loader2, CheckCircle2 } from "lucide-react";
+import { Star, Search, Filter, BookOpen, Sparkles, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -156,10 +156,16 @@ function StudentKompetenzenContent() {
 
   const [competencies, setCompetencies] = useState<Kompetenz[]>([]);
   const [progress, setProgress] = useState<StudentProgress | null>(null);
+  const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
   const [completedThemes, setCompletedThemes] = useState<ClassThemeProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<StudentBadge[]>([]);
+
+  // Helper to get pending rating for a competency
+  const getPendingRating = (competencyId: string): PendingRating | undefined => {
+    return pendingRatings.find((pr) => pr.competencyId === competencyId);
+  };
 
   // URL params for highlighting
   const highlightCompetencyId = searchParams.get("highlight");
@@ -189,10 +195,11 @@ function StudentKompetenzenContent() {
       const token = await user.getIdToken();
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Fetch competencies, progress, and completed themes in parallel
-      const [compResponse, progressResponse, themesResponse] = await Promise.all([
+      // Fetch competencies, progress, pending ratings, and completed themes in parallel
+      const [compResponse, progressResponse, pendingResponse, themesResponse] = await Promise.all([
         fetch("/api/kompetenzen", { headers }),
         fetch(`/api/student-progress?studentId=${studentProfile.id}`, { headers }),
+        fetch(`/api/pending-ratings?studentId=${studentProfile.id}`, { headers }),
         fetch(`/api/class-themes?classId=${studentProfile.classId}`, { headers }),
       ]);
 
@@ -204,6 +211,11 @@ function StudentKompetenzenContent() {
       if (progressResponse.ok) {
         const data = await progressResponse.json();
         setProgress(data.progress);
+      }
+
+      if (pendingResponse.ok) {
+        const data = await pendingResponse.json();
+        setPendingRatings(data.pendingRatings || []);
       }
 
       if (themesResponse.ok) {
@@ -238,49 +250,59 @@ function StudentKompetenzenContent() {
     }
   }, [highlightCompetencyId, competencies, loading]);
 
-  // Update rating
+  // Submit rating for teacher review (creates pending rating)
   const handleRatingChange = async (competencyId: string, rating: number) => {
     if (!user || !studentProfile) return;
+
+    // Find the competency name
+    const competency = competencies.find((c) => c.id === competencyId);
+    if (!competency) return;
 
     setSavingId(competencyId);
 
     try {
       const token = await user.getIdToken();
-      const response = await fetch("/api/student-progress", {
-        method: "PUT",
+      const response = await fetch("/api/pending-ratings", {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          studentId: studentProfile.id,
           competencyId,
-          rating,
+          competencyName: competency.lpCode || competency.name || competencyId,
+          studentRating: rating,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
 
-        // Update local progress
-        setProgress((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            ratings: {
-              ...prev.ratings,
-              [competencyId]: rating,
-            },
+        // Add/update the pending rating in local state
+        setPendingRatings((prev) => {
+          const existing = prev.findIndex((pr) => pr.competencyId === competencyId);
+          const newPending: PendingRating = {
+            id: data.id,
+            studentId: studentProfile.id,
+            studentName: studentProfile.name,
+            classId: studentProfile.classId,
+            competencyId,
+            competencyName: competency.lpCode || competency.name || competencyId,
+            studentRating: rating,
+            status: "pending",
+            createdAt: new Date(),
           };
-        });
 
-        // Show new badges
-        if (data.newBadges && data.newBadges.length > 0) {
-          setNewBadges(data.newBadges);
-        }
+          if (existing >= 0) {
+            const updated = [...prev];
+            updated[existing] = newPending;
+            return updated;
+          }
+          return [...prev, newPending];
+        });
       }
     } catch (error) {
-      console.error("Error updating rating:", error);
+      console.error("Error submitting rating:", error);
     } finally {
       setSavingId(null);
     }
@@ -509,11 +531,14 @@ function StudentKompetenzenContent() {
                   <AccordionContent className="px-4 pb-4">
                     <div className="grid gap-3">
                       {areaCompetencies.map((comp) => {
-                        const rating = progress?.ratings[comp.id] || 0;
+                        const confirmedRating = progress?.ratings[comp.id] || 0;
+                        const pendingRating = getPendingRating(comp.id);
+                        const displayRating = confirmedRating; // Only show confirmed ratings
                         const themes = getThemesForCompetency(comp.id);
                         const isSaving = savingId === comp.id;
                         const isTreated = treatedCompetencyIds.has(comp.id);
                         const isHighlighted = highlightCompetencyId === comp.id;
+                        const hasPending = !!pendingRating;
 
                         return (
                           <Card
@@ -521,8 +546,9 @@ function StudentKompetenzenContent() {
                             ref={isHighlighted ? highlightedCompRef : undefined}
                             className={cn(
                               "transition-all",
-                              rating > 0 && "border-green-200 bg-green-50/30",
-                              isTreated && rating === 0 && "border-blue-200 bg-blue-50/30",
+                              confirmedRating > 0 && "border-green-200 bg-green-50/30",
+                              hasPending && confirmedRating === 0 && "border-amber-200 bg-amber-50/30",
+                              isTreated && confirmedRating === 0 && !hasPending && "border-blue-200 bg-blue-50/30",
                               isHighlighted && "ring-2 ring-blue-500 ring-offset-2"
                             )}
                           >
@@ -583,13 +609,31 @@ function StudentKompetenzenContent() {
                                     {isSaving && (
                                       <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                                     )}
-                                    <StarRating
-                                      rating={rating}
-                                      onRatingChange={(r) =>
-                                        handleRatingChange(comp.id, r)
-                                      }
-                                      disabled={isSaving}
-                                    />
+                                    {/* Show pending indicator */}
+                                    {hasPending && (
+                                      <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded">
+                                        <Clock className="h-3 w-3" />
+                                        <span>{"⭐".repeat(pendingRating.studentRating)} wartet</span>
+                                      </div>
+                                    )}
+                                    {/* Show confirmed rating or allow new rating */}
+                                    {confirmedRating > 0 ? (
+                                      <div className="flex items-center gap-1">
+                                        <StarRating
+                                          rating={confirmedRating}
+                                          disabled={true}
+                                        />
+                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                      </div>
+                                    ) : !hasPending ? (
+                                      <StarRating
+                                        rating={0}
+                                        onRatingChange={(r) =>
+                                          handleRatingChange(comp.id, r)
+                                        }
+                                        disabled={isSaving}
+                                      />
+                                    ) : null}
                                   </div>
                                 </div>
                               </div>
@@ -739,19 +783,67 @@ function StudentKompetenzenContent() {
                 {/* Rating */}
                 <div className="pt-4 border-t">
                   <h4 className="text-sm font-medium mb-2">Deine Bewertung</h4>
-                  <div className="flex items-center gap-4">
-                    <StarRating
-                      rating={progress?.ratings[selectedCompetency.id] || 0}
-                      onRatingChange={(r) =>
-                        handleRatingChange(selectedCompetency.id, r)
-                      }
-                      size="lg"
-                      disabled={savingId === selectedCompetency.id}
-                    />
-                    {savingId === selectedCompetency.id && (
-                      <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-                    )}
-                  </div>
+                  {(() => {
+                    const confirmedRating = progress?.ratings[selectedCompetency.id] || 0;
+                    const pendingRating = getPendingRating(selectedCompetency.id);
+                    const hasPending = !!pendingRating;
+                    const isSaving = savingId === selectedCompetency.id;
+
+                    return (
+                      <div className="space-y-3">
+                        {/* Pending indicator */}
+                        {hasPending && (
+                          <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <Clock className="h-5 w-5 text-amber-600" />
+                            <div>
+                              <p className="text-sm font-medium text-amber-800">
+                                Wartet auf Bestätigung
+                              </p>
+                              <p className="text-xs text-amber-600">
+                                Deine Bewertung: {"⭐".repeat(pendingRating.studentRating)}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Confirmed rating */}
+                        {confirmedRating > 0 && (
+                          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            <div>
+                              <p className="text-sm font-medium text-green-800">
+                                Bestätigte Bewertung
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <StarRating
+                                  rating={confirmedRating}
+                                  disabled={true}
+                                  size="lg"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Rating input (only if no pending and no confirmed) */}
+                        {!hasPending && confirmedRating === 0 && (
+                          <div className="flex items-center gap-4">
+                            <StarRating
+                              rating={0}
+                              onRatingChange={(r) =>
+                                handleRatingChange(selectedCompetency.id, r)
+                              }
+                              size="lg"
+                              disabled={isSaving}
+                            />
+                            {isSaving && (
+                              <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </DialogContent>

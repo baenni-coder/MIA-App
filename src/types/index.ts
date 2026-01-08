@@ -261,7 +261,9 @@ export type NotificationType =
   | "school_change_approved"
   | "school_change_rejected"
   | "badge_earned"
-  | "theme_completed";
+  | "theme_completed"
+  | "pending_rating"
+  | "rating_confirmed";
 
 // Notification
 export interface Notification {
@@ -648,9 +650,93 @@ export interface ProgressHistoryEntry {
   competencyName?: string;
   oldRating: number;
   newRating: number;
-  changedBy: "student" | string; // "student" oder odertId
+  changedBy: "student" | string; // "student" oder teacherId
   changedByName?: string;
   timestamp: Date;
+}
+
+// Status einer ausstehenden Bewertung
+export type PendingRatingStatus = "pending" | "confirmed" | "adjusted";
+
+// Ausstehende Bewertung (wartet auf Lehrer-Bestätigung)
+export interface PendingRating {
+  id: string;
+  studentId: string;
+  studentName: string;
+  classId: string;
+  competencyId: string;
+  competencyName: string;
+  studentRating: number; // Vom Schüler vorgeschlagen (1-5)
+  status: PendingRatingStatus;
+  createdAt: Date;
+  // Nach Review:
+  reviewedAt?: Date;
+  reviewedBy?: string; // Lehrer UID
+  reviewedByName?: string;
+  teacherRating?: number; // Falls angepasst (bei status="adjusted")
+}
+
+// ============================================
+// Kompetenz-Indikatoren
+// ============================================
+
+// Indikatoren für eine Kompetenz (kindgerechte Beschreibungen pro Stern)
+export interface CompetencyIndicator {
+  id: string;
+  competencyId: string;
+  competencyName: string;
+  indicators: {
+    star1: string; // z.B. "Ich habe davon gehört"
+    star2: string; // z.B. "Ich kann es mit Hilfe"
+    star3: string; // z.B. "Ich kann es selbständig"
+    star4: string; // z.B. "Ich kann es gut erklären"
+    star5: string; // z.B. "Ich bin Experte darin"
+  };
+  isSystemWide: boolean; // true = für alle Schulen sichtbar
+  schoolId?: string; // Bei schulspezifischen Indikatoren
+  createdBy: string;
+  createdByName: string;
+  approvedBy?: string; // PICTS-Admin der freigeschaltet hat
+  approvedByName?: string;
+  approvedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ============================================
+// Schüler-Artefakte (Belege für Fortschritte)
+// ============================================
+
+// Artefakt-Typ
+export type ArtifactType = "image" | "pdf" | "link";
+
+// Schüler-Artefakt
+export interface StudentArtifact {
+  id: string;
+  studentId: string;
+  studentName: string;
+  classId: string;
+  competencyId: string;
+  competencyName: string;
+  linkedThemeIds?: string[];
+  linkedThemeNames?: string[];
+  type: ArtifactType;
+  title: string;
+  description?: string;
+  // Für Dateien (image, pdf):
+  storagePath?: string;
+  storageUrl?: string;
+  contentType?: string;
+  size?: number; // in Bytes
+  // Für Links:
+  url?: string;
+  // Lehrer-Feedback:
+  teacherComment?: string;
+  teacherCommentBy?: string;
+  teacherCommentByName?: string;
+  teacherCommentAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // ============================================
