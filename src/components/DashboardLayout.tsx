@@ -29,6 +29,7 @@ import {
   Users,
   Award,
   BarChart3,
+  Lightbulb,
 } from "lucide-react";
 import { Kanton } from "@/types";
 
@@ -165,6 +166,11 @@ export default function DashboardLayout({
       label: "Badges",
       icon: <Award className="h-5 w-5" />,
       path: "/dashboard/badges",
+    },
+    {
+      label: "Indikatoren",
+      icon: <Lightbulb className="h-5 w-5" />,
+      path: "/dashboard/indikatoren",
     },
     {
       label: "Statistiken",

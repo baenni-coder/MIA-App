@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { SchoolClass, Student, ClassThemeProgress, Thema, PendingRating } from "@/types";
+import { SchoolClass, Student, ClassThemeProgress, Thema, PendingRating, CompetencyIndicator } from "@/types";
 import {
   ArrowLeft,
   Users,
@@ -47,6 +47,7 @@ import {
   X,
   Clock,
   Star,
+  Lightbulb,
 } from "lucide-react";
 import {
   Tabs,
@@ -124,6 +125,9 @@ export default function ClassDetailPage({
   const [adjustingRating, setAdjustingRating] = useState<PendingRating | null>(null);
   const [adjustedValue, setAdjustedValue] = useState(0);
 
+  // Indicators for pending ratings (competencyId -> indicator)
+  const [indicators, setIndicators] = useState<Record<string, CompetencyIndicator>>({});
+
   const loadClassData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -188,9 +192,24 @@ export default function ClassDetailPage({
         setAvailableThemes(allThemes);
       }
 
+      let loadedPendingRatings: PendingRating[] = [];
       if (pendingResponse.ok) {
         const pendingData = await pendingResponse.json();
-        setPendingRatings(pendingData.pendingRatings || []);
+        loadedPendingRatings = pendingData.pendingRatings || [];
+        setPendingRatings(loadedPendingRatings);
+      }
+
+      // Fetch indicators for pending rating competencies
+      if (loadedPendingRatings.length > 0) {
+        const competencyIds = [...new Set(loadedPendingRatings.map((pr) => pr.competencyId))].join(",");
+        const indicatorsResponse = await fetch(
+          `/api/competency-indicators?competencyIds=${competencyIds}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (indicatorsResponse.ok) {
+          const indicatorsData = await indicatorsResponse.json();
+          setIndicators(indicatorsData.indicators || {});
+        }
       }
     } catch (error) {
       console.error("Error loading class data:", error);
@@ -1122,6 +1141,43 @@ export default function ClassDetailPage({
                     <span className="font-medium">{"⭐".repeat(adjustingRating.studentRating)}</span>
                   </p>
                 </div>
+
+                {/* Show indicator if available */}
+                {indicators[adjustingRating.competencyId] && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <Lightbulb className="h-4 w-4 text-amber-500" />
+                      Stern-Beschreibungen
+                    </h4>
+                    <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                      {[1, 2, 3, 4, 5].map((starLevel) => {
+                        const indicator = indicators[adjustingRating.competencyId];
+                        const indicatorKey = `star${starLevel}` as keyof typeof indicator.indicators;
+                        const description = indicator.indicators[indicatorKey];
+                        return (
+                          <div
+                            key={starLevel}
+                            className={`flex gap-2 items-start p-2 rounded-lg text-xs ${
+                              adjustedValue === starLevel
+                                ? "bg-blue-100 border border-blue-200"
+                                : "bg-muted/50"
+                            }`}
+                          >
+                            <div className="flex gap-0.5 pt-0.5 shrink-0">
+                              {[...Array(starLevel)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400"
+                                />
+                              ))}
+                            </div>
+                            <p className="text-muted-foreground">{description}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label>Deine Bewertung</Label>

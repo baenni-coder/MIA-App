@@ -13,10 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Student, Kompetenz, StudentProgress, ClassThemeProgress, StudentBadge, PendingRating } from "@/types";
+import { Student, Kompetenz, StudentProgress, ClassThemeProgress, StudentBadge, PendingRating, CompetencyIndicator } from "@/types";
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Star, Search, Filter, BookOpen, Sparkles, Loader2, CheckCircle2, Clock } from "lucide-react";
+import { Star, Search, Filter, BookOpen, Sparkles, Loader2, CheckCircle2, Clock, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -158,6 +158,7 @@ function StudentKompetenzenContent() {
   const [progress, setProgress] = useState<StudentProgress | null>(null);
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
   const [completedThemes, setCompletedThemes] = useState<ClassThemeProgress[]>([]);
+  const [indicators, setIndicators] = useState<Record<string, CompetencyIndicator>>({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<StudentBadge[]>([]);
@@ -165,6 +166,11 @@ function StudentKompetenzenContent() {
   // Helper to get pending rating for a competency
   const getPendingRating = (competencyId: string): PendingRating | undefined => {
     return pendingRatings.find((pr) => pr.competencyId === competencyId);
+  };
+
+  // Helper to get indicator for a competency
+  const getIndicator = (competencyId: string): CompetencyIndicator | undefined => {
+    return indicators[competencyId];
   };
 
   // URL params for highlighting
@@ -203,9 +209,12 @@ function StudentKompetenzenContent() {
         fetch(`/api/class-themes?classId=${studentProfile.classId}`, { headers }),
       ]);
 
+      let loadedCompetencies: Kompetenz[] = [];
+
       if (compResponse.ok) {
         const data = await compResponse.json();
-        setCompetencies(data.kompetenzen || []);
+        loadedCompetencies = data.kompetenzen || [];
+        setCompetencies(loadedCompetencies);
       }
 
       if (progressResponse.ok) {
@@ -221,6 +230,19 @@ function StudentKompetenzenContent() {
       if (themesResponse.ok) {
         const data = await themesResponse.json();
         setCompletedThemes(data.themes || []);
+      }
+
+      // Fetch indicators for all competencies
+      if (loadedCompetencies.length > 0) {
+        const competencyIds = loadedCompetencies.map((c) => c.id).join(",");
+        const indicatorsResponse = await fetch(
+          `/api/competency-indicators?competencyIds=${competencyIds}`,
+          { headers }
+        );
+        if (indicatorsResponse.ok) {
+          const data = await indicatorsResponse.json();
+          setIndicators(data.indicators || {});
+        }
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -586,6 +608,15 @@ function StudentKompetenzenContent() {
                                         Behandelt
                                       </Badge>
                                     )}
+                                    {getIndicator(comp.id) && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs border-amber-300 text-amber-600 bg-amber-50"
+                                        title="Klicke für Stern-Erklärungen"
+                                      >
+                                        <Lightbulb className="h-3 w-3" />
+                                      </Badge>
+                                    )}
                                   </div>
                                   <h3 className="font-medium text-sm">
                                     {comp.name}
@@ -779,6 +810,43 @@ function StudentKompetenzenContent() {
                     </div>
                   </div>
                 )}
+
+                {/* Indicators */}
+                {(() => {
+                  const indicator = getIndicator(selectedCompetency.id);
+                  if (!indicator) return null;
+
+                  return (
+                    <div className="pt-4 border-t">
+                      <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-amber-500" />
+                        Was bedeuten die Sterne?
+                      </h4>
+                      <div className="space-y-2">
+                        {[1, 2, 3, 4, 5].map((starLevel) => {
+                          const indicatorKey = `star${starLevel}` as keyof typeof indicator.indicators;
+                          const description = indicator.indicators[indicatorKey];
+                          return (
+                            <div
+                              key={starLevel}
+                              className="flex gap-2 items-start p-2 rounded-lg bg-muted/50"
+                            >
+                              <div className="flex gap-0.5 pt-0.5 shrink-0">
+                                {[...Array(starLevel)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className="h-3 w-3 fill-yellow-400 text-yellow-400"
+                                  />
+                                ))}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{description}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Rating */}
                 <div className="pt-4 border-t">
