@@ -20,6 +20,11 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Schulverwaltung**: Super-Admins können Schulen erstellen und PICTS-Links bearbeiten
 - **Erweitertes Lehrerprofil**: Schule und Kanton im Dashboard bearbeitbar
 - **Favicon**: SVG-Favicon mit Code-Klammern-Design
+- **Kompetenzenpass**: Schüler-Selbstbewertung mit Lehrer-Bestätigung
+- **Kompetenz-Indikatoren**: Verständliche Beschreibungen für Stern-Bewertungen
+- **Schüler-Artefakte**: Belege (Bilder, PDFs, Links) für Kompetenzen hochladen
+- **Gruppierte Menüstruktur**: Übersichtliche Kategorien in der Sidebar
+- **Scrollbare Dialoge**: Dialoge auf kleinen Bildschirmen scrollbar
 
 ## Tech Stack
 
@@ -60,10 +65,14 @@ src/
 │   │   │   ├── [id]/           # Single File (GET, PUT, DELETE)
 │   │   │   ├── metadata/        # Metadata nach Client-Upload
 │   │   │   └── route.ts         # List & Create
-│   │   ├── faq/                 # FAQ-Endpunkte (NEU)
+│   │   ├── faq/                 # FAQ-Endpunkte
 │   │   │   ├── [id]/           # Single FAQ (GET, PUT, DELETE, PATCH)
 │   │   │   └── route.ts         # List, Create, Initialize
-│   │   ├── admin/               # Admin-Endpunkte (NEU)
+│   │   ├── student-artifacts/   # Schüler-Artefakte (NEU)
+│   │   │   ├── [id]/           # Single Artifact (GET, PUT, DELETE)
+│   │   │   │   └── comment/    # Lehrer-Kommentare
+│   │   │   └── route.ts         # List & Create
+│   │   ├── admin/               # Admin-Endpunkte
 │   │   │   ├── schools/         # Schulverwaltung
 │   │   │   │   ├── [id]/       # PUT, DELETE einzelne Schule
 │   │   │   │   └── route.ts     # GET, POST alle Schulen
@@ -111,9 +120,11 @@ src/
 │   ├── NotificationBell.tsx     # Notification Bell mit Badge
 │   ├── ProtectedRoute.tsx       # Auth-Schutz
 │   ├── ThemeStatusBadge.tsx     # Status Badge (draft, pending, approved, rejected)
-│   ├── SchoolFileUpload.tsx     # Datei-Upload mit Themen-Verknüpfung (NEU)
-│   ├── ThemeSelector.tsx        # Themen-Auswahl mit Suche (NEU)
-│   └── LinkedFilesViewer.tsx    # Verknüpfte Dateien im Thema-Dialog (NEU)
+│   ├── SchoolFileUpload.tsx     # Datei-Upload mit Themen-Verknüpfung
+│   ├── ThemeSelector.tsx        # Themen-Auswahl mit Suche
+│   ├── LinkedFilesViewer.tsx    # Verknüpfte Dateien im Thema-Dialog
+│   ├── StudentArtifactUpload.tsx # Artefakt-Upload für Schüler (NEU)
+│   └── TeacherArtifactViewer.tsx # Artefakt-Ansicht für Lehrer (NEU)
 ├── contexts/                     # React Contexts
 │   └── AuthContext.tsx          # Authentication State
 ├── lib/                          # Utility Libraries
@@ -133,7 +144,8 @@ src/
 │   │   ├── custom-lektionen.ts  # Custom Lektionen CRUD
 │   │   ├── notifications.ts     # Notifications CRUD
 │   │   ├── school-files.ts      # School Files CRUD
-│   │   └── faq.ts               # FAQ CRUD (NEU)
+│   │   ├── faq.ts               # FAQ CRUD
+│   │   └── student-artifacts.ts # Schüler-Artefakte CRUD (NEU)
 │   └── storage/                 # Firebase Storage
 │       ├── upload.ts            # Image Upload & Validation
 │       └── school-files.ts      # School Files Storage (NEU)
@@ -298,7 +310,7 @@ ENABLE_FIRESTORE_CACHE=true
 }
 ```
 
-**Collection: `faq_items`** (NEU)
+**Collection: `faq_items`**
 ```typescript
 {
   question: string          // Die Frage
@@ -308,6 +320,33 @@ ENABLE_FIRESTORE_CACHE=true
   isActive: boolean         // Ob der FAQ-Eintrag aktiv/sichtbar ist
   createdBy: string         // User ID des Erstellers
   createdByName: string     // Name des Erstellers
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+**Collection: `student_artifacts`** (NEU - Kompetenzenpass)
+```typescript
+{
+  studentId: string         // Firebase UID des Schülers
+  studentName: string       // Name des Schülers
+  classId: string           // Klassen-ID
+  competencyId: string      // Kompetenz-ID (Airtable)
+  competencyName: string    // Name der Kompetenz
+  type: ArtifactType        // "image" | "pdf" | "link"
+  title: string             // Titel des Artefakts
+  description?: string      // Optionale Beschreibung
+  storagePath?: string      // Pfad in Firebase Storage (für Dateien)
+  storageUrl?: string       // Download-URL (für Dateien)
+  contentType?: string      // MIME-Type (für Dateien)
+  size?: number             // Dateigröße in Bytes
+  url?: string              // URL (für Links)
+  linkedThemeIds?: string[] // Verknüpfte Themen
+  linkedThemeNames?: string[]
+  teacherComment?: string   // Kommentar der Lehrperson
+  teacherCommentBy?: string // User ID der Lehrperson
+  teacherCommentByName?: string
+  teacherCommentAt?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -384,20 +423,15 @@ ENABLE_FIRESTORE_CACHE=true
   - Zustand wird in localStorage gespeichert
   - Zeigt Icons + Labels (erweitert) oder nur Icons (eingeklappt)
 - **Mobile Navigation**: Sheet/Drawer für kleine Bildschirme
-- **Menüpunkte**:
-  - Dashboard (Profil)
-  - Jahresplan
-  - Lehrmittel
-  - Lehrplan
-  - Thema erstellen
-  - Meine Themen
-  - Dateien
-  - FAQ
-  - Admin Dashboard (nur für Admins)
-  - Schulen (nur für Super-Admins) (NEU)
-  - Sync (nur für Admins)
+- **Gruppierte Menüstruktur** (NEU):
+  - **Übersicht**: Dashboard, Jahresplan
+  - **Unterricht**: Lehrmittel, Lehrplan, Regelstandards (nur SO)
+  - **Eigene Inhalte**: Thema erstellen, Meine Themen, Schul-Dateien
+  - **Kompetenzenpass**: Meine Klassen, Indikatoren, Badges, Statistiken
+  - **Hilfe**: FAQ
+  - **Administration** (nur Admins): Themen-Prüfung, Schulen, Schulanfragen, Daten-Sync
 - **Profil-Übersicht**: Anzeige von Name, E-Mail, Schule, Kanton, Stufe
-- **Profil-Bearbeitung** (NEU): Lehrpersonen können bearbeiten:
+- **Profil-Bearbeitung**: Lehrpersonen können bearbeiten:
   - Schule (Dropdown mit allen verfügbaren Schulen)
   - Kanton (Dropdown mit allen Schweizer Kantonen)
   - Stufe (KiGa bis 9. Klasse)
@@ -661,7 +695,7 @@ Super-Admins können Schulen verwalten.
   - Anzahl Lehrpersonen pro Schule
   - Klickbar für Detailansicht
 
-### 19. Favicon (NEU)
+### 19. Favicon
 SVG-basiertes Favicon für die MIA-App.
 
 - **Design**: Code-Klammern `</>` mit farbigen Quadraten
@@ -671,6 +705,51 @@ SVG-basiertes Favicon für die MIA-App.
   - `/public/apple-icon.svg` - Apple Touch Icon
   - `/src/app/icon.svg` - Next.js App Router Icon
 - **Metadata**: In `layout.tsx` konfiguriert
+
+### 20. Kompetenzenpass (NEU)
+Schüler können ihre Kompetenzen selbst bewerten, Lehrpersonen bestätigen diese.
+
+- **Schüler-Selbstbewertung** (`/schueler/kompetenzen`):
+  - Stern-Bewertung (1-3 Sterne) für jede Kompetenz
+  - Bewertung wird als "ausstehend" markiert
+  - Automatischer Zyklus-Filter basierend auf Klassenstufe
+  - Möglichkeit, höhere Bewertungen anzufragen
+- **Lehrer-Bestätigung** (`/dashboard/klassen/[id]`):
+  - Tab "Bestätigungen" zeigt ausstehende Bewertungen
+  - Bestätigen oder Anpassen der Schüler-Bewertung
+  - Alle auf einmal bestätigen möglich
+- **Kompetenz-Indikatoren** (`/dashboard/indikatoren`):
+  - Verständliche Beschreibungen für Stern-Stufen
+  - Admin kann Indikatoren pro Kompetenz erstellen
+  - Schüler sehen Indikatoren bei der Bewertung
+
+### 21. Schüler-Artefakte (NEU)
+Schüler können Belege für ihre Kompetenzen hochladen.
+
+- **Artefakt-Typen**:
+  - **Bilder**: JPG, PNG, etc. (max. 20 MB)
+  - **PDFs**: Dokumente (max. 20 MB)
+  - **Links**: URLs zu externen Ressourcen
+- **Upload** (in `/schueler/kompetenzen`):
+  - Direkt beim Bewerten einer Kompetenz
+  - Drag & Drop oder Datei-Auswahl
+  - Progress-Anzeige während Upload
+  - Titel und optionale Beschreibung
+- **Lehrer-Ansicht**:
+  - Artefakte bei ausstehenden Bestätigungen sichtbar
+  - Kommentare zu Artefakten hinzufügen
+  - Externe Links zum Anzeigen
+- **Firebase Storage**:
+  - Pfad: `student-artifacts/{studentId}/{filename}`
+  - Security Rules: Nur eigene Artefakte hochladen/löschen
+
+### 22. Scrollbare Dialoge (NEU)
+Dialoge sind auf kleinen Bildschirmen scrollbar.
+
+- **Dialog-Container**: `overflow-y-auto` für Scrollbarkeit
+- **DialogContent**: `max-h-[calc(100vh-2rem)]` für Viewport-Begrenzung
+- **Mobile**: `items-start` statt `items-center` für bessere Darstellung
+- **Responsive**: Unterschiedliche max-height für Mobile/Desktop
 
 ## Umgebungsvariablen
 
@@ -1277,6 +1356,72 @@ Aktualisiert eine Schule (nur Super-Admins)
 ### DELETE `/api/admin/schools/[id]`
 Löscht eine Schule (nur Super-Admins, nur wenn keine Benutzer zugewiesen)
 
+### GET `/api/student-artifacts?studentId={id}&competencyId={id}`
+Lädt Artefakte für einen Schüler (optional gefiltert nach Kompetenz)
+
+**Query Parameters:**
+- `studentId` - Schüler-ID (Pflicht für Schüler, optional für Lehrer)
+- `competencyId` - Optional: Nur Artefakte für eine Kompetenz
+- `classId` - Optional: Alle Artefakte einer Klasse (nur Lehrer)
+
+**Response:**
+```json
+{
+  "artifacts": [
+    {
+      "id": "firestore-doc-id",
+      "studentId": "firebase-uid",
+      "studentName": "Max Mustermann",
+      "competencyId": "recXXX",
+      "competencyName": "MI.1.1.a",
+      "type": "image",
+      "title": "Mein Projekt",
+      "storagePath": "student-artifacts/uid/...",
+      "storageUrl": "https://...",
+      "teacherComment": "Gut gemacht!",
+      "createdAt": "2026-01-09T..."
+    }
+  ]
+}
+```
+
+### POST `/api/student-artifacts`
+Erstellt ein neues Artefakt (nur Schüler)
+
+**Request Body:**
+```json
+{
+  "competencyId": "recXXX",
+  "competencyName": "MI.1.1.a",
+  "type": "image",
+  "title": "Mein Projekt",
+  "description": "Optionale Beschreibung",
+  "storagePath": "student-artifacts/uid/...",
+  "storageUrl": "https://...",
+  "contentType": "image/png",
+  "size": 1024000
+}
+```
+
+### PUT `/api/student-artifacts/[id]`
+Aktualisiert ein Artefakt (nur eigene)
+
+### DELETE `/api/student-artifacts/[id]`
+Löscht ein Artefakt (Schüler: eigene, Lehrer: ihrer Klassen)
+
+### PUT `/api/student-artifacts/[id]/comment`
+Fügt Lehrer-Kommentar hinzu (nur Lehrer)
+
+**Request Body:**
+```json
+{
+  "comment": "Gut gemacht!"
+}
+```
+
+### DELETE `/api/student-artifacts/[id]/comment`
+Entfernt Lehrer-Kommentar (nur eigene Kommentare oder Admins)
+
 ## Tipps für weitere Entwicklung
 
 ### Neue Airtable-Tabelle hinzufügen
@@ -1406,6 +1551,25 @@ makeSuperAdmin("deine-email@schule.ch");
   - Code-Klammern Design
   - Passend zum Logo
   - Apple Touch Icon
+- [x] **Kompetenzenpass Phase 1** - Lehrer-Bestätigung für Schülerbewertungen
+  - Schüler bewerten sich selbst (1-3 Sterne)
+  - Lehrer bestätigen oder passen an
+  - Ausstehende Bewertungen in Klassen-Ansicht
+- [x] **Kompetenzenpass Phase 2** - Kompetenz-Indikatoren
+  - Verständliche Beschreibungen für Stern-Stufen
+  - Admin-Interface zum Verwalten
+  - Anzeige bei Schüler-Bewertung
+- [x] **Kompetenzenpass Phase 3** - Schüler-Artefakte
+  - Upload von Bildern, PDFs, Links als Belege
+  - Lehrer können Artefakte kommentieren
+  - Firebase Storage Integration
+- [x] **Gruppierte Menüstruktur** - Übersichtliche Navigation
+  - 6 Kategorien: Übersicht, Unterricht, Eigene Inhalte, Kompetenzenpass, Hilfe, Admin
+  - Kategorie-Überschriften in der Sidebar
+  - Responsive für Mobile und Desktop
+- [x] **Scrollbare Dialoge** - Bessere UX auf kleinen Bildschirmen
+  - max-height mit viewport-basierter Berechnung
+  - overflow-y-auto für lange Inhalte
 
 ### 🚧 In Arbeit / Geplant
 
