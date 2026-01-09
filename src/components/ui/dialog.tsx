@@ -13,7 +13,7 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto"
       onClick={() => onOpenChange?.(false)}
     >
       {/* Backdrop */}
@@ -21,7 +21,7 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
 
       {/* Dialog */}
       <div
-        className="relative z-50"
+        className="relative z-50 my-4 sm:my-8"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -37,7 +37,7 @@ const DialogContent = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "bg-background p-6 rounded-lg shadow-lg border max-w-lg w-full mx-4",
+      "bg-background p-6 rounded-lg shadow-lg border max-w-lg w-full mx-4 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto",
       className
     )}
     {...props}
