@@ -13,10 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Student, Kompetenz, StudentProgress, ClassThemeProgress, StudentBadge, PendingRating, CompetencyIndicator } from "@/types";
+import { Student, Kompetenz, StudentProgress, ClassThemeProgress, StudentBadge, PendingRating, CompetencyIndicator, StudentArtifact } from "@/types";
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Star, Search, Filter, BookOpen, Sparkles, Loader2, CheckCircle2, Clock, Lightbulb } from "lucide-react";
+import { Star, Search, Filter, BookOpen, Sparkles, Loader2, CheckCircle2, Clock, Lightbulb, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import StudentArtifactUpload from "@/components/StudentArtifactUpload";
 
 // Kompetenzbereich-Farben
 const AREA_COLORS: Record<string, string> = {
@@ -179,6 +180,9 @@ function StudentKompetenzenContent() {
   const [newBadges, setNewBadges] = useState<StudentBadge[]>([]);
   const zyklusInitializedRef = useRef(false);
 
+  // Artifacts state (mapped by competencyId)
+  const [artifacts, setArtifacts] = useState<Record<string, StudentArtifact[]>>({});
+
   // Helper to get pending rating for a competency
   const getPendingRating = (competencyId: string): PendingRating | undefined => {
     return pendingRatings.find((pr) => pr.competencyId === competencyId);
@@ -187,6 +191,63 @@ function StudentKompetenzenContent() {
   // Helper to get indicator for a competency
   const getIndicator = (competencyId: string): CompetencyIndicator | undefined => {
     return indicators[competencyId];
+  };
+
+  // Helper to get artifacts for a competency
+  const getArtifacts = (competencyId: string): StudentArtifact[] => {
+    return artifacts[competencyId] || [];
+  };
+
+  // Fetch artifacts for a specific competency
+  const fetchArtifactsForCompetency = async (competencyId: string) => {
+    if (!user || !studentProfile) return;
+    if (artifacts[competencyId]) return; // Already loaded
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(
+        `/api/student-artifacts?studentId=${studentProfile.id}&competencyId=${competencyId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setArtifacts((prev) => ({
+          ...prev,
+          [competencyId]: data.artifacts || [],
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching artifacts:", error);
+    }
+  };
+
+  // Handler for artifact creation
+  const handleArtifactCreated = (competencyId: string, artifact: StudentArtifact) => {
+    setArtifacts((prev) => ({
+      ...prev,
+      [competencyId]: [artifact, ...(prev[competencyId] || [])],
+    }));
+  };
+
+  // Handler for artifact deletion
+  const handleArtifactDeleted = (competencyId: string, artifactId: string) => {
+    setArtifacts((prev) => ({
+      ...prev,
+      [competencyId]: (prev[competencyId] || []).filter((a) => a.id !== artifactId),
+    }));
+  };
+
+  // Get auth token helper
+  const getAuthToken = async (): Promise<string> => {
+    if (!user) throw new Error("Not authenticated");
+    return user.getIdToken();
+  };
+
+  // Open competency detail and load artifacts
+  const openCompetencyDetail = (comp: Kompetenz) => {
+    setSelectedCompetency(comp);
+    fetchArtifactsForCompetency(comp.id);
   };
 
   // URL params for highlighting
@@ -292,7 +353,7 @@ function StudentKompetenzenContent() {
     if (highlightCompetencyId && competencies.length > 0 && !loading) {
       const comp = competencies.find((c) => c.id === highlightCompetencyId);
       if (comp) {
-        setSelectedCompetency(comp);
+        openCompetencyDetail(comp);
         // Scroll to the highlighted competency card after a short delay
         setTimeout(() => {
           highlightedCompRef.current?.scrollIntoView({
@@ -611,7 +672,7 @@ function StudentKompetenzenContent() {
                                 {/* Competency Info */}
                                 <div
                                   className="flex-1 cursor-pointer hover:opacity-80"
-                                  onClick={() => setSelectedCompetency(comp)}
+                                  onClick={() => openCompetencyDetail(comp)}
                                 >
                                   <div className="flex items-center gap-2 mb-1">
                                     {comp.lpCode && (
@@ -850,6 +911,28 @@ function StudentKompetenzenContent() {
                     </div>
                   </div>
                 )}
+
+                {/* Artifacts */}
+                <div className="pt-4 border-t">
+                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <Paperclip className="h-4 w-4 text-blue-500" />
+                    Meine Belege
+                    {getArtifacts(selectedCompetency.id).length > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {getArtifacts(selectedCompetency.id).length}
+                      </Badge>
+                    )}
+                  </h4>
+                  <StudentArtifactUpload
+                    competencyId={selectedCompetency.id}
+                    competencyName={selectedCompetency.lpCode || selectedCompetency.name || selectedCompetency.id}
+                    artifacts={getArtifacts(selectedCompetency.id)}
+                    onArtifactCreated={(artifact) => handleArtifactCreated(selectedCompetency.id, artifact)}
+                    onArtifactDeleted={(artifactId) => handleArtifactDeleted(selectedCompetency.id, artifactId)}
+                    getAuthToken={getAuthToken}
+                    studentId={studentProfile?.id || ""}
+                  />
+                </div>
 
                 {/* Indicators */}
                 {(() => {
