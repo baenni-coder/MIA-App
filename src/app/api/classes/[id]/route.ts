@@ -16,6 +16,7 @@ interface RouteContext {
 /**
  * GET /api/classes/[id]
  * Lädt eine einzelne Klasse mit optionalen Schülern
+ * Erlaubt Zugriff für: Lehrer (mit Klassenzugang), Admins, Schüler (nur eigene Klasse)
  */
 export async function GET(request: Request, context: RouteContext) {
   try {
@@ -41,25 +42,41 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     const userId = decodedToken.uid;
-
-    // Lehrer-Profil laden
     const adminDb = getAdminDb();
+
+    // Prüfen ob es ein Lehrer ist
     const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
 
-    if (!teacherDoc.exists) {
-      return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
-    }
+    if (teacherDoc.exists) {
+      // Lehrer-Logik
+      const teacherData = teacherDoc.data()!;
+      const userRole = teacherData.role;
 
-    const teacherData = teacherDoc.data()!;
-    const userRole = teacherData.role;
+      // Zugriffsprüfung für Lehrer
+      const hasAccess = await teacherHasAccessToClass(userId, id);
+      if (!hasAccess && userRole !== "picts_admin" && userRole !== "super_admin") {
+        return NextResponse.json(
+          { error: "Forbidden - No access to this class" },
+          { status: 403 }
+        );
+      }
+    } else {
+      // Prüfen ob es ein Schüler ist
+      const studentDoc = await adminDb.collection("students").doc(userId).get();
 
-    // Zugriffsprüfung
-    const hasAccess = await teacherHasAccessToClass(userId, id);
-    if (!hasAccess && userRole !== "picts_admin" && userRole !== "super_admin") {
-      return NextResponse.json(
-        { error: "Forbidden - No access to this class" },
-        { status: 403 }
-      );
+      if (!studentDoc.exists) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+
+      const studentData = studentDoc.data()!;
+
+      // Schüler dürfen nur ihre eigene Klasse abrufen
+      if (studentData.classId !== id) {
+        return NextResponse.json(
+          { error: "Forbidden - Students can only access their own class" },
+          { status: 403 }
+        );
+      }
     }
 
     // Klasse laden
@@ -68,11 +85,11 @@ export async function GET(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Class not found" }, { status: 404 });
     }
 
-    // Optional: Schüler laden
+    // Optional: Schüler laden (nur für Lehrer)
     const { searchParams } = new URL(request.url);
     const includeStudents = searchParams.get("includeStudents") === "true";
 
-    if (includeStudents) {
+    if (includeStudents && teacherDoc.exists) {
       const students = await getStudentsByClass(id);
       return NextResponse.json({ class: schoolClass, students });
     }
