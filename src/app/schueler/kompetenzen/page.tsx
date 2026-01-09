@@ -53,6 +53,20 @@ const ZYKLUS_COLORS: Record<string, string> = {
   "Zyklus 3": "bg-red-100 text-red-800",
 };
 
+// Helper to determine Zyklus from grade
+function getZyklusFromGrade(grade: string): string {
+  if (["KiGa", "1. Klasse", "2. Klasse"].includes(grade)) {
+    return "Zyklus 1";
+  }
+  if (["3. Klasse", "4. Klasse", "5. Klasse", "6. Klasse"].includes(grade)) {
+    return "Zyklus 2";
+  }
+  if (["7. Klasse", "8. Klasse", "9. Klasse"].includes(grade)) {
+    return "Zyklus 3";
+  }
+  return "all"; // Default fallback
+}
+
 // Star Rating Komponente
 function StarRating({
   rating,
@@ -159,9 +173,11 @@ function StudentKompetenzenContent() {
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
   const [completedThemes, setCompletedThemes] = useState<ClassThemeProgress[]>([]);
   const [indicators, setIndicators] = useState<Record<string, CompetencyIndicator>>({});
+  const [studentGrade, setStudentGrade] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<StudentBadge[]>([]);
+  const zyklusInitializedRef = useRef(false);
 
   // Helper to get pending rating for a competency
   const getPendingRating = (competencyId: string): PendingRating | undefined => {
@@ -201,12 +217,13 @@ function StudentKompetenzenContent() {
       const token = await user.getIdToken();
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Fetch competencies, progress, pending ratings, and completed themes in parallel
-      const [compResponse, progressResponse, pendingResponse, themesResponse] = await Promise.all([
+      // Fetch competencies, progress, pending ratings, completed themes, and class data in parallel
+      const [compResponse, progressResponse, pendingResponse, themesResponse, classResponse] = await Promise.all([
         fetch("/api/kompetenzen", { headers }),
         fetch(`/api/student-progress?studentId=${studentProfile.id}`, { headers }),
         fetch(`/api/pending-ratings?studentId=${studentProfile.id}`, { headers }),
         fetch(`/api/class-themes?classId=${studentProfile.classId}`, { headers }),
+        fetch(`/api/classes/${studentProfile.classId}`, { headers }),
       ]);
 
       let loadedCompetencies: Kompetenz[] = [];
@@ -230,6 +247,21 @@ function StudentKompetenzenContent() {
       if (themesResponse.ok) {
         const data = await themesResponse.json();
         setCompletedThemes(data.themes || []);
+      }
+
+      // Get student's grade from class data and set default Zyklus filter
+      if (classResponse.ok) {
+        const classData = await classResponse.json();
+        const grade = classData.class?.grade;
+        if (grade) {
+          setStudentGrade(grade);
+          // Set default Zyklus filter only on first load
+          if (!zyklusInitializedRef.current) {
+            const zyklus = getZyklusFromGrade(grade);
+            setFilterZyklus(zyklus);
+            zyklusInitializedRef.current = true;
+          }
+        }
       }
 
       // Fetch indicators for all competencies
@@ -647,16 +679,24 @@ function StudentKompetenzenContent() {
                                         <span>{"⭐".repeat(pendingRating.studentRating)} wartet</span>
                                       </div>
                                     )}
-                                    {/* Show confirmed rating or allow new rating */}
-                                    {confirmedRating > 0 ? (
+                                    {/* Show confirmed rating and allow higher rating request */}
+                                    {confirmedRating > 0 && !hasPending && (
                                       <div className="flex items-center gap-1">
                                         <StarRating
                                           rating={confirmedRating}
-                                          disabled={true}
+                                          onRatingChange={(r) => {
+                                            // Only allow requesting higher ratings
+                                            if (r > confirmedRating) {
+                                              handleRatingChange(comp.id, r);
+                                            }
+                                          }}
+                                          disabled={isSaving}
                                         />
                                         <CheckCircle2 className="h-4 w-4 text-green-500" />
                                       </div>
-                                    ) : !hasPending ? (
+                                    )}
+                                    {/* Show rating input if no confirmed rating and no pending */}
+                                    {confirmedRating === 0 && !hasPending && (
                                       <StarRating
                                         rating={0}
                                         onRatingChange={(r) =>
@@ -664,7 +704,7 @@ function StudentKompetenzenContent() {
                                         }
                                         disabled={isSaving}
                                       />
-                                    ) : null}
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -874,22 +914,49 @@ function StudentKompetenzenContent() {
                           </div>
                         )}
 
-                        {/* Confirmed rating */}
-                        {confirmedRating > 0 && (
-                          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <CheckCircle2 className="h-5 w-5 text-green-600" />
-                            <div>
-                              <p className="text-sm font-medium text-green-800">
-                                Bestätigte Bewertung
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <StarRating
-                                  rating={confirmedRating}
-                                  disabled={true}
-                                  size="lg"
-                                />
+                        {/* Confirmed rating with option to request higher */}
+                        {confirmedRating > 0 && !hasPending && (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                              <div>
+                                <p className="text-sm font-medium text-green-800">
+                                  Bestätigte Bewertung
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <StarRating
+                                    rating={confirmedRating}
+                                    disabled={true}
+                                    size="lg"
+                                  />
+                                </div>
                               </div>
                             </div>
+                            {confirmedRating < 5 && (
+                              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-sm text-blue-800 mb-2">
+                                  Möchtest du eine höhere Bewertung anfragen?
+                                </p>
+                                <div className="flex items-center gap-4">
+                                  <StarRating
+                                    rating={confirmedRating}
+                                    onRatingChange={(r) => {
+                                      if (r > confirmedRating) {
+                                        handleRatingChange(selectedCompetency.id, r);
+                                      }
+                                    }}
+                                    size="lg"
+                                    disabled={isSaving}
+                                  />
+                                  {isSaving && (
+                                    <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                                  )}
+                                </div>
+                                <p className="text-xs text-blue-600 mt-1">
+                                  Klicke auf einen höheren Stern
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
 

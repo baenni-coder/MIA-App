@@ -471,8 +471,14 @@ export default function IndikatorenPage() {
                   <SelectContent>
                     {availableCompetencies.map((comp) => (
                       <SelectItem key={comp.id} value={comp.id}>
-                        {comp.lpCode ? `${comp.lpCode} - ` : ""}
-                        {comp.name}
+                        <span className="font-medium">{comp.lpCode || comp.name}</span>
+                        {comp.kompetenzstufe && (
+                          <span className="text-muted-foreground ml-2 text-sm">
+                            - {comp.kompetenzstufe.length > 60
+                                ? comp.kompetenzstufe.substring(0, 60) + "..."
+                                : comp.kompetenzstufe}
+                          </span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
