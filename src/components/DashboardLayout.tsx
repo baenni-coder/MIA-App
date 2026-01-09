@@ -42,6 +42,14 @@ interface NavItem {
   kantonOnly?: Kanton; // Nur für bestimmte Kantone anzeigen
 }
 
+interface NavGroup {
+  label: string;
+  icon: React.ReactNode;
+  items: NavItem[];
+  adminOnly?: boolean;
+  superAdminOnly?: boolean;
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -110,108 +118,153 @@ export default function DashboardLayout({
     router.push("/");
   };
 
-  const navItems: NavItem[] = [
+  const navGroups: NavGroup[] = [
     {
-      label: "Dashboard",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-      path: "/dashboard",
+      label: "Übersicht",
+      icon: <LayoutDashboard className="h-4 w-4" />,
+      items: [
+        {
+          label: "Dashboard",
+          icon: <LayoutDashboard className="h-5 w-5" />,
+          path: "/dashboard",
+        },
+        {
+          label: "Jahresplan",
+          icon: <CalendarRange className="h-5 w-5" />,
+          path: "/dashboard/jahresplan",
+        },
+      ],
     },
     {
-      label: "Jahresplan",
-      icon: <CalendarRange className="h-5 w-5" />,
-      path: "/dashboard/jahresplan",
+      label: "Unterricht",
+      icon: <BookOpen className="h-4 w-4" />,
+      items: [
+        {
+          label: "Lehrmittel",
+          icon: <BookOpen className="h-5 w-5" />,
+          path: "/dashboard/lehrmittel",
+        },
+        {
+          label: "Lehrplan",
+          icon: <GraduationCap className="h-5 w-5" />,
+          path: "/dashboard/lehrplan",
+        },
+        {
+          label: "Regelstandards",
+          icon: <Scale className="h-5 w-5" />,
+          path: "/dashboard/regelstandards",
+          kantonOnly: "SO",
+        },
+      ],
     },
     {
-      label: "Lehrmittel",
-      icon: <BookOpen className="h-5 w-5" />,
-      path: "/dashboard/lehrmittel",
+      label: "Eigene Inhalte",
+      icon: <PlusCircle className="h-4 w-4" />,
+      items: [
+        {
+          label: "Thema erstellen",
+          icon: <PlusCircle className="h-5 w-5" />,
+          path: "/dashboard/thema-erstellen",
+        },
+        {
+          label: "Meine Themen",
+          icon: <FolderOpen className="h-5 w-5" />,
+          path: "/dashboard/meine-themen",
+        },
+        {
+          label: "Schul-Dateien",
+          icon: <FileArchive className="h-5 w-5" />,
+          path: "/dashboard/dateien",
+        },
+      ],
     },
     {
-      label: "Lehrplan",
-      icon: <GraduationCap className="h-5 w-5" />,
-      path: "/dashboard/lehrplan",
+      label: "Kompetenzenpass",
+      icon: <Award className="h-4 w-4" />,
+      items: [
+        {
+          label: "Meine Klassen",
+          icon: <Users className="h-5 w-5" />,
+          path: "/dashboard/klassen",
+        },
+        {
+          label: "Indikatoren",
+          icon: <Lightbulb className="h-5 w-5" />,
+          path: "/dashboard/indikatoren",
+        },
+        {
+          label: "Badges",
+          icon: <Award className="h-5 w-5" />,
+          path: "/dashboard/badges",
+        },
+        {
+          label: "Statistiken",
+          icon: <BarChart3 className="h-5 w-5" />,
+          path: "/dashboard/statistiken",
+        },
+      ],
     },
     {
-      label: "Regelstandards",
-      icon: <Scale className="h-5 w-5" />,
-      path: "/dashboard/regelstandards",
-      kantonOnly: "SO", // Nur für Kanton Solothurn
+      label: "Hilfe",
+      icon: <HelpCircle className="h-4 w-4" />,
+      items: [
+        {
+          label: "FAQ",
+          icon: <HelpCircle className="h-5 w-5" />,
+          path: "/dashboard/faq",
+        },
+      ],
     },
     {
-      label: "Thema erstellen",
-      icon: <PlusCircle className="h-5 w-5" />,
-      path: "/dashboard/thema-erstellen",
-    },
-    {
-      label: "Meine Themen",
-      icon: <FolderOpen className="h-5 w-5" />,
-      path: "/dashboard/meine-themen",
-    },
-    {
-      label: "Schul-Dateien",
-      icon: <FileArchive className="h-5 w-5" />,
-      path: "/dashboard/dateien",
-    },
-    {
-      label: "FAQ",
-      icon: <HelpCircle className="h-5 w-5" />,
-      path: "/dashboard/faq",
-    },
-    {
-      label: "Meine Klassen",
-      icon: <Users className="h-5 w-5" />,
-      path: "/dashboard/klassen",
-    },
-    {
-      label: "Badges",
-      icon: <Award className="h-5 w-5" />,
-      path: "/dashboard/badges",
-    },
-    {
-      label: "Indikatoren",
-      icon: <Lightbulb className="h-5 w-5" />,
-      path: "/dashboard/indikatoren",
-    },
-    {
-      label: "Statistiken",
-      icon: <BarChart3 className="h-5 w-5" />,
-      path: "/dashboard/statistiken",
-    },
-    {
-      label: "Admin",
-      icon: <Shield className="h-5 w-5" />,
-      path: "/dashboard/admin",
+      label: "Administration",
+      icon: <Shield className="h-4 w-4" />,
       adminOnly: true,
-    },
-    {
-      label: "Sync",
-      icon: <RefreshCw className="h-5 w-5" />,
-      path: "/dashboard/admin/sync",
-      adminOnly: true,
-    },
-    {
-      label: "Schulen",
-      icon: <Building2 className="h-5 w-5" />,
-      path: "/dashboard/admin/schools",
-      superAdminOnly: true,
-    },
-    {
-      label: "Schulanfragen",
-      icon: <ArrowRightLeft className="h-5 w-5" />,
-      path: "/dashboard/admin/school-requests",
-      superAdminOnly: true,
+      items: [
+        {
+          label: "Themen-Prüfung",
+          icon: <Shield className="h-5 w-5" />,
+          path: "/dashboard/admin",
+          adminOnly: true,
+        },
+        {
+          label: "Schulen",
+          icon: <Building2 className="h-5 w-5" />,
+          path: "/dashboard/admin/schools",
+          superAdminOnly: true,
+        },
+        {
+          label: "Schulanfragen",
+          icon: <ArrowRightLeft className="h-5 w-5" />,
+          path: "/dashboard/admin/school-requests",
+          superAdminOnly: true,
+        },
+        {
+          label: "Daten-Sync",
+          icon: <RefreshCw className="h-5 w-5" />,
+          path: "/dashboard/admin/sync",
+          adminOnly: true,
+        },
+      ],
     },
   ];
 
-  const visibleNavItems = navItems.filter((item) => {
-    // Super-Admin-Only Filter
-    if (item.superAdminOnly && !isSuperAdmin) return false;
-    // Admin-Only Filter
-    if (item.adminOnly && !isAdmin) return false;
-    // Kanton-Only Filter
-    if (item.kantonOnly && item.kantonOnly !== userKanton) return false;
-    return true;
-  });
+  // Filter groups and items based on permissions
+  const visibleNavGroups = navGroups
+    .filter((group) => {
+      if (group.superAdminOnly && !isSuperAdmin) return false;
+      if (group.adminOnly && !isAdmin) return false;
+      return true;
+    })
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (item.superAdminOnly && !isSuperAdmin) return false;
+        if (item.adminOnly && !isAdmin) return false;
+        if (item.kantonOnly && item.kantonOnly !== userKanton) return false;
+        return true;
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -251,25 +304,42 @@ export default function DashboardLayout({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {visibleNavItems.map((item) => {
-            const isActive = pathname === item.path;
-            return (
-              <Button
-                key={item.path}
-                variant={isActive ? "secondary" : "ghost"}
-                onClick={() => router.push(item.path)}
-                className={cn(
-                  "w-full justify-start",
-                  sidebarCollapsed ? "px-0 justify-center" : "gap-3"
-                )}
-                title={sidebarCollapsed ? item.label : undefined}
-              >
-                {item.icon}
-                {!sidebarCollapsed && <span>{item.label}</span>}
-              </Button>
-            );
-          })}
+        <nav className="flex-1 p-2 overflow-y-auto">
+          {visibleNavGroups.map((group, groupIndex) => (
+            <div key={group.label} className={cn(groupIndex > 0 && "mt-4")}>
+              {/* Group Header */}
+              {!sidebarCollapsed && (
+                <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {group.icon}
+                  <span>{group.label}</span>
+                </div>
+              )}
+              {sidebarCollapsed && groupIndex > 0 && (
+                <div className="border-t my-2 mx-2" />
+              )}
+              {/* Group Items */}
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = pathname === item.path;
+                  return (
+                    <Button
+                      key={item.path}
+                      variant={isActive ? "secondary" : "ghost"}
+                      onClick={() => router.push(item.path)}
+                      className={cn(
+                        "w-full justify-start",
+                        sidebarCollapsed ? "px-0 justify-center" : "gap-3"
+                      )}
+                      title={sidebarCollapsed ? item.label : undefined}
+                    >
+                      {item.icon}
+                      {!sidebarCollapsed && <span>{item.label}</span>}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* User Info & Logout */}
@@ -325,24 +395,37 @@ export default function DashboardLayout({
                       {user?.email}
                     </div>
 
-                    <nav className="flex flex-col gap-1">
-                      {visibleNavItems.map((item) => {
-                        const isActive = pathname === item.path;
-                        return (
-                          <Button
-                            key={item.path}
-                            variant={isActive ? "secondary" : "ghost"}
-                            onClick={() => {
-                              router.push(item.path);
-                              setMobileMenuOpen(false);
-                            }}
-                            className="flex items-center gap-3 justify-start"
-                          >
-                            {item.icon}
-                            {item.label}
-                          </Button>
-                        );
-                      })}
+                    <nav className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto">
+                      {visibleNavGroups.map((group, groupIndex) => (
+                        <div key={group.label}>
+                          {/* Group Header */}
+                          <div className={cn(
+                            "flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider",
+                            groupIndex > 0 && "mt-3 pt-3 border-t"
+                          )}>
+                            {group.icon}
+                            <span>{group.label}</span>
+                          </div>
+                          {/* Group Items */}
+                          {group.items.map((item) => {
+                            const isActive = pathname === item.path;
+                            return (
+                              <Button
+                                key={item.path}
+                                variant={isActive ? "secondary" : "ghost"}
+                                onClick={() => {
+                                  router.push(item.path);
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="flex items-center gap-3 justify-start w-full"
+                              >
+                                {item.icon}
+                                {item.label}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      ))}
                     </nav>
 
                     <div className="mt-4 pt-4 border-t">
