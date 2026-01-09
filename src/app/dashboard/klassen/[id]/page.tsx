@@ -25,7 +25,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { SchoolClass, Student, ClassThemeProgress, Thema, PendingRating, CompetencyIndicator } from "@/types";
+import { SchoolClass, Student, ClassThemeProgress, Thema, PendingRating, CompetencyIndicator, StudentArtifact } from "@/types";
+import TeacherArtifactViewer from "@/components/TeacherArtifactViewer";
 import {
   ArrowLeft,
   Users,
@@ -70,7 +71,7 @@ export default function ClassDetailPage({
 }) {
   const { id: classId } = use(params);
   const router = useRouter();
-  const { user, getAuthToken } = useAuth();
+  const { user, userProfile, getAuthToken } = useAuth();
 
   // Class data
   const [schoolClass, setSchoolClass] = useState<SchoolClass | null>(null);
@@ -127,6 +128,10 @@ export default function ClassDetailPage({
 
   // Indicators for pending ratings (competencyId -> indicator)
   const [indicators, setIndicators] = useState<Record<string, CompetencyIndicator>>({});
+
+  // Artifacts for pending ratings (studentId_competencyId -> artifacts)
+  const [pendingArtifacts, setPendingArtifacts] = useState<Record<string, StudentArtifact[]>>({});
+  const [loadingArtifacts, setLoadingArtifacts] = useState(false);
 
   const loadClassData = useCallback(async () => {
     if (!user) return;
@@ -210,6 +215,25 @@ export default function ClassDetailPage({
           const indicatorsData = await indicatorsResponse.json();
           setIndicators(indicatorsData.indicators || {});
         }
+
+        // Fetch artifacts for each pending rating (student + competency combination)
+        setLoadingArtifacts(true);
+        const artifactsMap: Record<string, StudentArtifact[]> = {};
+        await Promise.all(
+          loadedPendingRatings.map(async (pr) => {
+            const key = `${pr.studentId}_${pr.competencyId}`;
+            const artifactsResponse = await fetch(
+              `/api/student-artifacts?studentId=${pr.studentId}&competencyId=${pr.competencyId}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (artifactsResponse.ok) {
+              const artifactsData = await artifactsResponse.json();
+              artifactsMap[key] = artifactsData.artifacts || [];
+            }
+          })
+        );
+        setPendingArtifacts(artifactsMap);
+        setLoadingArtifacts(false);
       }
     } catch (error) {
       console.error("Error loading class data:", error);
@@ -614,6 +638,32 @@ export default function ClassDetailPage({
     }
   };
 
+  // Handle artifact comment added
+  const handleArtifactCommentAdded = (studentId: string, competencyId: string, artifactId: string, comment: string) => {
+    const key = `${studentId}_${competencyId}`;
+    setPendingArtifacts((prev) => ({
+      ...prev,
+      [key]: (prev[key] || []).map((a) =>
+        a.id === artifactId
+          ? { ...a, teacherComment: comment, teacherCommentByName: userProfile?.name || "Lehrperson" }
+          : a
+      ),
+    }));
+  };
+
+  // Handle artifact comment removed
+  const handleArtifactCommentRemoved = (studentId: string, competencyId: string, artifactId: string) => {
+    const key = `${studentId}_${competencyId}`;
+    setPendingArtifacts((prev) => ({
+      ...prev,
+      [key]: (prev[key] || []).map((a) =>
+        a.id === artifactId
+          ? { ...a, teacherComment: undefined, teacherCommentBy: undefined, teacherCommentByName: undefined }
+          : a
+      ),
+    }));
+  };
+
   // Filter themes for marking
   const completedThemeIds = new Set(completedThemes.map((t) => t.themeId));
   const filteredThemesForMarking = availableThemes.filter((theme) => {
@@ -752,48 +802,76 @@ export default function ClassDetailPage({
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {pendingRatings.map((pr) => (
-                        <div
-                          key={pr.id}
-                          className="flex items-center justify-between p-4 border rounded-lg bg-amber-50 border-amber-200"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium">{pr.studentName}</span>
-                              <Badge variant="outline">{pr.competencyName}</Badge>
+                      {pendingRatings.map((pr) => {
+                        const artifactKey = `${pr.studentId}_${pr.competencyId}`;
+                        const artifacts = pendingArtifacts[artifactKey] || [];
+                        return (
+                          <div
+                            key={pr.id}
+                            className="p-4 border rounded-lg bg-amber-50 border-amber-200 space-y-3"
+                          >
+                            {/* Header with student info and buttons */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-medium">{pr.studentName}</span>
+                                  <Badge variant="outline">{pr.competencyName}</Badge>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <span>Selbstbewertung:</span>
+                                  <span className="text-amber-600 font-medium">
+                                    {"⭐".repeat(pr.studentRating)}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenAdjustDialog(pr)}
+                                  disabled={confirmingId === pr.id}
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Anpassen
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleConfirmRating(pr)}
+                                  disabled={confirmingId === pr.id}
+                                >
+                                  {confirmingId === pr.id ? (
+                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                  ) : (
+                                    <Check className="h-4 w-4 mr-1" />
+                                  )}
+                                  Bestätigen
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span>Selbstbewertung:</span>
-                              <span className="text-amber-600 font-medium">
-                                {"⭐".repeat(pr.studentRating)}
-                              </span>
-                            </div>
+
+                            {/* Artifacts section */}
+                            {artifacts.length > 0 && (
+                              <div className="pt-3 border-t border-amber-200">
+                                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                                  <Upload className="h-4 w-4" />
+                                  Belege ({artifacts.length})
+                                </h4>
+                                <TeacherArtifactViewer
+                                  artifacts={artifacts}
+                                  onCommentAdded={(artifactId, comment) =>
+                                    handleArtifactCommentAdded(pr.studentId, pr.competencyId, artifactId, comment)
+                                  }
+                                  onCommentRemoved={(artifactId) =>
+                                    handleArtifactCommentRemoved(pr.studentId, pr.competencyId, artifactId)
+                                  }
+                                  getAuthToken={getAuthToken}
+                                  teacherName={userProfile?.name || "Lehrperson"}
+                                />
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenAdjustDialog(pr)}
-                              disabled={confirmingId === pr.id}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Anpassen
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleConfirmRating(pr)}
-                              disabled={confirmingId === pr.id}
-                            >
-                              {confirmingId === pr.id ? (
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              ) : (
-                                <Check className="h-4 w-4 mr-1" />
-                              )}
-                              Bestätigen
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
