@@ -40,6 +40,25 @@ service firebase.storage {
     }
 
     // ============================================
+    // Student Artifacts (Schüler-Belege für Kompetenzen)
+    // ============================================
+
+    // Pfad: student-artifacts/{studentId}/{filename}
+    match /student-artifacts/{studentId}/{filename} {
+      // Lesen: Nur eigener Schüler oder authentifizierte Lehrer
+      // (Lehrer-Zugriff wird serverseitig geprüft)
+      allow read: if isAuthenticated();
+
+      // Schreiben: Nur der eigene Schüler, max 20MB
+      allow write: if isAuthenticated()
+                   && isOwner(studentId)
+                   && isSizeValid(20);
+
+      // Löschen: Nur der eigene Schüler
+      allow delete: if isAuthenticated() && isOwner(studentId);
+    }
+
+    // ============================================
     // School Files (schulspezifische Unterlagen)
     // ============================================
 
