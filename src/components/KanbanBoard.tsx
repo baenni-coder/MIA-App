@@ -43,6 +43,7 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
   const [lektionsplanungThema, setLektionsplanungThema] = useState<string>("");
   const [lektionsplanungThemaId, setLektionsplanungThemaId] = useState<string | undefined>(undefined);
   const [searchHandled, setSearchHandled] = useState(false);
+  const [searchResult, setSearchResult] = useState<{ found: boolean; themeName?: string } | null>(null);
 
   const zeitraumOrder: Zeitraum[] = [
     "Sommerferien-Herbstferien",
@@ -58,18 +59,42 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
     return Object.values(themenGrouped).flat();
   }, [themenGrouped]);
 
+  // Reset searchHandled when searchQuery changes
+  useEffect(() => {
+    if (searchQuery) {
+      setSearchHandled(false);
+      setSearchResult(null);
+    } else {
+      setSearchResult(null);
+    }
+  }, [searchQuery]);
+
   // Auto-open theme when searchQuery is provided
   useEffect(() => {
     if (searchQuery && !searchHandled && allThemen.length > 0) {
-      const normalizedQuery = searchQuery.toLowerCase();
-      const matchingThema = allThemen.find(
-        (thema) =>
-          thema.thema.toLowerCase().includes(normalizedQuery) ||
-          normalizedQuery.includes(thema.thema.toLowerCase())
-      );
+      const normalizedQuery = searchQuery.toLowerCase().trim();
+
+      // Suche nach exaktem Match oder Teilübereinstimmung
+      const matchingThema = allThemen.find((thema) => {
+        const themaName = thema.thema.toLowerCase();
+        // Exakter Match
+        if (themaName === normalizedQuery) return true;
+        // Thema enthält Query
+        if (themaName.includes(normalizedQuery)) return true;
+        // Query enthält Thema
+        if (normalizedQuery.includes(themaName)) return true;
+        // Wort-Match (für mehrteilige Suchbegriffe)
+        const queryWords = normalizedQuery.split(/\s+/);
+        const matchesAllWords = queryWords.every(word => themaName.includes(word));
+        if (matchesAllWords) return true;
+        return false;
+      });
 
       if (matchingThema) {
         setSelectedThema(matchingThema);
+        setSearchResult({ found: true, themeName: matchingThema.thema });
+      } else {
+        setSearchResult({ found: false });
       }
       setSearchHandled(true);
     }
@@ -77,6 +102,22 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
 
   return (
     <>
+      {/* Search Result Feedback */}
+      {searchQuery && searchResult && (
+        <div className={`mb-4 p-3 rounded-lg ${searchResult.found ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>
+          {searchResult.found ? (
+            <p className="text-sm">
+              <span className="font-medium">Gefunden:</span> &quot;{searchResult.themeName}&quot; wurde geöffnet.
+            </p>
+          ) : (
+            <p className="text-sm">
+              <span className="font-medium">Keine Ergebnisse:</span> Kein Thema gefunden für &quot;{searchQuery}&quot;.
+              Versuche einen anderen Suchbegriff oder durchsuche die Karten unten.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="flex gap-4 overflow-x-auto pb-4">
         {zeitraumOrder.map((zeitraum) => (
           <div

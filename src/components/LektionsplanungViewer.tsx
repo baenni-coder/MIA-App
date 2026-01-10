@@ -350,6 +350,172 @@ export default function LektionsplanungViewer({
         {!loading && !error && lektionen.length === 0 && customLektionen.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             Keine Lektionsplanung verfügbar
+            {themaId && (
+              <p className="mt-2 text-sm">
+                Füge eine eigene Lektion hinzu!
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Add Custom Lektion Section - auch wenn keine Lektionen vorhanden */}
+        {!loading && !error && themaId && lektionen.length === 0 && customLektionen.length === 0 && (
+          <div className="mt-4 border-t pt-4">
+            {!showAddForm ? (
+              <Button
+                variant="outline"
+                onClick={() => setShowAddForm(true)}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Eigene Lektion hinzufügen
+              </Button>
+            ) : (
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">Neue Lektion erfassen</h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAddForm(false)}
+                  >
+                    Abbrechen
+                  </Button>
+                </div>
+
+                <div className="grid gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="lektion-empty">Lektionsname *</Label>
+                      <Input
+                        id="lektion-empty"
+                        placeholder="z.B. Lektion 1"
+                        value={formData.lektion}
+                        onChange={(e) =>
+                          setFormData({ ...formData, lektion: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="bezeichnung-empty">Eindeutige Bezeichnung *</Label>
+                      <Input
+                        id="bezeichnung-empty"
+                        placeholder="z.B. Einführung Thema X"
+                        value={formData.eindeutigeBezeichnung}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            eindeutigeBezeichnung: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="aufgaben-empty">Aufgaben</Label>
+                    <Textarea
+                      id="aufgaben-empty"
+                      placeholder="Beschreibung der Aufgaben..."
+                      value={formData.aufgaben}
+                      onChange={(e) =>
+                        setFormData({ ...formData, aufgaben: e.target.value })
+                      }
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="vorwissen-empty">Vorwissen</Label>
+                    <Textarea
+                      id="vorwissen-empty"
+                      placeholder="Benötigtes Vorwissen..."
+                      value={formData.vorwissen}
+                      onChange={(e) =>
+                        setFormData({ ...formData, vorwissen: e.target.value })
+                      }
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="einstieg-empty">Einstieg</Label>
+                      <Textarea
+                        id="einstieg-empty"
+                        placeholder="Einstiegsphase..."
+                        value={formData.einstieg}
+                        onChange={(e) =>
+                          setFormData({ ...formData, einstieg: e.target.value })
+                        }
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="hauptteil-empty">Hauptteil</Label>
+                      <Textarea
+                        id="hauptteil-empty"
+                        placeholder="Hauptteil..."
+                        value={formData.hauptteil}
+                        onChange={(e) =>
+                          setFormData({ ...formData, hauptteil: e.target.value })
+                        }
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="abschluss-empty">Abschluss</Label>
+                      <Textarea
+                        id="abschluss-empty"
+                        placeholder="Abschlussphase..."
+                        value={formData.abschluss}
+                        onChange={(e) =>
+                          setFormData({ ...formData, abschluss: e.target.value })
+                        }
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="stolpersteine-empty">Stolpersteine</Label>
+                    <Textarea
+                      id="stolpersteine-empty"
+                      placeholder="Hinweise zu häufigen Problemen..."
+                      value={formData.stolpersteine}
+                      onChange={(e) =>
+                        setFormData({ ...formData, stolpersteine: e.target.value })
+                      }
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowAddForm(false)}
+                    >
+                      Abbrechen
+                    </Button>
+                    <Button
+                      onClick={handleAddLektion}
+                      disabled={
+                        saving ||
+                        !formData.lektion.trim() ||
+                        !formData.eindeutigeBezeichnung.trim()
+                      }
+                    >
+                      {saving ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-2" />
+                      )}
+                      Lektion speichern
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
