@@ -1,7 +1,7 @@
 import { getAllThemen } from "@/lib/airtable/themen";
 import { getAllSchulen } from "@/lib/airtable/schulen";
 import { getKompetenzenByIds } from "@/lib/airtable/kompetenzen";
-import { getLektionsplanungByThemaName } from "@/lib/airtable/lektionsplanung";
+import { getAllLektionsplanung } from "@/lib/airtable/lektionsplanung";
 import {
   upsertSystemThemes,
   upsertSystemSchulen,
@@ -10,7 +10,7 @@ import {
   getSystemThemes,
   getSystemSchulen,
   getSystemKompetenzen,
-  getSystemLektionenByThemaName,
+  getAllSystemLektionen,
   deactivateSystemThemes,
   deactivateSystemSchulen,
   deactivateSystemKompetenzen,
@@ -117,13 +117,13 @@ export async function syncAirtableToFirestore(triggeredBy?: string): Promise<Syn
     if (themenResult.errors) result.errors.push(...themenResult.errors);
     if (kompetenzenResult.errors) result.errors.push(...kompetenzenResult.errors);
 
-    // Phase 2: Sync Lektionen (braucht Themen, daher sequenziell)
-    // Timeout nach 5 Sekunden für Lektionen
+    // Phase 2: Sync Lektionen (jetzt optimiert mit Bulk-Load)
+    // Timeout nach 60 Sekunden (genug Zeit für Airtable API + Firestore Batches)
     console.log("📝 Syncing Lektionen...");
     const lektionenResult = await withTimeout(
       syncLektionen(),
-      5000, // 5 Sekunden Timeout
-      "Sync Phase 2 (Lektionen) timeout after 5 seconds"
+      60000, // 60 Sekunden Timeout (war 5s - zu kurz)
+      "Sync Phase 2 (Lektionen) timeout after 60 seconds"
     ).catch((error) => {
       console.error("Error syncing Lektionen:", error);
       return { added: 0, updated: 0, deleted: 0, errors: [error.message] };
@@ -426,7 +426,7 @@ async function syncKompetenzen(): Promise<{ added: number; updated: number; dele
 }
 
 /**
- * Sync Lektionen
+ * Sync Lektionen (OPTIMIERT: Bulk-Load statt pro-Thema)
  */
 async function syncLektionen(): Promise<{ added: number; updated: number; deleted: number; errors?: string[] }> {
   const errors: string[] = [];
@@ -435,77 +435,61 @@ async function syncLektionen(): Promise<{ added: number; updated: number; delete
   let deleted = 0;
 
   try {
-    // 1. Lade alle Themen (um zu wissen, welche Lektionen wir laden müssen)
-    const airtableThemen = await getAllThemen();
+    // 1. Lade ALLE Lektionen auf einmal aus Airtable (1 API-Call statt N)
+    console.log("📥 Loading all Lektionen from Airtable...");
+    const airtableLektionen = await getAllLektionsplanung();
+    console.log(`   Found ${airtableLektionen.length} Lektionen in Airtable`);
 
-    const allLektionen: Omit<SystemLektion, "id">[] = [];
-    const allAirtableIds = new Set<string>();
+    const allAirtableIds = new Set(airtableLektionen.map((l) => l.id));
 
-    // 2. Für jedes Thema: Lade Lektionen
-    for (const thema of airtableThemen) {
-      try {
-        const lektionen = await getLektionsplanungByThemaName(thema.thema);
+    // 2. Lade ALLE Lektionen aus Firestore auf einmal (1 Query statt N)
+    console.log("📥 Loading all Lektionen from Firestore...");
+    const firestoreLektionen = await getAllSystemLektionen();
+    const firestoreIds = new Set(firestoreLektionen.map((l) => l.airtableId));
+    console.log(`   Found ${firestoreLektionen.length} Lektionen in Firestore`);
 
-        lektionen.forEach((lektion) => {
-          allAirtableIds.add(lektion.id);
-          allLektionen.push({
-            airtableId: lektion.id,
-            eindeutigeBezeichnung: lektion.eindeutigeBezeichnung,
-            lektion: lektion.lektion,
-            themaId: lektion.themaId,
-            themaName: lektion.themaName,
-            aufgaben: lektion.aufgaben,
-            vorwissen: lektion.vorwissen,
-            material: lektion.material,
-            websiteTools: lektion.websiteTools,
-            einstieg: lektion.einstieg,
-            hauptteil: lektion.hauptteil,
-            abschluss: lektion.abschluss,
-            stolpersteine: lektion.stolpersteine,
-            kiZusammenfassung: lektion.kiZusammenfassung,
-            isActive: true,
-            lastSyncedAt: new Date(),
-          });
-        });
-      } catch (error) {
-        const errorMessage = `Error loading Lektionen for Thema "${thema.thema}": ${error instanceof Error ? error.message : "Unknown error"}`;
-        errors.push(errorMessage);
-        console.warn(errorMessage);
-      }
-    }
-
-    // 3. Lade alle Lektionen aus Firestore (um Deleted zu identifizieren)
-    const firestoreIds = new Set<string>();
-    for (const thema of airtableThemen) {
-      try {
-        const firestoreLektionen = await getSystemLektionenByThemaName(thema.thema);
-        firestoreLektionen.forEach((l) => firestoreIds.add(l.airtableId));
-      } catch (error) {
-        console.warn(`Could not load Firestore Lektionen for ${thema.thema}:`, error);
-      }
-    }
-
-    // 4. Zähle Neue vs. Updates
-    allLektionen.forEach((lektion) => {
-      if (!firestoreIds.has(lektion.airtableId)) {
+    // 3. Konvertiere Airtable-Lektionen zu SystemLektion Format
+    const allLektionen: Omit<SystemLektion, "id">[] = airtableLektionen.map((lektion) => {
+      if (!firestoreIds.has(lektion.id)) {
         added++;
       } else {
         updated++;
       }
+
+      return {
+        airtableId: lektion.id,
+        eindeutigeBezeichnung: lektion.eindeutigeBezeichnung,
+        lektion: lektion.lektion,
+        themaId: lektion.themaId,
+        themaName: lektion.themaName,
+        aufgaben: lektion.aufgaben,
+        vorwissen: lektion.vorwissen,
+        material: lektion.material,
+        websiteTools: lektion.websiteTools,
+        einstieg: lektion.einstieg,
+        hauptteil: lektion.hauptteil,
+        abschluss: lektion.abschluss,
+        stolpersteine: lektion.stolpersteine,
+        kiZusammenfassung: lektion.kiZusammenfassung,
+        isActive: true,
+        lastSyncedAt: new Date(),
+      };
     });
 
-    // 5. Upsert in Firestore
+    // 4. Upsert in Firestore (in Batches von 500)
     if (allLektionen.length > 0) {
+      console.log(`📤 Upserting ${allLektionen.length} Lektionen to Firestore...`);
       for (let i = 0; i < allLektionen.length; i += 500) {
         const batch = allLektionen.slice(i, i + 500);
         await upsertSystemLektionen(batch);
       }
     }
 
-    // 6. Identifiziere gelöschte Lektionen
+    // 5. Identifiziere gelöschte Lektionen
     const toDeactivate = Array.from(firestoreIds).filter((id) => !allAirtableIds.has(id));
 
     if (toDeactivate.length > 0) {
+      console.log(`🗑️ Deactivating ${toDeactivate.length} removed Lektionen...`);
       await deactivateSystemLektionen(toDeactivate);
       deleted = toDeactivate.length;
     }
