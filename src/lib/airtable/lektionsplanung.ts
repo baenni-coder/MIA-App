@@ -100,6 +100,66 @@ export const getLektionsplanungByThemaName = async (themaName: string): Promise<
   }
 };
 
+// ALLE Lektionsplanungen laden (für Bulk-Sync)
+export const getAllLektionsplanung = async (): Promise<Lektionsplanung[]> => {
+  try {
+    const base = getBase();
+
+    // Lade alle Lektionen auf einmal (ohne Filter)
+    const records = await base(LEKTIONSPLANUNG_TABLE)
+      .select({
+        sort: [{ field: "Lektion", direction: "asc" }]
+      })
+      .all();
+
+    return records.map((record) => {
+      // Parse Material
+      const materialRaw = record.get("Material");
+      const material = parseMaterial(materialRaw as string | string[] | undefined);
+
+      // Parse Website Tools (mit lookup fields)
+      const toolIds = record.get("Website oder Tool") as string[] | undefined;
+      const toolNames = record.get("Name (from Website oder Tool)") as string | string[] | undefined;
+      const toolLinks = record.get("Link (from Website oder Tool)") as string | string[] | undefined;
+      const websiteTools = parseWebsiteTools(toolIds, toolNames, toolLinks);
+
+      // Helper: Sicher einen String extrahieren
+      const getString = (value: unknown): string | undefined => {
+        if (typeof value === 'string') return value || undefined;
+        if (Array.isArray(value) && value.length > 0) {
+          if (typeof value[0] === 'string') return value[0];
+          return undefined;
+        }
+        if (value === null || value === undefined) return undefined;
+        if (typeof value === 'object') return undefined;
+        return String(value);
+      };
+
+      return {
+        id: record.id,
+        eindeutigeBezeichnung: getString(record.get("Eindeutige Lektionsbezeichnung")) || '',
+        lektion: getString(record.get("Lektion")) || '',
+        themaId: Array.isArray(record.get("Thema"))
+          ? (record.get("Thema") as string[])[0]
+          : (record.get("Thema") as string),
+        themaName: getString(record.get("Thema (from Thema)")),
+        aufgaben: getString(record.get("Aufgaben")),
+        vorwissen: getString(record.get("Vorwissen")),
+        material: material.length > 0 ? material : undefined,
+        websiteTools: websiteTools.length > 0 ? websiteTools : undefined,
+        einstieg: getString(record.get("Einstieg")),
+        hauptteil: getString(record.get("Hauptteil")),
+        abschluss: getString(record.get("Abschluss")),
+        stolpersteine: getString(record.get("Stolpersteine")),
+        kiZusammenfassung: getString(record.get("KI Zusammenfassung Lektion")),
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching all Lektionsplanung from Airtable:", error);
+    return [];
+  }
+};
+
 // Einzelne Lektionsplanung nach ID laden
 export const getLektionsplanungById = async (id: string): Promise<Lektionsplanung | null> => {
   try {

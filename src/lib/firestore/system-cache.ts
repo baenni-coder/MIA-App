@@ -492,6 +492,45 @@ export async function getSystemLektionenByThemaName(themaName: string): Promise<
 }
 
 /**
+ * Alle aktiven System Lektionen laden (für Bulk-Sync)
+ */
+export async function getAllSystemLektionen(): Promise<SystemLektion[]> {
+  try {
+    const adminDb = getAdminDb();
+    const snapshot = await adminDb
+      .collection(SYSTEM_LEKTIONEN_COLLECTION)
+      .where("isActive", "==", true)
+      .get();
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        airtableId: data.airtableId,
+        eindeutigeBezeichnung: data.eindeutigeBezeichnung,
+        lektion: data.lektion,
+        themaId: data.themaId,
+        themaName: data.themaName,
+        aufgaben: data.aufgaben,
+        vorwissen: data.vorwissen,
+        material: data.material,
+        websiteTools: data.websiteTools,
+        einstieg: data.einstieg,
+        hauptteil: data.hauptteil,
+        abschluss: data.abschluss,
+        stolpersteine: data.stolpersteine,
+        kiZusammenfassung: data.kiZusammenfassung,
+        lastSyncedAt: timestampToDate(data.lastSyncedAt),
+        isActive: data.isActive,
+      } as SystemLektion;
+    });
+  } catch (error) {
+    console.error("Error getting all system lektionen:", error);
+    return [];
+  }
+}
+
+/**
  * System Lektionen nach Thema-ID laden
  */
 export async function getSystemLektionenByThemaId(themaId: string): Promise<SystemLektion[]> {
