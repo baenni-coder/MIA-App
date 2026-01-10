@@ -4,10 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
+import { resetPassword } from "@/lib/firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,6 +25,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Passwort vergessen Dialog State
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +46,36 @@ export default function LoginPage() {
     } else if (user) {
       router.push("/dashboard");
     }
+  };
+
+  const handleOpenResetDialog = () => {
+    setResetEmail(email); // E-Mail vom Login-Feld übernehmen
+    setResetError("");
+    setResetSuccess(false);
+    setResetDialogOpen(true);
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError("");
+    setResetLoading(true);
+
+    const { success, error: resetErr } = await resetPassword(resetEmail);
+
+    if (success) {
+      setResetSuccess(true);
+    } else {
+      setResetError(resetErr || "Ein Fehler ist aufgetreten.");
+    }
+
+    setResetLoading(false);
+  };
+
+  const handleCloseResetDialog = () => {
+    setResetDialogOpen(false);
+    setResetEmail("");
+    setResetError("");
+    setResetSuccess(false);
   };
 
   return (
@@ -81,6 +127,15 @@ export default function LoginPage() {
                 required
               />
             </div>
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={handleOpenResetDialog}
+                className="text-sm text-primary hover:underline"
+              >
+                Passwort vergessen?
+              </button>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={loading}>
@@ -96,6 +151,74 @@ export default function LoginPage() {
         </form>
         </Card>
       </div>
+
+      {/* Passwort vergessen Dialog */}
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Passwort zurücksetzen</DialogTitle>
+            <DialogDescription>
+              Geben Sie Ihre E-Mail-Adresse ein. Wir senden Ihnen einen Link zum Zurücksetzen Ihres Passworts.
+            </DialogDescription>
+          </DialogHeader>
+
+          {resetSuccess ? (
+            <div className="space-y-4">
+              <div className="bg-green-50 text-green-700 p-4 rounded-md">
+                <p className="font-medium">E-Mail gesendet!</p>
+                <p className="text-sm mt-1">
+                  Bitte prüfen Sie Ihren Posteingang und folgen Sie den Anweisungen in der E-Mail.
+                  Überprüfen Sie auch Ihren Spam-Ordner.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleCloseResetDialog} className="w-full">
+                  Zurück zur Anmeldung
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <form onSubmit={handleResetPassword}>
+              <div className="space-y-4">
+                {resetError && (
+                  <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+                    {resetError}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">E-Mail</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="ihre@email.ch"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <DialogFooter className="mt-4 flex flex-col sm:flex-row gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCloseResetDialog}
+                  className="w-full sm:w-auto"
+                >
+                  Abbrechen
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={resetLoading || !resetEmail}
+                  className="w-full sm:w-auto"
+                >
+                  {resetLoading ? "Wird gesendet..." : "Link senden"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
