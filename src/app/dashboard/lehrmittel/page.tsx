@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Thema } from "@/types";
-import { BookOpen, FileText, ExternalLink } from "lucide-react";
+import { BookOpen, FileText, ExternalLink, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export default function LehrmittelPage() {
   const { user } = useAuth();
@@ -112,20 +113,14 @@ export default function LehrmittelPage() {
                           >
                             <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                             <div className="flex-1 min-w-0">
-                              {/* Thema-Name als Link wenn Unterlagen vorhanden */}
-                              {thema.unterlagen ? (
-                                <a
-                                  href={thema.unterlagen}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="font-medium text-primary hover:underline flex items-center gap-1"
-                                >
-                                  {thema.thema}
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
-                              ) : (
-                                <div className="font-medium">{thema.thema}</div>
-                              )}
+                              {/* Thema-Name als Link zum Jahresplan */}
+                              <Link
+                                href={`/dashboard/jahresplan?search=${encodeURIComponent(thema.thema)}&allStufen=true`}
+                                className="font-medium text-primary hover:underline flex items-center gap-1"
+                              >
+                                {thema.thema}
+                                <ArrowRight className="h-3 w-3" />
+                              </Link>
 
                               {/* Beschreibung */}
                               {thema.beschreibung && (

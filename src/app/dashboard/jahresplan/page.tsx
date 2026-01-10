@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
 import KanbanBoard from "@/components/KanbanBoard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Thema, Zeitraum, Teacher, Stufe } from "@/types";
+import { Search, X } from "lucide-react";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -24,6 +27,7 @@ const STUFEN: Stufe[] = [
 
 function JahresplanContent() {
   const { user, getAuthToken } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("search");
   const allStufenParam = searchParams.get("allStufen") === "true";
@@ -31,6 +35,7 @@ function JahresplanContent() {
   const [teacherData, setTeacherData] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedStufe, setSelectedStufe] = useState<Stufe | null>(null);
+  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery || "");
 
   useEffect(() => {
     const loadData = async () => {
@@ -99,31 +104,76 @@ function JahresplanContent() {
           </div>
 
           {teacherData && (
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium">Ansicht für Stufe:</label>
-              <Select
-                value={selectedStufe || teacherData.stufe}
-                onValueChange={(value) => {
-                  setSelectedStufe(value as Stufe);
-                  setLoading(true);
-                }}
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STUFEN.map((stufe) => (
-                    <SelectItem key={stufe} value={stufe}>
-                      {stufe}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedStufe && selectedStufe !== teacherData.stufe && (
-                <span className="text-sm text-muted-foreground">
-                  (Temporäre Ansicht)
-                </span>
-              )}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              {/* Suchfeld */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Thema suchen..."
+                    value={localSearchQuery}
+                    onChange={(e) => setLocalSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && localSearchQuery.trim()) {
+                        router.push(`/dashboard/jahresplan?search=${encodeURIComponent(localSearchQuery.trim())}&allStufen=true`);
+                      }
+                    }}
+                    className="pl-9 pr-8"
+                  />
+                  {localSearchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                      onClick={() => {
+                        setLocalSearchQuery("");
+                        router.push("/dashboard/jahresplan");
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (localSearchQuery.trim()) {
+                      router.push(`/dashboard/jahresplan?search=${encodeURIComponent(localSearchQuery.trim())}&allStufen=true`);
+                    }
+                  }}
+                  disabled={!localSearchQuery.trim()}
+                >
+                  Suchen
+                </Button>
+              </div>
+
+              {/* Stufen-Auswahl */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Stufe:</label>
+                <Select
+                  value={selectedStufe || teacherData.stufe}
+                  onValueChange={(value) => {
+                    setSelectedStufe(value as Stufe);
+                    setLoading(true);
+                  }}
+                >
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STUFEN.map((stufe) => (
+                      <SelectItem key={stufe} value={stufe}>
+                        {stufe}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedStufe && selectedStufe !== teacherData.stufe && (
+                  <span className="text-sm text-muted-foreground">
+                    (Temp.)
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
