@@ -41,6 +41,7 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
   const [selectedKompetenz, setSelectedKompetenz] = useState<Kompetenz | null>(null);
   const [lektionsplanungOpen, setLektionsplanungOpen] = useState(false);
   const [lektionsplanungThema, setLektionsplanungThema] = useState<string>("");
+  const [lektionsplanungThemaId, setLektionsplanungThemaId] = useState<string | undefined>(undefined);
   const [searchHandled, setSearchHandled] = useState(false);
 
   const zeitraumOrder: Zeitraum[] = [
@@ -278,6 +279,8 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                       e.stopPropagation();
                       if (selectedThema?.thema) {
                         setLektionsplanungThema(selectedThema.thema);
+                        // Only pass themaId for non-custom themes (Airtable/System themes)
+                        setLektionsplanungThemaId(selectedThema.isCustom ? undefined : selectedThema.id);
                         setLektionsplanungOpen(true);
                       }
                     }}
@@ -490,6 +493,7 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
       {/* Lektionsplanung Viewer Dialog */}
       <LektionsplanungViewer
         themaName={lektionsplanungThema}
+        themaId={lektionsplanungThemaId}
         open={lektionsplanungOpen}
         onOpenChange={setLektionsplanungOpen}
       />

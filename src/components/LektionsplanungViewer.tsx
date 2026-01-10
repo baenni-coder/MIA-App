@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Lektionsplanung } from "@/types";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Lektionsplanung, CustomLektion } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Label } from "./ui/label";
 import {
   FileText,
   Download,
@@ -15,7 +19,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   ExternalLink,
-  Loader2
+  Loader2,
+  Plus,
+  User,
+  Trash2
 } from "lucide-react";
 import {
   Accordion,
@@ -26,22 +33,41 @@ import {
 
 interface LektionsplanungViewerProps {
   themaName: string;
+  themaId?: string; // Airtable Record ID for system themes
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export default function LektionsplanungViewer({
   themaName,
+  themaId,
   open,
   onOpenChange
 }: LektionsplanungViewerProps) {
+  const { getAuthToken } = useAuth();
   const [lektionen, setLektionen] = useState<Lektionsplanung[]>([]);
+  const [customLektionen, setCustomLektionen] = useState<CustomLektion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Form state for new custom lektion
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    lektion: "",
+    eindeutigeBezeichnung: "",
+    aufgaben: "",
+    vorwissen: "",
+    einstieg: "",
+    hauptteil: "",
+    abschluss: "",
+    stolpersteine: "",
+  });
 
   useEffect(() => {
     if (open && themaName && typeof themaName === 'string') {
       loadLektionsplanung();
+      loadCustomLektionen();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, themaName]);
@@ -64,6 +90,106 @@ export default function LektionsplanungViewer({
       setError("Lektionsplanung konnte nicht geladen werden");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCustomLektionen = async () => {
+    if (!themaName) return;
+
+    try {
+      const token = await getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(
+        `/api/custom-lektionen?systemThemeName=${encodeURIComponent(themaName)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setCustomLektionen(data.lektionen || []);
+      }
+    } catch (err) {
+      console.error("Error loading custom lektionen:", err);
+    }
+  };
+
+  const handleAddLektion = async () => {
+    if (!themaName || !themaId) return;
+    if (!formData.lektion.trim() || !formData.eindeutigeBezeichnung.trim()) return;
+
+    try {
+      setSaving(true);
+      const token = await getAuthToken();
+      if (!token) return;
+
+      const nextOrder = lektionen.length + customLektionen.length + 1;
+
+      const response = await fetch("/api/custom-lektionen", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          systemThemeId: themaId,
+          systemThemeName: themaName,
+          lektion: formData.lektion,
+          eindeutigeBezeichnung: formData.eindeutigeBezeichnung,
+          aufgaben: formData.aufgaben || undefined,
+          vorwissen: formData.vorwissen || undefined,
+          einstieg: formData.einstieg || undefined,
+          hauptteil: formData.hauptteil || undefined,
+          abschluss: formData.abschluss || undefined,
+          stolpersteine: formData.stolpersteine || undefined,
+          order: nextOrder,
+        }),
+      });
+
+      if (response.ok) {
+        // Reload custom lektionen
+        await loadCustomLektionen();
+        // Reset form
+        setFormData({
+          lektion: "",
+          eindeutigeBezeichnung: "",
+          aufgaben: "",
+          vorwissen: "",
+          einstieg: "",
+          hauptteil: "",
+          abschluss: "",
+          stolpersteine: "",
+        });
+        setShowAddForm(false);
+      }
+    } catch (err) {
+      console.error("Error creating custom lektion:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteLektion = async (lektionId: string) => {
+    try {
+      const token = await getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(`/api/custom-lektionen/${lektionId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        await loadCustomLektionen();
+      }
+    } catch (err) {
+      console.error("Error deleting custom lektion:", err);
     }
   };
 
@@ -221,13 +347,13 @@ export default function LektionsplanungViewer({
           </div>
         )}
 
-        {!loading && !error && lektionen.length === 0 && (
+        {!loading && !error && lektionen.length === 0 && customLektionen.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             Keine Lektionsplanung verfügbar
           </div>
         )}
 
-        {!loading && !error && lektionen.length > 0 && (
+        {!loading && !error && (lektionen.length > 0 || customLektionen.length > 0) && (
           <>
             {/* Export Buttons */}
             <div className="flex gap-2 mb-4">
@@ -242,10 +368,17 @@ export default function LektionsplanungViewer({
             </div>
 
             {/* Lektionen Übersicht */}
-            <div className="mb-4">
-              <Badge variant="secondary" className="text-sm">
-                {`${lektionen.length} ${lektionen.length === 1 ? "Lektion" : "Lektionen"}`}
-              </Badge>
+            <div className="flex items-center gap-2 mb-4">
+              {lektionen.length > 0 && (
+                <Badge variant="secondary" className="text-sm">
+                  {`${lektionen.length} System-${lektionen.length === 1 ? "Lektion" : "Lektionen"}`}
+                </Badge>
+              )}
+              {customLektionen.length > 0 && (
+                <Badge variant="outline" className="text-sm">
+                  {`${customLektionen.length} eigene ${customLektionen.length === 1 ? "Ergänzung" : "Ergänzungen"}`}
+                </Badge>
+              )}
             </div>
 
             {/* Akkordeon für Lektionen */}
@@ -400,6 +533,291 @@ export default function LektionsplanungViewer({
                 </AccordionItem>
               ))}
             </Accordion>
+
+            {/* Custom Lektionen Section */}
+            {customLektionen.length > 0 && (
+              <div className="mt-6">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Eigene Ergänzungen
+                </h3>
+                <Accordion type="single" collapsible className="w-full">
+                  {customLektionen.map((lektion) => (
+                    <AccordionItem key={lektion.id} value={lektion.id}>
+                      <AccordionTrigger className="text-left">
+                        <div className="flex items-center gap-2 flex-1">
+                          <BookOpen className="h-4 w-4" />
+                          <span className="font-semibold">{lektion.lektion}</span>
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            Eigene Ergänzung
+                          </Badge>
+                          {lektion.createdByName && (
+                            <span className="text-xs text-muted-foreground">
+                              von {lektion.createdByName}
+                            </span>
+                          )}
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-4 pt-2">
+                          {/* Aufgaben */}
+                          {lektion.aufgaben && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Aufgaben
+                              </h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {lektion.aufgaben}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Vorwissen */}
+                          {lektion.vorwissen && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <Lightbulb className="h-4 w-4" />
+                                Vorwissen
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                {lektion.vorwissen}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Einstieg */}
+                          {lektion.einstieg && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <Play className="h-4 w-4" />
+                                Einstieg
+                              </h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {lektion.einstieg}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Hauptteil */}
+                          {lektion.hauptteil && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <Square className="h-4 w-4" />
+                                Hauptteil
+                              </h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {lektion.hauptteil}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Abschluss */}
+                          {lektion.abschluss && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Abschluss
+                              </h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {lektion.abschluss}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Stolpersteine */}
+                          {lektion.stolpersteine && (
+                            <div className="bg-yellow-50 dark:bg-yellow-950 border-l-4 border-yellow-500 px-4 py-3 rounded-r-lg">
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                Stolpersteine
+                              </h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {lektion.stolpersteine}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Delete Button */}
+                          <div className="pt-2 flex justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteLektion(lektion.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Löschen
+                            </Button>
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+            )}
+
+            {/* Add Custom Lektion Section */}
+            {themaId && (
+              <div className="mt-6 border-t pt-4">
+                {!showAddForm ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAddForm(true)}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Eigene Lektion hinzufügen
+                  </Button>
+                ) : (
+                  <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold">Neue Lektion erfassen</h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAddForm(false)}
+                      >
+                        Abbrechen
+                      </Button>
+                    </div>
+
+                    <div className="grid gap-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="lektion">Lektionsname *</Label>
+                          <Input
+                            id="lektion"
+                            placeholder="z.B. Lektion 1"
+                            value={formData.lektion}
+                            onChange={(e) =>
+                              setFormData({ ...formData, lektion: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="bezeichnung">Eindeutige Bezeichnung *</Label>
+                          <Input
+                            id="bezeichnung"
+                            placeholder="z.B. Einführung Thema X"
+                            value={formData.eindeutigeBezeichnung}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                eindeutigeBezeichnung: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="aufgaben">Aufgaben</Label>
+                        <Textarea
+                          id="aufgaben"
+                          placeholder="Beschreibung der Aufgaben..."
+                          value={formData.aufgaben}
+                          onChange={(e) =>
+                            setFormData({ ...formData, aufgaben: e.target.value })
+                          }
+                          rows={3}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="vorwissen">Vorwissen</Label>
+                        <Textarea
+                          id="vorwissen"
+                          placeholder="Benötigtes Vorwissen..."
+                          value={formData.vorwissen}
+                          onChange={(e) =>
+                            setFormData({ ...formData, vorwissen: e.target.value })
+                          }
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="einstieg">Einstieg</Label>
+                          <Textarea
+                            id="einstieg"
+                            placeholder="Einstiegsphase..."
+                            value={formData.einstieg}
+                            onChange={(e) =>
+                              setFormData({ ...formData, einstieg: e.target.value })
+                            }
+                            rows={3}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="hauptteil">Hauptteil</Label>
+                          <Textarea
+                            id="hauptteil"
+                            placeholder="Hauptteil..."
+                            value={formData.hauptteil}
+                            onChange={(e) =>
+                              setFormData({ ...formData, hauptteil: e.target.value })
+                            }
+                            rows={3}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="abschluss">Abschluss</Label>
+                          <Textarea
+                            id="abschluss"
+                            placeholder="Abschlussphase..."
+                            value={formData.abschluss}
+                            onChange={(e) =>
+                              setFormData({ ...formData, abschluss: e.target.value })
+                            }
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="stolpersteine">Stolpersteine</Label>
+                        <Textarea
+                          id="stolpersteine"
+                          placeholder="Hinweise zu häufigen Problemen..."
+                          value={formData.stolpersteine}
+                          onChange={(e) =>
+                            setFormData({ ...formData, stolpersteine: e.target.value })
+                          }
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowAddForm(false)}
+                        >
+                          Abbrechen
+                        </Button>
+                        <Button
+                          onClick={handleAddLektion}
+                          disabled={
+                            saving ||
+                            !formData.lektion.trim() ||
+                            !formData.eindeutigeBezeichnung.trim()
+                          }
+                        >
+                          {saving ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4 mr-2" />
+                          )}
+                          Lektion speichern
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </DialogContent>
