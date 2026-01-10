@@ -15,6 +15,7 @@ interface KanbanBoardProps {
   themenGrouped: Record<Zeitraum, Thema[]>;
   schulePictsBuchen?: string;
   searchQuery?: string;
+  filterQuery?: string; // Real-time filter as user types
   userStufe?: Stufe;
 }
 
@@ -36,7 +37,7 @@ const ZEITRAUM_IMAGES: Record<Zeitraum, string | null> = {
   "Zusatz": null,
 };
 
-export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQuery, userStufe }: KanbanBoardProps) {
+export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQuery, filterQuery, userStufe }: KanbanBoardProps) {
   const [selectedThema, setSelectedThema] = useState<Thema | null>(null);
   const [selectedKompetenz, setSelectedKompetenz] = useState<Kompetenz | null>(null);
   const [lektionsplanungOpen, setLektionsplanungOpen] = useState(false);
@@ -57,6 +58,50 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
   // Alle Themen als flache Liste für Suche
   const allThemen = useMemo(() => {
     return Object.values(themenGrouped).flat();
+  }, [themenGrouped]);
+
+  // Real-time filtering based on filterQuery
+  const filteredThemenGrouped = useMemo(() => {
+    if (!filterQuery || filterQuery.trim() === "") {
+      return themenGrouped;
+    }
+
+    const normalizedQuery = filterQuery.toLowerCase().trim();
+    const queryWords = normalizedQuery.split(/\s+/);
+
+    const filtered: Record<Zeitraum, Thema[]> = {} as Record<Zeitraum, Thema[]>;
+
+    for (const zeitraum of Object.keys(themenGrouped) as Zeitraum[]) {
+      filtered[zeitraum] = themenGrouped[zeitraum].filter((thema) => {
+        const themaName = thema.thema.toLowerCase();
+        const lehrmittel = (thema.lehrmittel || "").toLowerCase();
+        const beschreibung = (thema.beschreibung || "").toLowerCase();
+
+        // Suche in Thema-Name
+        if (themaName.includes(normalizedQuery)) return true;
+        // Suche in Lehrmittel
+        if (lehrmittel.includes(normalizedQuery)) return true;
+        // Suche in Beschreibung
+        if (beschreibung.includes(normalizedQuery)) return true;
+        // Wort-Match (alle Wörter müssen in Name, Lehrmittel oder Beschreibung vorkommen)
+        const searchText = `${themaName} ${lehrmittel} ${beschreibung}`;
+        const matchesAllWords = queryWords.every(word => searchText.includes(word));
+        if (matchesAllWords) return true;
+
+        return false;
+      });
+    }
+
+    return filtered;
+  }, [themenGrouped, filterQuery]);
+
+  // Count total filtered results
+  const filteredCount = useMemo(() => {
+    return Object.values(filteredThemenGrouped).flat().length;
+  }, [filteredThemenGrouped]);
+
+  const totalCount = useMemo(() => {
+    return Object.values(themenGrouped).flat().length;
   }, [themenGrouped]);
 
   // Reset searchHandled when searchQuery changes
@@ -102,8 +147,22 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
 
   return (
     <>
-      {/* Search Result Feedback */}
-      {searchQuery && searchResult && (
+      {/* Filter Result Indicator */}
+      {filterQuery && filterQuery.trim() !== "" && (
+        <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800">
+          <p className="text-sm">
+            <span className="font-medium">Filter aktiv:</span> {filteredCount} von {totalCount} Themen werden angezeigt für &quot;{filterQuery}&quot;
+            {filteredCount === 0 && (
+              <span className="text-blue-600 ml-1">
+                – Versuche einen anderen Suchbegriff
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
+      {/* Search Result Feedback (when Enter pressed) */}
+      {searchQuery && searchResult && !filterQuery && (
         <div className={`mb-4 p-3 rounded-lg ${searchResult.found ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>
           {searchResult.found ? (
             <p className="text-sm">
@@ -139,12 +198,15 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                 {ZEITRAUM_LABELS[zeitraum]}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                {themenGrouped[zeitraum].length} Themen
+                {filteredThemenGrouped[zeitraum]?.length || 0} Themen
+                {filterQuery && filterQuery.trim() !== "" && filteredThemenGrouped[zeitraum]?.length !== themenGrouped[zeitraum]?.length && (
+                  <span className="text-blue-600"> (gefiltert)</span>
+                )}
               </p>
             </div>
 
             <div className="space-y-3">
-              {themenGrouped[zeitraum].map((thema) => (
+              {(filteredThemenGrouped[zeitraum] || []).map((thema) => (
                 <Card
                   key={thema.id}
                   className="hover:shadow-md transition-all cursor-pointer hover:border-primary/50 overflow-hidden"
@@ -198,9 +260,9 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                 </Card>
               ))}
 
-              {themenGrouped[zeitraum].length === 0 && (
+              {(filteredThemenGrouped[zeitraum]?.length || 0) === 0 && (
                 <div className="text-center py-8 text-sm text-muted-foreground">
-                  Keine Themen
+                  {filterQuery && filterQuery.trim() !== "" ? "Keine passenden Themen" : "Keine Themen"}
                 </div>
               )}
             </div>

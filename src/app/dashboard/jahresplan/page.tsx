@@ -189,6 +189,7 @@ function JahresplanContent() {
               themenGrouped={themenGrouped}
               schulePictsBuchen={teacherData?.schule?.pictsBuchen}
               searchQuery={searchQuery || undefined}
+              filterQuery={localSearchQuery}
               userStufe={teacherData?.stufe}
             />
           ) : (
