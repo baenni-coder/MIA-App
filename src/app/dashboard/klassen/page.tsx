@@ -385,7 +385,6 @@ export default function KlassenPage() {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
 
           {/* Klassen-Liste */}
           {loading ? (
