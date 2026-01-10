@@ -222,12 +222,14 @@ export interface CustomTheme {
   isSystemWide: boolean; // true nach Freigabe
 }
 
-// Custom Lektion (gehört zu Custom Thema)
+// Custom Lektion (gehört zu Custom Thema ODER Systemthema)
 export interface CustomLektion {
   id: string;
 
-  // Verknüpfung
-  themeId: string; // Custom Theme ID
+  // Verknüpfung - entweder Custom Theme ODER Systemthema
+  themeId?: string; // Custom Theme ID (optional, wenn systemThemeId gesetzt)
+  systemThemeId?: string; // Airtable Theme ID (für Lektionen zu Systemthemen)
+  systemThemeName?: string; // Name des Systemthemas
   lektion: string; // "Lektion 1", "Lektion 2"
   eindeutigeBezeichnung: string; // "Lektion 1 - Titel"
 
@@ -244,6 +246,8 @@ export interface CustomLektion {
 
   // Metadata
   createdBy: string; // Teacher userId
+  createdByName?: string; // Name des Erstellers
+  schuleId?: string; // Schul-ID für Sichtbarkeit
   createdAt: Date;
   updatedAt: Date;
 

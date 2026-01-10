@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminAuth } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import {
   createCustomLektion,
   createMultipleCustomLektionen,
   getCustomLektionenByThemeId,
+  getCustomLektionenBySystemThemeName,
 } from "@/lib/firestore/custom-lektionen";
 import { getCustomThemeById } from "@/lib/firestore/custom-themes";
 import { canReadCustomTheme } from "@/lib/firestore/permissions";
@@ -11,10 +12,11 @@ import { WebsiteTool } from "@/types";
 
 /**
  * GET /api/custom-lektionen
- * Lädt Custom Lektionen eines Themes
+ * Lädt Custom Lektionen eines Themes (Custom Theme oder Systemthema)
  *
  * Query Parameters:
- * - themeId: string (required)
+ * - themeId: string (für Custom Themes)
+ * - systemThemeName: string (für Systemthemen)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -35,29 +37,42 @@ export async function GET(request: NextRequest) {
     // Query-Parameter
     const searchParams = request.nextUrl.searchParams;
     const themeId = searchParams.get("themeId");
+    const systemThemeName = searchParams.get("systemThemeName");
 
-    if (!themeId) {
+    if (!themeId && !systemThemeName) {
       return NextResponse.json(
-        { error: "themeId is required" },
+        { error: "themeId or systemThemeName is required" },
         { status: 400 }
       );
     }
 
-    // Theme laden und Berechtigung prüfen
-    const theme = await getCustomThemeById(themeId);
-    if (!theme) {
-      return NextResponse.json({ error: "Theme not found" }, { status: 404 });
+    let lektionen;
+
+    if (systemThemeName) {
+      // Systemthema: Lade Custom Lektionen für dieses Thema
+      // Hole die SchuleId des Users für Filterung
+      const adminDb = getAdminDb();
+      const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
+      const schuleId = teacherDoc.exists ? teacherDoc.data()?.schuleId : undefined;
+
+      // Lade Lektionen der eigenen Schule
+      lektionen = await getCustomLektionenBySystemThemeName(systemThemeName, schuleId);
+    } else if (themeId) {
+      // Custom Theme: Wie bisher
+      const theme = await getCustomThemeById(themeId);
+      if (!theme) {
+        return NextResponse.json({ error: "Theme not found" }, { status: 404 });
+      }
+
+      const canRead = await canReadCustomTheme(userId, theme);
+      if (!canRead) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      lektionen = await getCustomLektionenByThemeId(themeId);
     }
 
-    const canRead = await canReadCustomTheme(userId, theme);
-    if (!canRead) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // Lektionen laden
-    const lektionen = await getCustomLektionenByThemeId(themeId);
-
-    return NextResponse.json({ lektionen }, { status: 200 });
+    return NextResponse.json({ lektionen: lektionen || [] }, { status: 200 });
   } catch (error) {
     console.error("Error in GET /api/custom-lektionen:", error);
 
@@ -74,21 +89,21 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/custom-lektionen
- * Erstellt eine oder mehrere Custom Lektionen
+ * Erstellt eine oder mehrere Custom Lektionen (für Custom Theme oder Systemthema)
  *
- * Body (Single):
+ * Body (Single für Custom Theme):
  * - themeId: string (required)
  * - lektion: string (required)
  * - eindeutigeBezeichnung: string (required)
- * - aufgaben?: string
- * - vorwissen?: string
- * - material?: string[]
- * - websiteTools?: WebsiteTool[]
- * - einstieg?: string
- * - hauptteil?: string
- * - abschluss?: string
- * - stolpersteine?: string
- * - kiZusammenfassung?: string
+ * - ... andere Felder
+ * - order: number (required)
+ *
+ * Body (Single für Systemthema):
+ * - systemThemeId: string (required)
+ * - systemThemeName: string (required)
+ * - lektion: string (required)
+ * - eindeutigeBezeichnung: string (required)
+ * - ... andere Felder
  * - order: number (required)
  *
  * Body (Multiple):
@@ -110,6 +125,13 @@ export async function POST(request: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
+    // Lade User-Daten für Name und SchuleId
+    const adminDb = getAdminDb();
+    const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
+    const teacherData = teacherDoc.exists ? teacherDoc.data() : null;
+    const userName = teacherData?.name || "Unbekannt";
+    const schuleId = teacherData?.schuleId;
+
     // Request Body
     const body = await request.json();
 
@@ -117,7 +139,7 @@ export async function POST(request: NextRequest) {
     const isBatch = Array.isArray(body.lektionen);
 
     if (isBatch) {
-      // Batch-Create
+      // Batch-Create (nur für Custom Themes wie bisher)
       const lektionen = body.lektionen;
 
       if (lektionen.length === 0) {
@@ -147,6 +169,8 @@ export async function POST(request: NextRequest) {
       const lektionenData = lektionen.map((lektion: any) => ({
         ...lektion,
         createdBy: userId,
+        createdByName: userName,
+        schuleId,
       }));
 
       const ids = await createMultipleCustomLektionen(lektionenData);
@@ -159,6 +183,8 @@ export async function POST(request: NextRequest) {
       // Single-Create
       const {
         themeId,
+        systemThemeId,
+        systemThemeName,
         lektion,
         eindeutigeBezeichnung,
         aufgaben,
@@ -173,53 +199,96 @@ export async function POST(request: NextRequest) {
         order,
       } = body;
 
-      // Validierung
-      if (!themeId || !lektion || !eindeutigeBezeichnung || order === undefined) {
+      // Validierung - entweder themeId ODER systemThemeId/systemThemeName
+      const isSystemTheme = !!systemThemeId && !!systemThemeName;
+      const isCustomTheme = !!themeId && !systemThemeId;
+
+      if (!isSystemTheme && !isCustomTheme) {
         return NextResponse.json(
           {
             error:
-              "Missing required fields: themeId, lektion, eindeutigeBezeichnung, order",
+              "Either themeId OR (systemThemeId and systemThemeName) is required",
           },
           { status: 400 }
         );
       }
 
-      // Theme laden und Berechtigung prüfen
-      const theme = await getCustomThemeById(themeId);
-      if (!theme) {
+      if (!lektion || !eindeutigeBezeichnung || order === undefined) {
         return NextResponse.json(
-          { error: "Theme not found" },
-          { status: 404 }
+          {
+            error:
+              "Missing required fields: lektion, eindeutigeBezeichnung, order",
+          },
+          { status: 400 }
         );
       }
 
-      // Nur Ersteller kann Lektionen hinzufügen
-      if (theme.createdBy !== userId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      if (isCustomTheme) {
+        // Custom Theme: Berechtigung prüfen
+        const theme = await getCustomThemeById(themeId);
+        if (!theme) {
+          return NextResponse.json(
+            { error: "Theme not found" },
+            { status: 404 }
+          );
+        }
+
+        // Nur Ersteller kann Lektionen hinzufügen
+        if (theme.createdBy !== userId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        // Lektion erstellen für Custom Theme
+        const lektionId = await createCustomLektion({
+          themeId,
+          lektion,
+          eindeutigeBezeichnung,
+          aufgaben,
+          vorwissen,
+          material,
+          websiteTools,
+          einstieg,
+          hauptteil,
+          abschluss,
+          stolpersteine,
+          kiZusammenfassung,
+          createdBy: userId,
+          createdByName: userName,
+          schuleId,
+          order,
+        });
+
+        return NextResponse.json(
+          { success: true, lektionId },
+          { status: 201 }
+        );
+      } else {
+        // Systemthema: Jeder authentifizierte User kann Lektionen erstellen
+        const lektionId = await createCustomLektion({
+          systemThemeId,
+          systemThemeName,
+          lektion,
+          eindeutigeBezeichnung,
+          aufgaben,
+          vorwissen,
+          material,
+          websiteTools,
+          einstieg,
+          hauptteil,
+          abschluss,
+          stolpersteine,
+          kiZusammenfassung,
+          createdBy: userId,
+          createdByName: userName,
+          schuleId,
+          order,
+        });
+
+        return NextResponse.json(
+          { success: true, lektionId },
+          { status: 201 }
+        );
       }
-
-      // Lektion erstellen
-      const lektionId = await createCustomLektion({
-        themeId,
-        lektion,
-        eindeutigeBezeichnung,
-        aufgaben,
-        vorwissen,
-        material,
-        websiteTools,
-        einstieg,
-        hauptteil,
-        abschluss,
-        stolpersteine,
-        kiZusammenfassung,
-        createdBy: userId,
-        order,
-      });
-
-      return NextResponse.json(
-        { success: true, lektionId },
-        { status: 201 }
-      );
     }
   } catch (error) {
     console.error("Error in POST /api/custom-lektionen:", error);

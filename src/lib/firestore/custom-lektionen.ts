@@ -17,11 +17,13 @@ const timestampToDate = (timestamp: any): Date => {
 };
 
 /**
- * Erstellt eine neue Custom Lektion
+ * Erstellt eine neue Custom Lektion (für Custom Theme ODER Systemthema)
  */
 export async function createCustomLektion(
   data: {
-    themeId: string;
+    themeId?: string; // Optional - für Custom Themes
+    systemThemeId?: string; // Optional - für Systemthemen (Airtable)
+    systemThemeName?: string; // Name des Systemthemas
     lektion: string;
     eindeutigeBezeichnung: string;
     aufgaben?: string;
@@ -34,6 +36,8 @@ export async function createCustomLektion(
     stolpersteine?: string;
     kiZusammenfassung?: string;
     createdBy: string;
+    createdByName?: string;
+    schuleId?: string;
     order: number;
   }
 ): Promise<string> {
@@ -79,6 +83,8 @@ export async function getCustomLektionById(
     return {
       id: doc.id,
       themeId: data.themeId,
+      systemThemeId: data.systemThemeId,
+      systemThemeName: data.systemThemeName,
       lektion: data.lektion,
       eindeutigeBezeichnung: data.eindeutigeBezeichnung,
       aufgaben: data.aufgaben,
@@ -91,6 +97,8 @@ export async function getCustomLektionById(
       stolpersteine: data.stolpersteine,
       kiZusammenfassung: data.kiZusammenfassung,
       createdBy: data.createdBy,
+      createdByName: data.createdByName,
+      schuleId: data.schuleId,
       createdAt: timestampToDate(data.createdAt),
       updatedAt: timestampToDate(data.updatedAt),
       order: data.order,
@@ -120,6 +128,8 @@ export async function getCustomLektionenByThemeId(
       return {
         id: doc.id,
         themeId: data.themeId,
+        systemThemeId: data.systemThemeId,
+        systemThemeName: data.systemThemeName,
         lektion: data.lektion,
         eindeutigeBezeichnung: data.eindeutigeBezeichnung,
         aufgaben: data.aufgaben,
@@ -132,6 +142,8 @@ export async function getCustomLektionenByThemeId(
         stolpersteine: data.stolpersteine,
         kiZusammenfassung: data.kiZusammenfassung,
         createdBy: data.createdBy,
+        createdByName: data.createdByName,
+        schuleId: data.schuleId,
         createdAt: timestampToDate(data.createdAt),
         updatedAt: timestampToDate(data.updatedAt),
         order: data.order,
@@ -139,6 +151,59 @@ export async function getCustomLektionenByThemeId(
     });
   } catch (error) {
     console.error("Error fetching custom lektionen by theme:", error);
+    return [];
+  }
+}
+
+/**
+ * Lädt alle Custom Lektionen für ein Systemthema (nach Thema-Name)
+ * Optional gefiltert nach Schule (eigene Schule sehen alle)
+ */
+export async function getCustomLektionenBySystemThemeName(
+  themeName: string,
+  schuleId?: string
+): Promise<CustomLektion[]> {
+  try {
+    const adminDb = getAdminDb();
+    let query = adminDb
+      .collection(CUSTOM_LEKTIONEN_COLLECTION)
+      .where("systemThemeName", "==", themeName);
+
+    // Optional: Nur Lektionen der eigenen Schule laden
+    if (schuleId) {
+      query = query.where("schuleId", "==", schuleId);
+    }
+
+    const snapshot = await query.orderBy("order", "asc").get();
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        themeId: data.themeId,
+        systemThemeId: data.systemThemeId,
+        systemThemeName: data.systemThemeName,
+        lektion: data.lektion,
+        eindeutigeBezeichnung: data.eindeutigeBezeichnung,
+        aufgaben: data.aufgaben,
+        vorwissen: data.vorwissen,
+        material: data.material,
+        websiteTools: data.websiteTools,
+        einstieg: data.einstieg,
+        hauptteil: data.hauptteil,
+        abschluss: data.abschluss,
+        stolpersteine: data.stolpersteine,
+        kiZusammenfassung: data.kiZusammenfassung,
+        createdBy: data.createdBy,
+        createdByName: data.createdByName,
+        schuleId: data.schuleId,
+        createdAt: timestampToDate(data.createdAt),
+        updatedAt: timestampToDate(data.updatedAt),
+        order: data.order,
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching custom lektionen by system theme:", error);
     return [];
   }
 }

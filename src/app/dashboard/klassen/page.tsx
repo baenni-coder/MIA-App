@@ -21,7 +21,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -297,14 +296,15 @@ export default function KlassenPage() {
                 Verwalte deine Klassen und Schüler
               </p>
             </div>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => handleOpenDialog()}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Neue Klasse
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
+            <Button onClick={() => handleOpenDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Neue Klasse
+            </Button>
+          </div>
+
+          {/* Dialog für Klasse erstellen/bearbeiten */}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogContent>
                 <form onSubmit={handleSubmit}>
                   <DialogHeader>
                     <DialogTitle>
@@ -385,7 +385,6 @@ export default function KlassenPage() {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
 
           {/* Klassen-Liste */}
           {loading ? (

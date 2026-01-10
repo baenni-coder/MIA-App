@@ -15,6 +15,38 @@
       ]
     },
     {
+      "collectionGroup": "custom_lektionen",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "systemThemeName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "custom_lektionen",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "systemThemeName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "schuleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "student_artifacts",
       "queryScope": "COLLECTION",
       "fields": [
