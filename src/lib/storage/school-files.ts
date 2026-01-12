@@ -2,8 +2,10 @@
  * Firebase Storage Funktionen für School Files
  *
  * Schulspezifische Dateien werden in folgendem Schema gespeichert:
- * - Geteilte Dateien: school-files/{schuleId}/shared/{timestamp}_{filename}
+ * - Geteilte Dateien: school-files/{schuleId}/shared/{userId}/{timestamp}_{filename}
  * - Private Dateien: school-files/{schuleId}/users/{userId}/{timestamp}_{filename}
+ *
+ * WICHTIG: Der userId ist im Pfad enthalten, damit Storage Rules den Besitzer prüfen können.
  */
 
 import * as admin from "firebase-admin";
@@ -94,8 +96,9 @@ export function generateSchoolFilePath(
   const sanitizedName = sanitizeFilename(filename);
 
   if (sharedWith === "school") {
-    // Geteilte Dateien: Alle der Schule können zugreifen
-    return `school-files/${schuleId}/shared/${timestamp}_${sanitizedName}`;
+    // Geteilte Dateien: Alle der Schule können lesen, aber nur Besitzer kann schreiben/löschen
+    // userId im Pfad ermöglicht Storage Rules Validierung
+    return `school-files/${schuleId}/shared/${userId}/${timestamp}_${sanitizedName}`;
   } else {
     // Private Dateien: Nur der User kann zugreifen
     return `school-files/${schuleId}/users/${userId}/${timestamp}_${sanitizedName}`;

@@ -84,12 +84,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validiere dass der Storage-Pfad zur Schule des Users gehört
-    const expectedPathPrefix = `school-files/${schuleId}/`;
-    if (!storagePath.startsWith(expectedPathPrefix)) {
+    // Validiere dass der Storage-Pfad zur Schule UND zum User gehört
+    const expectedSharedPath = `school-files/${schuleId}/shared/${userId}/`;
+    const expectedPrivatePath = `school-files/${schuleId}/users/${userId}/`;
+
+    if (!storagePath.startsWith(expectedSharedPath) && !storagePath.startsWith(expectedPrivatePath)) {
       return NextResponse.json(
-        { error: "Invalid storage path - must belong to your school" },
+        { error: "Invalid storage path - must belong to your school and user" },
         { status: 403 }
+      );
+    }
+
+    // Zusätzliche Validierung: sharedWith muss zum Pfad passen
+    if (sharedWith === "school" && !storagePath.startsWith(expectedSharedPath)) {
+      return NextResponse.json(
+        { error: "Storage path does not match sharedWith setting" },
+        { status: 400 }
+      );
+    }
+    if (sharedWith === "private" && !storagePath.startsWith(expectedPrivatePath)) {
+      return NextResponse.json(
+        { error: "Storage path does not match sharedWith setting" },
+        { status: 400 }
       );
     }
 

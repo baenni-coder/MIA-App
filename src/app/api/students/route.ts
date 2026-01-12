@@ -223,14 +223,25 @@ export async function POST(request: Request) {
         password, // Optional
       });
 
-      return NextResponse.json(
+      // SICHERHEITSHINWEIS: Das Passwort wird nur bei der Erstellung zurückgegeben
+      // und sollte vom Lehrer sicher an den Schüler übermittelt werden.
+      // Cache-Control Header verhindern das Caching der Antwort.
+      const response = NextResponse.json(
         {
           id: result.studentId,
           password: result.password,
-          message: "Schüler erfolgreich erstellt",
+          temporaryPassword: true, // Schüler sollte Passwort bei erster Anmeldung ändern
+          message: "Schüler erfolgreich erstellt. Bitte notieren Sie das Passwort - es wird nur einmal angezeigt.",
         },
         { status: 201 }
       );
+
+      // Verhindere Caching der Passwort-Antwort
+      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+      response.headers.set("Pragma", "no-cache");
+      response.headers.set("Expires", "0");
+
+      return response;
     } catch (error: unknown) {
       if (error instanceof Error && error.message.includes("existiert bereits")) {
         return NextResponse.json(

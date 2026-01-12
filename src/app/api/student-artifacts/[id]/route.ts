@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminDb, getAdminStorage } from "@/lib/firebase/admin";
 import {
   getArtifactById,
   updateArtifact,
@@ -216,11 +216,21 @@ export async function DELETE(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // TODO: Storage-Cleanup (Datei aus Firebase Storage löschen)
-    // if (artifact.storagePath) {
-    //   const storage = getAdminStorage();
-    //   await storage.bucket().file(artifact.storagePath).delete();
-    // }
+    // Storage-Cleanup: Datei aus Firebase Storage löschen
+    if (artifact.storagePath) {
+      try {
+        const storage = getAdminStorage();
+        const file = storage.bucket().file(artifact.storagePath);
+        const [exists] = await file.exists();
+        if (exists) {
+          await file.delete();
+          console.log(`Deleted storage file: ${artifact.storagePath}`);
+        }
+      } catch (storageError) {
+        // Loggen aber fortfahren - Firestore-Eintrag sollte trotzdem gelöscht werden
+        console.error("Error deleting storage file:", storageError);
+      }
+    }
 
     await deleteArtifact(id);
 
