@@ -5,6 +5,7 @@ import {
   createFAQItem,
   initializeFAQItems,
 } from "@/lib/firestore/faq";
+import { validateFAQInput } from "@/lib/validation/input";
 import { FAQCategory } from "@/types";
 
 /**
@@ -106,10 +107,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { question, answer, category, order, isActive } = body;
 
-    // Validierung
+    // Validierung der Pflichtfelder
     if (!question || !answer || !category) {
       return NextResponse.json(
         { error: "Question, answer and category are required" },
+        { status: 400 }
+      );
+    }
+
+    // Input-Längenvalidierung
+    const inputValidation = validateFAQInput(body);
+    if (!inputValidation.valid) {
+      return NextResponse.json(
+        { error: inputValidation.error },
         { status: 400 }
       );
     }

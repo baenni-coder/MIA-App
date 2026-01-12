@@ -8,6 +8,7 @@ import {
 import { createMultipleCustomLektionen } from "@/lib/firestore/custom-lektionen";
 import { getTeacherProfile } from "@/lib/firestore/permissions";
 import { notifyThemeSubmitted } from "@/lib/firestore/notifications";
+import { validateCustomThemeInput } from "@/lib/validation/input";
 import { ThemeStatus, Stufe, Zeitraum, WebsiteTool } from "@/types";
 
 // Interface für Lektionen aus dem Request Body
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
       lektionen?: LektionInput[];
     };
 
-    // Validierung
+    // Validierung der Pflichtfelder
     if (!thema || !beschreibung || !anzahlLektionen || !schuljahr || !zeitraum) {
       return NextResponse.json(
         {
@@ -191,6 +192,15 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(schuljahr) || schuljahr.length === 0) {
       return NextResponse.json(
         { error: "schuljahr must be a non-empty array" },
+        { status: 400 }
+      );
+    }
+
+    // Input-Längenvalidierung (verhindert DoS durch zu große Payloads)
+    const inputValidation = validateCustomThemeInput(body);
+    if (!inputValidation.valid) {
+      return NextResponse.json(
+        { error: inputValidation.error },
         { status: 400 }
       );
     }

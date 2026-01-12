@@ -62,19 +62,28 @@ service firebase.storage {
     // School Files (schulspezifische Unterlagen)
     // ============================================
 
-    // Pfad: school-files/{schuleId}/shared/{filename}
+    // Pfad: school-files/{schuleId}/shared/{userId}/{filename}
     // Für Dateien, die mit allen Lehrpersonen der Schule geteilt werden
-    match /school-files/{schuleId}/shared/{filename} {
-      // Lesen: Nur Lehrpersonen derselben Schule
-      // (wird via Custom Claims oder Server-side geprüft)
+    // WICHTIG: userId im Pfad ermöglicht Besitzer-Validierung
+    match /school-files/{schuleId}/shared/{userId}/{filename} {
+      // Lesen: Alle authentifizierten User (Schul-Zugehörigkeit wird serverseitig geprüft)
       allow read: if isAuthenticated();
 
-      // Schreiben: Nur authentifizierte User (Server prüft Schul-Zugehörigkeit)
+      // Schreiben: Nur der Besitzer (userId muss im Pfad mit auth.uid übereinstimmen)
       allow write: if isAuthenticated()
-                   && isSizeValid(50); // Max 50MB pro Datei
+                   && isOwner(userId)
+                   && isSizeValid(50);
 
-      // Löschen: Nur authentifizierte User
-      allow delete: if isAuthenticated();
+      // Löschen: Nur der Besitzer
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Legacy-Pfad: school-files/{schuleId}/shared/{filename} (ohne userId)
+    // Nur Lesen erlaubt für Abwärtskompatibilität mit alten Dateien
+    match /school-files/{schuleId}/shared/{filename} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Neue Uploads müssen den neuen Pfad mit userId verwenden
+      allow delete: if false; // Löschen nur über Admin SDK möglich
     }
 
     // Pfad: school-files/{schuleId}/users/{userId}/{filename}
