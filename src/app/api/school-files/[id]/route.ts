@@ -11,6 +11,7 @@ import {
   deleteSchoolFileFromStorage,
   refreshSchoolFileUrl,
 } from "@/lib/storage/school-files";
+import { logFileDeletion } from "@/lib/audit/logger";
 import { FileShareLevel } from "@/types";
 
 interface RouteParams {
@@ -228,6 +229,15 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const schuleId = teacher.schuleId;
     const userRole = teacher.role;
 
+    // Hole Datei-Informationen für Audit-Log
+    const file = await getSchoolFile(fileId);
+    if (!file) {
+      return NextResponse.json(
+        { error: "File not found" },
+        { status: 404 }
+      );
+    }
+
     // Prüfe Löschberechtigung
     const canDelete = await canDeleteSchoolFile(fileId, userId, userRole, schuleId);
     if (!canDelete) {
@@ -254,6 +264,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       console.error("Error deleting from storage:", storageError);
       // Metadaten sind gelöscht, Storage-Fehler loggen aber nicht werfen
     }
+
+    // Audit-Log
+    await logFileDeletion(userId, teacher.name || "Unknown", fileId, file.name);
 
     return NextResponse.json(
       {
