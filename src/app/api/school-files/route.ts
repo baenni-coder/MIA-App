@@ -6,6 +6,7 @@ import {
   getSchoolFilesForTheme,
 } from "@/lib/firestore/school-files";
 import { uploadSchoolFile, validateSchoolFile } from "@/lib/storage/school-files";
+import { logFileUpload } from "@/lib/audit/logger";
 import { FileShareLevel } from "@/types";
 
 // Next.js 15 Route Segment Config
@@ -229,6 +230,9 @@ export async function POST(request: NextRequest) {
       linkedThemeIds,
       description: description || undefined,
     });
+
+    // Audit-Log
+    await logFileUpload(userId, teacherName, fileId, fileName, schuleId, sharedWith);
 
     return NextResponse.json(
       {

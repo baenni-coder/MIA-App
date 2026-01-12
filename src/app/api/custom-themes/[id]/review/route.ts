@@ -10,6 +10,7 @@ import {
   notifyThemeRejected,
 } from "@/lib/firestore/notifications";
 import { getTeacherProfile } from "@/lib/firestore/permissions";
+import { logThemeApproval, logThemeRejection } from "@/lib/audit/logger";
 import { ThemeStatus } from "@/types";
 
 /**
@@ -110,6 +111,8 @@ export async function PUT(
         admin.name,
         theme.schuleId
       );
+      // Audit-Log
+      await logThemeApproval(userId, admin.name, themeId, theme.thema, theme.createdByName);
     } else {
       await notifyThemeRejected(
         themeId,
@@ -119,6 +122,8 @@ export async function PUT(
         reviewNotes,
         theme.schuleId
       );
+      // Audit-Log
+      await logThemeRejection(userId, admin.name, themeId, theme.thema, reviewNotes);
     }
 
     return NextResponse.json(

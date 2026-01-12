@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncAirtableToFirestore } from "@/lib/sync/airtable-firestore-sync";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { getSyncMetadata } from "@/lib/firestore/system-cache";
+import { logDataSync } from "@/lib/audit/logger";
 
 /**
  * POST /api/admin/sync
@@ -62,10 +63,20 @@ export async function POST(request: NextRequest) {
     // Wir starten den Sync und geben sofort eine Response zurück
     console.log(`🔄 Manual sync triggered by user ${userId} (${teacher?.name})`);
 
+    // Audit-Log: Sync gestartet
+    await logDataSync("DATA_SYNC_STARTED", userId, teacher?.name || "Unknown");
+
     // Fire-and-forget: Sync läuft im Hintergrund
-    syncAirtableToFirestore(userId).catch((error) => {
-      console.error("Background sync failed:", error);
-    });
+    syncAirtableToFirestore(userId)
+      .then(async () => {
+        await logDataSync("DATA_SYNC_COMPLETED", userId, teacher?.name || "Unknown");
+      })
+      .catch(async (error) => {
+        console.error("Background sync failed:", error);
+        await logDataSync("DATA_SYNC_FAILED", userId, teacher?.name || "Unknown", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      });
 
     return NextResponse.json({
       success: true,
