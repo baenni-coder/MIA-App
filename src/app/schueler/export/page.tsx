@@ -17,7 +17,6 @@ import {
   StudentBadge,
   Kompetenz,
   ClassThemeProgress,
-  BADGE_RARITY_LABELS,
 } from "@/types";
 import {
   FileDown,
@@ -97,7 +96,6 @@ export default function ExportPage() {
       : 0;
 
   // Kompetenzen nach Bereichen gruppieren
-  const kompetenzMap = new Map(kompetenzen.map((k) => [k.id, k]));
   const ratedByArea: Record<string, { rated: number; total: number; avgRating: number }> = {};
 
   kompetenzen.forEach((k) => {
@@ -123,166 +121,33 @@ export default function ExportPage() {
 
     setExporting(true);
     try {
-      const { jsPDF } = await import("jspdf");
-      const doc = new jsPDF();
+      // Dynamisch importieren für bessere Bundle-Größe
+      const { pdf } = await import("@react-pdf/renderer");
+      const { KompetenzenpassPDF } = await import("@/components/KompetenzenpassPDF");
 
-      // Deckblatt
-      doc.setFontSize(24);
-      doc.setFont("helvetica", "bold");
-      doc.text("Kompetenzenpass", 105, 40, { align: "center" });
+      // PDF-Dokument erstellen
+      const blob = await pdf(
+        <KompetenzenpassPDF
+          student={studentProfile}
+          progress={progress}
+          badges={badges}
+          kompetenzen={kompetenzen}
+          completedThemes={completedThemes}
+        />
+      ).toBlob();
 
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "normal");
-      doc.text(studentProfile.name, 105, 60, { align: "center" });
-
-      doc.setFontSize(12);
-      doc.text(`Klasse: ${studentProfile.className || "Unbekannt"}`, 105, 75, {
-        align: "center",
-      });
-      doc.text(
-        `Stand: ${new Date().toLocaleDateString("de-CH", {
-          day: "2-digit",
-          month: "long",
-          year: "numeric",
-        })}`,
-        105,
-        85,
-        { align: "center" }
-      );
-
-      // Zusammenfassung
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Zusammenfassung", 20, 110);
-
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
-      let y = 125;
-
-      doc.text(`Bewertete Kompetenzen: ${totalRated} von ${totalKompetenzen}`, 20, y);
-      y += 8;
-      doc.text(`Durchschnittliche Bewertung: ${averageRating.toFixed(1)} Sterne`, 20, y);
-      y += 8;
-      doc.text(`Kompetenzen mit 5 Sternen: ${fiveStarCount}`, 20, y);
-      y += 8;
-      doc.text(`Kompetenzen mit 4+ Sternen: ${fourPlusCount}`, 20, y);
-      y += 8;
-      doc.text(`Erhaltene Badges: ${badges.length}`, 20, y);
-      y += 8;
-      doc.text(`Bearbeitete Themen: ${completedThemes.length}`, 20, y);
-
-      // Badges
-      if (badges.length > 0) {
-        y += 20;
-        doc.setFont("helvetica", "bold");
-        doc.text("Erhaltene Badges", 20, y);
-        y += 10;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-
-        badges.forEach((badge) => {
-          if (y > 270) {
-            doc.addPage();
-            y = 20;
-          }
-          const date = new Date(badge.awardedAt).toLocaleDateString("de-CH");
-          doc.text(
-            `${badge.badgeEmoji} ${badge.badgeName} (${BADGE_RARITY_LABELS[badge.badgeRarity]}) - ${date}`,
-            25,
-            y
-          );
-          y += 7;
-        });
-      }
-
-      // Neue Seite für Kompetenzen nach Bereich
-      doc.addPage();
-      y = 20;
-
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Kompetenzen nach Bereich", 20, y);
-      y += 15;
-
-      const areas = ["Medien", "Informatik", "Anwendungskompetenzen"];
-
-      areas.forEach((area) => {
-        if (y > 250) {
-          doc.addPage();
-          y = 20;
-        }
-
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text(area, 20, y);
-        y += 8;
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-
-        const areaKompetenzen = kompetenzen.filter(
-          (k) => k.kompetenzbereich === area
-        );
-
-        areaKompetenzen.forEach((k) => {
-          if (y > 270) {
-            doc.addPage();
-            y = 20;
-          }
-
-          const rating = ratings[k.id] || 0;
-          const stars = "★".repeat(rating) + "☆".repeat(5 - rating);
-          const lpCode = k.lpCode || k.name?.substring(0, 15) || "";
-
-          doc.text(`${lpCode}: ${stars}`, 25, y);
-          y += 6;
-        });
-
-        y += 10;
-      });
-
-      // Bearbeitete Themen
-      if (completedThemes.length > 0) {
-        if (y > 220) {
-          doc.addPage();
-          y = 20;
-        }
-
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("Bearbeitete Themen", 20, y);
-        y += 10;
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-
-        completedThemes.forEach((theme) => {
-          if (y > 270) {
-            doc.addPage();
-            y = 20;
-          }
-
-          const date = new Date(theme.markedCompletedAt).toLocaleDateString("de-CH");
-          doc.text(`- ${theme.themeName} (${date})`, 25, y);
-          y += 6;
-        });
-      }
-
-      // Footer auf der letzten Seite
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Seite ${i} von ${pageCount}`, 105, 290, { align: "center" });
-        doc.text("MIA-App Kompetenzenpass", 20, 290);
-      }
-
-      // Download
-      doc.save(`Kompetenzenpass-${studentProfile.name.replace(/\s+/g, "-")}.pdf`);
+      // Download-Link erstellen und klicken
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Kompetenzenpass-${studentProfile.name.replace(/\s+/g, "-")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Error exporting PDF:", err);
-      alert("Fehler beim Erstellen des PDFs");
+      alert("Fehler beim Erstellen des PDFs. Bitte versuche es erneut.");
     } finally {
       setExporting(false);
     }
