@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,11 +20,12 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, user, userRole, profileLoading, isStudent, isTeacher } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [waitingForProfile, setWaitingForProfile] = useState(false);
 
   // Passwort vergessen Dialog State
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -33,18 +34,37 @@ export default function LoginPage() {
   const [resetError, setResetError] = useState("");
   const [resetSuccess, setResetSuccess] = useState(false);
 
+  // Rollenbasierte Weiterleitung nach Login
+  useEffect(() => {
+    if (waitingForProfile && user && !profileLoading && userRole) {
+      setWaitingForProfile(false);
+      if (isStudent) {
+        // Schüler zur Schüler-Oberfläche weiterleiten
+        router.push("/schueler/dashboard");
+      } else if (isTeacher) {
+        // Lehrer zum Lehrer-Dashboard weiterleiten
+        router.push("/dashboard");
+      } else {
+        // Unbekannte Rolle - Fehlermeldung
+        setError("Ihr Konto konnte keiner Benutzergruppe zugeordnet werden. Bitte kontaktieren Sie den Support.");
+        setLoading(false);
+      }
+    }
+  }, [waitingForProfile, user, userRole, profileLoading, isStudent, isTeacher, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const { user, error: loginError } = await login(email, password);
+    const { user: loggedInUser, error: loginError } = await login(email, password);
 
     if (loginError) {
       setError(loginError);
       setLoading(false);
-    } else if (user) {
-      router.push("/dashboard");
+    } else if (loggedInUser) {
+      // Warte auf Profil-Laden um Rolle zu bestimmen
+      setWaitingForProfile(true);
     }
   };
 
