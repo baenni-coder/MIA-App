@@ -1,5 +1,5 @@
 import { getAdminDb } from "@/lib/firebase/admin";
-import { Student } from "@/types";
+import { Student, AvatarConfig } from "@/types";
 import { updateClassStudentCount, getClassById } from "./classes";
 import { getAuth } from "firebase-admin/auth";
 import { getAdminApp } from "@/lib/firebase/admin";
@@ -35,6 +35,7 @@ const docToStudent = (
   schoolId: data.schoolId,
   teacherId: data.teacherId,
   teacherName: data.teacherName,
+  avatarConfig: data.avatarConfig || undefined,
   createdAt: timestampToDate(data.createdAt),
   lastActive: data.lastActive ? timestampToDate(data.lastActive) : undefined,
 });
@@ -254,6 +255,7 @@ export async function updateStudent(
     name: string;
     classId: string;
     className: string;
+    avatarConfig: AvatarConfig;
   }>
 ): Promise<void> {
   try {
