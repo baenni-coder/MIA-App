@@ -142,8 +142,8 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
       "font-src 'self' https://fonts.gstatic.com",
       // Images: self + data URIs + externe Quellen
       "img-src 'self' data: blob: https://*.airtableusercontent.com https://dl.airtable.com https://firebasestorage.googleapis.com https://storage.googleapis.com https://api.dicebear.com",
-      // Connect: API calls
-      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://api.airtable.com",
+      // Connect: API calls + data/blob for PDF generation
+      "connect-src 'self' data: blob: https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://api.airtable.com https://api.dicebear.com",
       // Frame ancestors: keine Einbettung erlaubt
       "frame-ancestors 'none'",
       // Base URI
