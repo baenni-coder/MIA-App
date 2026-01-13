@@ -91,6 +91,8 @@ export async function GET(request: Request, context: RouteContext) {
 /**
  * PUT /api/students/[id]
  * Aktualisiert einen Schüler
+ * - Lehrer können name und classId ändern
+ * - Schüler können nur ihren eigenen Avatar ändern
  */
 export async function PUT(request: Request, context: RouteContext) {
   try {
@@ -117,7 +119,56 @@ export async function PUT(request: Request, context: RouteContext) {
 
     const userId = decodedToken.uid;
 
-    // Zugriffsprüfung: nur Lehrer mit Zugriff
+    // Request Body parsen
+    const body = await request.json();
+    const { name, classId, avatarConfig } = body;
+
+    // Prüfen ob Schüler seinen eigenen Avatar ändert
+    const isOwnProfile = userId === id;
+    const isAvatarOnlyUpdate = avatarConfig && !name && !classId;
+
+    if (isOwnProfile && isAvatarOnlyUpdate) {
+      // Schüler darf seinen eigenen Avatar ändern
+      // Validierung der Avatar-Konfiguration
+      if (avatarConfig) {
+        const validStyles = [
+          "adventurer",
+          "adventurer-neutral",
+          "avataaars",
+          "big-ears",
+          "bottts",
+          "fun-emoji",
+          "lorelei",
+          "thumbs",
+        ];
+        if (!validStyles.includes(avatarConfig.style)) {
+          return NextResponse.json(
+            { error: "Invalid avatar style" },
+            { status: 400 }
+          );
+        }
+        if (typeof avatarConfig.seed !== "string" || avatarConfig.seed.length > 100) {
+          return NextResponse.json(
+            { error: "Invalid avatar seed" },
+            { status: 400 }
+          );
+        }
+        if (
+          avatarConfig.backgroundColor &&
+          !/^[a-fA-F0-9]{6}$|^transparent$/.test(avatarConfig.backgroundColor)
+        ) {
+          return NextResponse.json(
+            { error: "Invalid background color" },
+            { status: 400 }
+          );
+        }
+      }
+
+      await updateStudent(id, { avatarConfig });
+      return NextResponse.json({ success: true });
+    }
+
+    // Zugriffsprüfung: nur Lehrer mit Zugriff für andere Änderungen
     const hasAccess = await teacherHasAccessToStudent(userId, id);
     if (!hasAccess) {
       return NextResponse.json(
@@ -126,13 +177,11 @@ export async function PUT(request: Request, context: RouteContext) {
       );
     }
 
-    // Request Body parsen
-    const { name, classId } = await request.json();
-
-    // Schüler aktualisieren
+    // Schüler aktualisieren (Lehrer-Update)
     await updateStudent(id, {
       ...(name && { name }),
       ...(classId && { classId }),
+      ...(avatarConfig && { avatarConfig }),
     });
 
     return NextResponse.json({ success: true });

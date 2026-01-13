@@ -7,8 +7,9 @@ import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { cn } from "@/lib/utils";
-import { Student } from "@/types";
+import { Student, DEFAULT_AVATAR_CONFIG } from "@/types";
 import NotificationBell from "./NotificationBell";
+import { StudentAvatar } from "./StudentAvatar";
 import {
   LogOut,
   LayoutDashboard,
@@ -161,14 +162,42 @@ export default function StudentDashboardLayout({
 
         {/* User Info & Logout */}
         <div className="p-2 border-t">
-          {!sidebarCollapsed && (
-            <div className="px-3 py-2">
-              <div className="text-sm font-medium truncate">
-                {studentProfile?.name || user?.email}
+          {!sidebarCollapsed ? (
+            <div
+              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-blue-50 cursor-pointer transition-colors"
+              onClick={() => router.push("/schueler/profil")}
+            >
+              <StudentAvatar
+                config={studentProfile?.avatarConfig || {
+                  ...DEFAULT_AVATAR_CONFIG,
+                  seed: studentProfile?.id || "default",
+                }}
+                size="sm"
+                showBorder={false}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">
+                  {studentProfile?.name || user?.email}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {studentProfile?.className || "Klasse wird geladen..."}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground truncate">
-                {studentProfile?.className || "Klasse wird geladen..."}
-              </div>
+            </div>
+          ) : (
+            <div
+              className="flex justify-center py-2 cursor-pointer"
+              onClick={() => router.push("/schueler/profil")}
+              title="Profil"
+            >
+              <StudentAvatar
+                config={studentProfile?.avatarConfig || {
+                  ...DEFAULT_AVATAR_CONFIG,
+                  seed: studentProfile?.id || "default",
+                }}
+                size="sm"
+                showBorder={false}
+              />
             </div>
           )}
           <Button
@@ -217,12 +246,28 @@ export default function StudentDashboardLayout({
               </SheetTrigger>
               <SheetContent side="right" className="w-72">
                 <div className="flex flex-col gap-4 mt-6">
-                  <div className="pb-4 border-b">
-                    <div className="font-medium">
-                      {studentProfile?.name || user?.email}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {studentProfile?.className || "Klasse wird geladen..."}
+                  <div
+                    className="flex items-center gap-3 pb-4 border-b cursor-pointer"
+                    onClick={() => {
+                      router.push("/schueler/profil");
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    <StudentAvatar
+                      config={studentProfile?.avatarConfig || {
+                        ...DEFAULT_AVATAR_CONFIG,
+                        seed: studentProfile?.id || "default",
+                      }}
+                      size="md"
+                      showBorder={false}
+                    />
+                    <div>
+                      <div className="font-medium">
+                        {studentProfile?.name || user?.email}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {studentProfile?.className || "Klasse wird geladen..."}
+                      </div>
                     </div>
                   </div>
 
@@ -275,9 +320,22 @@ export default function StudentDashboardLayout({
           </div>
           <div className="flex items-center gap-4">
             <NotificationBell />
-            <span className="text-sm text-muted-foreground">
-              {studentProfile?.name || user?.email}
-            </span>
+            <div
+              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => router.push("/schueler/profil")}
+            >
+              <span className="text-sm text-muted-foreground">
+                {studentProfile?.name || user?.email}
+              </span>
+              <StudentAvatar
+                config={studentProfile?.avatarConfig || {
+                  ...DEFAULT_AVATAR_CONFIG,
+                  seed: studentProfile?.id || "default",
+                }}
+                size="sm"
+                showBorder={false}
+              />
+            </div>
           </div>
         </header>
 

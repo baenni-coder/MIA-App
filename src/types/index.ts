@@ -596,6 +596,45 @@ export interface TempLektion {
 // Schüler & Klassen (Kompetenzenpass Integration)
 // ============================================
 
+// DiceBear Avatar-Stile (kindgerecht)
+export type AvatarStyle =
+  | "adventurer"    // Abenteurer-Stil
+  | "adventurer-neutral" // Neutraler Abenteurer
+  | "avataaars"     // Klassische Avatare
+  | "big-ears"      // Große Ohren (süß)
+  | "bottts"        // Roboter
+  | "fun-emoji"     // Lustige Emojis
+  | "lorelei"       // Anime-Stil
+  | "thumbs";       // Daumen-Figuren
+
+// Avatar-Konfiguration für DiceBear
+export interface AvatarConfig {
+  style: AvatarStyle;
+  seed: string; // Eindeutiger Seed für reproduzierbaren Avatar
+  backgroundColor?: string; // Hintergrundfarbe (hex ohne #)
+  // Stil-spezifische Optionen (werden als URL-Parameter übergeben)
+  options?: Record<string, string | number | boolean>;
+}
+
+// Verfügbare Avatar-Stile mit Labels
+export const AVATAR_STYLES: { value: AvatarStyle; label: string; description: string }[] = [
+  { value: "adventurer", label: "Abenteurer", description: "Bunte Charaktere mit verschiedenen Gesichtern" },
+  { value: "adventurer-neutral", label: "Abenteurer (Neutral)", description: "Neutrale Abenteurer-Figuren" },
+  { value: "avataaars", label: "Klassisch", description: "Klassische Comic-Avatare" },
+  { value: "big-ears", label: "Große Ohren", description: "Süße Figuren mit großen Ohren" },
+  { value: "bottts", label: "Roboter", description: "Coole Roboter-Designs" },
+  { value: "fun-emoji", label: "Lustige Gesichter", description: "Fröhliche Emoji-Gesichter" },
+  { value: "lorelei", label: "Anime", description: "Anime-inspirierte Charaktere" },
+  { value: "thumbs", label: "Daumen", description: "Lustige Daumen-Figuren" },
+];
+
+// Standard-Avatar-Konfiguration
+export const DEFAULT_AVATAR_CONFIG: AvatarConfig = {
+  style: "adventurer",
+  seed: "", // Wird mit der Student-ID initialisiert
+  backgroundColor: "b6e3f4", // Hellblau passend zum Schüler-Design
+};
+
 // Schüler-Profil
 export interface Student {
   id: string; // Firebase UID
@@ -607,6 +646,7 @@ export interface Student {
   schoolId: string; // Schule (für Zugriffskontrolle)
   teacherId: string; // Hauptverantwortliche Lehrperson
   teacherName?: string; // Name der Lehrperson
+  avatarConfig?: AvatarConfig; // DiceBear Avatar-Konfiguration
   createdAt: Date;
   lastActive?: Date;
 }
