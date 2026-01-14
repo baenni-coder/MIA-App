@@ -382,25 +382,27 @@ export default function BadgesPage() {
     <ProtectedRoute>
       <DashboardLayout>
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Award className="h-6 w-6" />
-                Badge-Verwaltung
-              </h1>
-              <p className="text-gray-500 mt-1">
-                Verwalten Sie Badges und vergeben Sie diese an Schüler
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Gift className="h-4 w-4 mr-2" />
-                    Badge vergeben
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
+          {/* Header */}
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Award className="h-6 w-6" />
+              Badge-Verwaltung
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Verwalten Sie Badges und vergeben Sie diese an Schüler
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-lg border">
+            <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Gift className="h-4 w-4 mr-2" />
+                  Badge vergeben
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Badge vergeben</DialogTitle>
                     <DialogDescription>
@@ -666,7 +668,6 @@ export default function BadgesPage() {
                 </DialogContent>
               </Dialog>
             </div>
-          </div>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
