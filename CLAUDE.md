@@ -15,7 +15,7 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 **NEU (2026-01)**:
 - **Schul-Dateien**: Dateien schulintern teilen (rechtssicher)
 - **Themen-Verknüpfungen**: Dateien mit Themen verknüpfen
-- **FAQ-Seite**: Häufig gestellte Fragen im Dashboard
+- **FAQ-Seite**: Häufig gestellte Fragen im Dashboard (34 Standard-Einträge inkl. Kompetenzenpass)
 - **FAQ-Verwaltung**: Admins können FAQ-Einträge erstellen, bearbeiten, löschen
 - **Schulverwaltung**: Super-Admins können Schulen erstellen und PICTS-Links bearbeiten
 - **Erweitertes Lehrerprofil**: Schule und Kanton im Dashboard bearbeitbar
@@ -25,6 +25,11 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Schüler-Artefakte**: Belege (Bilder, PDFs, Links) für Kompetenzen hochladen
 - **Gruppierte Menüstruktur**: Übersichtliche Kategorien in der Sidebar
 - **Scrollbare Dialoge**: Dialoge auf kleinen Bildschirmen scrollbar
+- **DiceBear Avatare**: Schüler können personalisierte Avatare erstellen
+- **PDF-Export mit @react-pdf/renderer**: Verbesserter Kompetenzenpass-Export mit Logo, Avatar, SVG-Sternen
+- **Klickbare Dashboard-Kacheln**: Schüler-Dashboard navigiert direkt zu den Bereichen
+- **Badge-Vergabe**: Lehrpersonen können eigene Badges erstellen und an Schüler vergeben
+- **Lehrmittel-Sortierung**: Themen innerhalb der Lehrmittel alphabetisch sortiert
 
 ## Tech Stack
 
@@ -750,6 +755,47 @@ Dialoge sind auf kleinen Bildschirmen scrollbar.
 - **DialogContent**: `max-h-[calc(100vh-2rem)]` für Viewport-Begrenzung
 - **Mobile**: `items-start` statt `items-center` für bessere Darstellung
 - **Responsive**: Unterschiedliche max-height für Mobile/Desktop
+
+### 23. DiceBear Avatare (NEU)
+Schüler können personalisierte Avatare erstellen.
+
+- **Avatar-Stile**: 6 verschiedene Stile (bottts, avataaars, lorelei, notionists, thumbs, funEmoji)
+- **Anpassungen**: Hintergrundfarbe, Seed für Variation
+- **Komponenten**:
+  - `StudentAvatar.tsx` - Avatar-Anzeige mit DiceBear API
+  - `AvatarEditor` - Dialog zum Bearbeiten des Avatars
+- **Profilseite** (`/schueler/profil`): Schüler können ihr Profil und Avatar bearbeiten
+- **Integration**: Avatar wird im Dashboard-Header und PDF-Export angezeigt
+- **API**: DiceBear API (`api.dicebear.com`) in CSP-Whitelist
+
+### 24. PDF-Export mit @react-pdf/renderer (NEU)
+Verbesserter Kompetenzenpass-Export mit professionellem Layout.
+
+- **Bibliothek**: `@react-pdf/renderer` statt jsPDF für bessere Unicode-Unterstützung
+- **Komponente**: `KompetenzenpassPDF.tsx`
+- **Features**:
+  - **Deckblatt**: MIA-Logo, Titel, Schüler-Avatar, Name, Klasse, Datum
+  - **Zusammenfassung**: Statistik-Karten, Fortschritts-Balken nach Bereich
+  - **SVG-Sterne**: Korrekte Darstellung der Stern-Bewertungen
+  - **Badges**: Farbige Buchstaben-Icons nach Seltenheit
+  - **Kompetenzen**: Nach Bereich gruppiert (Medien, Informatik, Anwendungskompetenzen)
+  - **Bearbeitete Themen**: Liste der abgeschlossenen Unterrichtsthemen
+- **CSP**: `data:` und `blob:` in connect-src für WASM-Loading
+
+### 25. Badge-System für Lehrpersonen (NEU)
+Lehrpersonen können eigene Badges erstellen und vergeben.
+
+- **Badge-Verwaltung** (`/dashboard/badges`):
+  - Tab "Alle Badges": System-Badges und eigene Badges
+  - Tab "Schüler-Badges": Übersicht nach Klasse
+- **Eigene Badges erstellen**:
+  - Emoji, Name, Beschreibung, Seltenheit (Gewöhnlich bis Legendär)
+  - Badges sind schulweit verfügbar
+- **Badges vergeben**:
+  - Button "Badge vergeben" öffnet Dialog
+  - Klasse → Schüler → Badge auswählen
+  - Optionale Begründung
+- **API**: `/api/student-badges` (POST für Vergabe, DELETE für Entfernen)
 
 ## Umgebungsvariablen
 

@@ -106,7 +106,7 @@ export default function LehrmittelPage() {
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
                       <div className="space-y-3 pt-2">
-                        {themen.map((thema) => (
+                        {[...themen].sort((a, b) => a.thema.localeCompare(b.thema)).map((thema) => (
                           <div
                             key={thema.id}
                             className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
