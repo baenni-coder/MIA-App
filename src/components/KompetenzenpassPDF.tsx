@@ -93,6 +93,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 40,
   },
+  coverLogo: {
+    width: 80,
+    height: 80,
+    marginBottom: 20,
+  },
   // Header
   header: {
     flexDirection: "row",
@@ -343,6 +348,7 @@ interface KompetenzenpassPDFProps {
   badges: StudentBadge[];
   kompetenzen: Kompetenz[];
   completedThemes: ClassThemeProgress[];
+  baseUrl?: string; // Base URL für Assets (Logo, etc.)
 }
 
 // Main PDF Document
@@ -352,6 +358,7 @@ export const KompetenzenpassPDF = ({
   badges,
   kompetenzen,
   completedThemes,
+  baseUrl = "",
 }: KompetenzenpassPDFProps) => {
   const ratings = progress?.ratings || {};
   const ratingEntries = Object.entries(ratings);
@@ -370,6 +377,9 @@ export const KompetenzenpassPDF = ({
     seed: student.id,
   };
   const avatarUrl = getDiceBearUrl(avatarConfig, 240);
+
+  // Logo URL
+  const logoUrl = baseUrl ? `${baseUrl}/logo.png` : "";
 
   // Kompetenzen nach Bereich gruppieren
   const kompetenzByArea: Record<string, Kompetenz[]> = {};
@@ -399,11 +409,15 @@ export const KompetenzenpassPDF = ({
     <Document>
       {/* Cover Page */}
       <Page size="A4" style={styles.coverPage}>
+        {/* Logo */}
+        {logoUrl && <Image src={logoUrl} style={styles.coverLogo} />}
+
         <Text style={styles.coverTitle}>Kompetenzenpass</Text>
         <Text style={styles.coverSubtitle}>
           Medien, Informatik und Anwendungskompetenzen
         </Text>
 
+        {/* Avatar */}
         <View style={styles.avatarContainer}>
           <Image src={avatarUrl} style={styles.avatar} />
         </View>
