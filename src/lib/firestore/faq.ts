@@ -458,3 +458,107 @@ export async function initializeFAQItems(
   await batch.commit();
   return defaultItems.length;
 }
+
+/**
+ * Ergänzt fehlende Standard-FAQ-Einträge zu einer bestehenden Sammlung
+ * Vergleicht anhand der Frage-Texte, ob ein Eintrag bereits existiert
+ */
+export async function updateFAQItemsWithDefaults(
+  createdBy: string,
+  createdByName: string
+): Promise<number> {
+  const adminDb = getAdminDb();
+
+  // Hole alle existierenden Fragen
+  const existingSnapshot = await adminDb.collection(FAQ_COLLECTION).get();
+  const existingQuestions = new Set(
+    existingSnapshot.docs.map((doc) => doc.data().question?.toLowerCase().trim())
+  );
+
+  // Standard-Einträge (gleich wie in initializeFAQItems)
+  const defaultItems: Omit<FAQItem, "id" | "createdAt" | "updatedAt" | "createdBy" | "createdByName">[] = [
+    // Kompetenzenpass-Einträge (die neuen)
+    {
+      question: "Was ist der Kompetenzenpass?",
+      answer: "Der Kompetenzenpass ist ein digitales Tool für Schüler:innen, um ihre MIA-Kompetenzen selbst einzuschätzen. Schüler:innen bewerten sich mit 1-5 Sternen, Lehrpersonen bestätigen die Bewertungen. Der Fortschritt wird mit Badges belohnt und kann als PDF exportiert werden.",
+      category: "allgemein",
+      order: 7,
+      isActive: true,
+    },
+    {
+      question: "Wie können Schüler:innen sich anmelden?",
+      answer: "Schüler:innen melden sich über /schueler/login an. Die Zugangsdaten werden von der Lehrperson erstellt. Nach der Anmeldung sehen sie ihr persönliches Dashboard mit Kompetenzen, Badges und bearbeiteten Themen.",
+      category: "allgemein",
+      order: 8,
+      isActive: true,
+    },
+    {
+      question: "Wie erstelle ich eine Klasse mit Schülern?",
+      answer: "Gehen Sie zu 'Meine Klassen' und klicken Sie auf 'Neue Klasse'. Geben Sie einen Namen ein und fügen Sie Schüler:innen hinzu. Für jeden Schüler können Sie Login-Daten generieren oder manuell festlegen.",
+      category: "themen",
+      order: 6,
+      isActive: true,
+    },
+    {
+      question: "Wie bestätige ich Schüler-Bewertungen?",
+      answer: "Unter 'Meine Klassen' wählen Sie eine Klasse aus und sehen im Tab 'Bestätigungen' alle ausstehenden Bewertungen. Sie können jede Bewertung einzeln bestätigen, anpassen oder alle auf einmal bestätigen.",
+      category: "themen",
+      order: 7,
+      isActive: true,
+    },
+    {
+      question: "Wie vergebe ich Badges an Schüler?",
+      answer: "Gehen Sie zu 'Badges' in der Seitenleiste. Dort können Sie eigene Badges erstellen und über 'Badge vergeben' an einzelne Schüler:innen vergeben. System-Badges werden automatisch bei Erreichen bestimmter Meilensteine vergeben.",
+      category: "themen",
+      order: 8,
+      isActive: true,
+    },
+    {
+      question: "Was sind die Kompetenz-Indikatoren?",
+      answer: "Kompetenz-Indikatoren beschreiben verständlich, was die 1-5 Sterne bei jeder Kompetenz bedeuten. Sie helfen Schüler:innen, sich realistisch einzuschätzen. Admins können unter 'Indikatoren' für jede Kompetenz Beschreibungen hinterlegen.",
+      category: "admin",
+      order: 6,
+      isActive: true,
+    },
+    {
+      question: "Können Schüler:innen Belege für ihre Kompetenzen hochladen?",
+      answer: "Ja! Schüler:innen können bei der Bewertung Artefakte (Bilder, PDFs oder Links) als Belege hochladen. Lehrpersonen sehen diese bei der Bestätigung und können Kommentare hinzufügen. Die Belege erscheinen auch im exportierten Kompetenzenpass.",
+      category: "themen",
+      order: 9,
+      isActive: true,
+    },
+    {
+      question: "Wie kann der Kompetenzenpass exportiert werden?",
+      answer: "Schüler:innen können unter 'Export' ihren Kompetenzenpass als PDF herunterladen. Das PDF enthält ein Deckblatt mit Avatar, eine Übersicht aller Bewertungen mit Sternen, erhaltene Badges und bearbeitete Themen.",
+      category: "allgemein",
+      order: 9,
+      isActive: true,
+    },
+  ];
+
+  // Filtere nur Einträge, die noch nicht existieren
+  const newItems = defaultItems.filter(
+    (item) => !existingQuestions.has(item.question.toLowerCase().trim())
+  );
+
+  if (newItems.length === 0) {
+    return 0;
+  }
+
+  const batch = adminDb.batch();
+  const now = new Date();
+
+  for (const item of newItems) {
+    const docRef = adminDb.collection(FAQ_COLLECTION).doc();
+    batch.set(docRef, {
+      ...item,
+      createdBy,
+      createdByName,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  await batch.commit();
+  return newItems.length;
+}
