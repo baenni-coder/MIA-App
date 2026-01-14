@@ -4,6 +4,7 @@ import {
   getAllFAQItems,
   createFAQItem,
   initializeFAQItems,
+  updateFAQItemsWithDefaults,
 } from "@/lib/firestore/faq";
 import { validateFAQInput } from "@/lib/validation/input";
 import { FAQCategory } from "@/types";
@@ -230,6 +231,73 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to initialize FAQ" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/faq
+ * Ergänzt fehlende Standard-Einträge zu einer bestehenden FAQ-Sammlung
+ * (für Admins - fügt neue Standardfragen hinzu ohne bestehende zu überschreiben)
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    // Authentifizierung prüfen
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Unauthorized - Missing token" },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    const adminAuth = getAdminAuth();
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const userId = decodedToken.uid;
+
+    // Prüfe Admin-Status (picts_admin oder super_admin)
+    const adminDb = getAdminDb();
+    const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
+    if (!teacherDoc.exists) {
+      return NextResponse.json(
+        { error: "Teacher profile not found" },
+        { status: 404 }
+      );
+    }
+
+    const teacher = teacherDoc.data()!;
+    if (teacher.role !== "picts_admin" && teacher.role !== "super_admin") {
+      return NextResponse.json(
+        { error: "Admin access required" },
+        { status: 403 }
+      );
+    }
+
+    // Fehlende FAQ-Einträge ergänzen
+    const count = await updateFAQItemsWithDefaults(userId, teacher.name || teacher.email);
+
+    if (count === 0) {
+      return NextResponse.json(
+        { message: "Alle Standard-FAQ-Einträge sind bereits vorhanden", count: 0 },
+        { status: 200 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: `${count} neue FAQ-Einträge hinzugefügt`, count },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error in PATCH /api/faq:", error);
+
+    if ((error as any).code === "auth/argument-error") {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    return NextResponse.json(
+      { error: "Failed to update FAQ" },
       { status: 500 }
     );
   }

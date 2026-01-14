@@ -89,6 +89,7 @@ export default function FAQPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Admin-Status prüfen
   useEffect(() => {
@@ -354,6 +355,41 @@ export default function FAQPage() {
     }
   };
 
+  // Fehlende FAQ-Einträge ergänzen (für Admins)
+  const handleUpdateWithDefaults = async () => {
+    if (!user) return;
+
+    try {
+      setIsUpdating(true);
+      const token = await user.getIdToken();
+
+      const response = await fetch("/api/faq", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Fehler beim Aktualisieren");
+      }
+
+      const data = await response.json();
+      if (data.count > 0) {
+        alert(`${data.count} neue FAQ-Einträge wurden hinzugefügt.`);
+      } else {
+        alert("Alle Standard-FAQ-Einträge sind bereits vorhanden.");
+      }
+
+      loadFAQItems();
+    } catch (err) {
+      console.error("Error updating FAQ:", err);
+      alert(err instanceof Error ? err.message : "Fehler beim Aktualisieren");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
@@ -408,6 +444,20 @@ export default function FAQPage() {
                         <RefreshCw className="h-4 w-4 mr-2" />
                       )}
                       Standard-FAQ laden
+                    </Button>
+                  )}
+                  {faqItems.length > 0 && (
+                    <Button
+                      variant="secondary"
+                      onClick={handleUpdateWithDefaults}
+                      disabled={isUpdating}
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-2" />
+                      )}
+                      Fehlende Einträge ergänzen
                     </Button>
                   )}
                   <span className="text-sm text-muted-foreground">
