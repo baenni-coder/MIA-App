@@ -125,6 +125,9 @@ export default function ExportPage() {
       const { pdf } = await import("@react-pdf/renderer");
       const { KompetenzenpassPDF } = await import("@/components/KompetenzenpassPDF");
 
+      // Base URL für Assets (Logo, etc.)
+      const baseUrl = window.location.origin;
+
       // PDF-Dokument erstellen
       const blob = await pdf(
         <KompetenzenpassPDF
@@ -133,6 +136,7 @@ export default function ExportPage() {
           badges={badges}
           kompetenzen={kompetenzen}
           completedThemes={completedThemes}
+          baseUrl={baseUrl}
         />
       ).toBlob();
 
