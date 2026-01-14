@@ -19,6 +19,7 @@ import {
   StudentBadge,
   ClassThemeProgress,
   BADGE_RARITY_COLORS,
+  BADGE_RARITY_LABELS,
 } from "@/types";
 import { Star, Trophy, BookOpen, ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -145,90 +146,96 @@ export default function StudentDashboardPage() {
           {/* Fortschritts-Karten */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Kompetenzen-Fortschritt */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Star className="h-5 w-5 text-yellow-500" />
-                  Kompetenzen
-                </CardTitle>
-                <CardDescription>Dein Bewertungsfortschritt</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <Progress value={progressPercent} className="h-3" />
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {ratedCompetencies} von {totalCompetencies}
-                    </span>
-                    <span className="font-medium">{progressPercent}%</span>
-                  </div>
-                  {averageRating > 0 && (
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span>Durchschnitt: {averageRating} Sterne</span>
+            <Link href="/schueler/kompetenzen">
+              <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Star className="h-5 w-5 text-yellow-500" />
+                    Kompetenzen
+                  </CardTitle>
+                  <CardDescription>Dein Bewertungsfortschritt</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <Progress value={progressPercent} className="h-3" />
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {ratedCompetencies} von {totalCompetencies}
+                      </span>
+                      <span className="font-medium">{progressPercent}%</span>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {averageRating > 0 && (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span>Durchschnitt: {averageRating} Sterne</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
 
             {/* Badges */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-yellow-500" />
-                  Badges
-                </CardTitle>
-                <CardDescription>Deine Auszeichnungen</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <span className="text-3xl font-bold">{badges.length}</span>
-                  <span className="text-muted-foreground">von 16</span>
-                </div>
-                {badges.length === 0 ? (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Bewerte Kompetenzen, um Badges zu verdienen!
-                  </p>
-                ) : (
-                  <div className="flex gap-1 mt-2">
-                    {recentBadges.map((badge) => (
-                      <span
-                        key={badge.id}
-                        className="text-2xl"
-                        title={badge.badgeName}
-                      >
-                        {badge.badgeEmoji}
-                      </span>
-                    ))}
+            <Link href="/schueler/badges">
+              <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-yellow-500" />
+                    Badges
+                  </CardTitle>
+                  <CardDescription>Deine Auszeichnungen</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <span className="text-3xl font-bold">{badges.length}</span>
+                    <span className="text-muted-foreground">von 16</span>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  {badges.length === 0 ? (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Bewerte Kompetenzen, um Badges zu verdienen!
+                    </p>
+                  ) : (
+                    <div className="flex gap-1 mt-2">
+                      {recentBadges.map((badge) => (
+                        <span
+                          key={badge.id}
+                          className="text-2xl"
+                          title={badge.badgeName}
+                        >
+                          {badge.badgeEmoji}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </Link>
 
             {/* Bearbeitete Themen */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-green-500" />
-                  Themen
-                </CardTitle>
-                <CardDescription>Von deiner Klasse bearbeitet</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <span className="text-3xl font-bold">
-                    {completedThemes.length}
-                  </span>
-                  <span className="text-muted-foreground">Themen</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {completedThemes.length === 0
-                    ? "Noch keine Themen bearbeitet"
-                    : "Sieh welche Themen ihr gemacht habt"}
-                </p>
-              </CardContent>
-            </Card>
+            <Link href="/schueler/themen">
+              <Card className="cursor-pointer hover:shadow-md transition-shadow h-full">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-green-500" />
+                    Themen
+                  </CardTitle>
+                  <CardDescription>Von deiner Klasse bearbeitet</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <span className="text-3xl font-bold">
+                      {completedThemes.length}
+                    </span>
+                    <span className="text-muted-foreground">Themen</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {completedThemes.length === 0
+                      ? "Noch keine Themen bearbeitet"
+                      : "Sieh welche Themen ihr gemacht habt"}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
 
           {/* Quick Actions */}
@@ -313,7 +320,7 @@ export default function StudentDashboardPage() {
                           borderColor: BADGE_RARITY_COLORS[badge.badgeRarity],
                         }}
                       >
-                        {badge.badgeRarity}
+                        {BADGE_RARITY_LABELS[badge.badgeRarity]}
                       </Badge>
                     </div>
                   ))}
