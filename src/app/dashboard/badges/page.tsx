@@ -395,14 +395,19 @@ export default function BadgesPage() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-lg border">
-            <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Gift className="h-4 w-4 mr-2" />
-                  Badge vergeben
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
+            <Button onClick={() => setAwardDialogOpen(true)}>
+              <Gift className="h-4 w-4 mr-2" />
+              Badge vergeben
+            </Button>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Eigenes Badge
+            </Button>
+          </div>
+
+          {/* Award Badge Dialog */}
+          <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
+            <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Badge vergeben</DialogTitle>
                     <DialogDescription>
@@ -512,16 +517,11 @@ export default function BadgesPage() {
                     </Button>
                   </DialogFooter>
                 </DialogContent>
-              </Dialog>
+          </Dialog>
 
-              <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Eigenes Badge
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
+          {/* Create Badge Dialog */}
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Eigenes Badge erstellen</DialogTitle>
                     <DialogDescription>
@@ -665,9 +665,8 @@ export default function BadgesPage() {
                       Erstellen
                     </Button>
                   </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
+            </DialogContent>
+          </Dialog>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
