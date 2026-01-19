@@ -3,6 +3,7 @@ import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import {
   getStudentBadges,
   getSystemBadges,
+  getCustomBadgesForSchool,
   initializeSystemBadges,
 } from "@/lib/firestore/student-progress";
 import { getStudentById } from "@/lib/firestore/students";
@@ -12,6 +13,7 @@ import { getStudentById } from "@/lib/firestore/students";
  * Query params:
  * - studentId: Schüler-ID (optional, für spezifische Badges)
  * - system: "true" um alle System-Badges zu laden
+ * - custom: "true" um Custom-Badges für die Schule des Schülers zu laden
  */
 export async function GET(request: Request) {
   try {
@@ -38,11 +40,33 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("studentId");
     const system = searchParams.get("system");
+    const custom = searchParams.get("custom");
 
     // System-Badges laden
     if (system === "true") {
       const badges = await getSystemBadges();
       return NextResponse.json({ badges });
+    }
+
+    // Custom-Badges für die Schule des Schülers laden
+    if (custom === "true") {
+      // Hole Schüler-Daten des authentifizierten Users
+      const student = await getStudentById(authenticatedUserId);
+      if (student && student.schoolId) {
+        const badges = await getCustomBadgesForSchool(student.schoolId);
+        return NextResponse.json({ badges });
+      }
+      // Falls kein Schüler, versuche als Lehrer (für Debugging)
+      const adminDb = getAdminDb();
+      const teacherDoc = await adminDb.collection("teachers").doc(authenticatedUserId).get();
+      if (teacherDoc.exists) {
+        const teacherData = teacherDoc.data()!;
+        if (teacherData.schuleId) {
+          const badges = await getCustomBadgesForSchool(teacherData.schuleId);
+          return NextResponse.json({ badges });
+        }
+      }
+      return NextResponse.json({ badges: [] });
     }
 
     // Schüler-spezifische Badges laden

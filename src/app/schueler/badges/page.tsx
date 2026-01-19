@@ -151,6 +151,7 @@ export default function StudentBadgesPage() {
 
   const [loading, setLoading] = useState(true);
   const [systemBadges, setSystemBadges] = useState<Badge[]>([]);
+  const [customBadges, setCustomBadges] = useState<Badge[]>([]);
   const [earnedBadges, setEarnedBadges] = useState<StudentBadge[]>([]);
 
   // Fetch data
@@ -161,9 +162,10 @@ export default function StudentBadgesPage() {
       const token = await user.getIdToken();
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Fetch system badges and earned badges in parallel
-      const [systemResponse, earnedResponse] = await Promise.all([
+      // Fetch system badges, custom badges, and earned badges in parallel
+      const [systemResponse, customResponse, earnedResponse] = await Promise.all([
         fetch("/api/student-progress/badges?system=true", { headers }),
+        fetch("/api/student-progress/badges?custom=true", { headers }),
         fetch(`/api/student-progress/badges?studentId=${studentProfile.id}`, {
           headers,
         }),
@@ -172,6 +174,11 @@ export default function StudentBadgesPage() {
       if (systemResponse.ok) {
         const data = await systemResponse.json();
         setSystemBadges(data.badges || []);
+      }
+
+      if (customResponse.ok) {
+        const data = await customResponse.json();
+        setCustomBadges(data.badges || []);
       }
 
       if (earnedResponse.ok) {
@@ -189,15 +196,18 @@ export default function StudentBadgesPage() {
     fetchData();
   }, [fetchData]);
 
+  // Combine system and custom badges
+  const allBadges = [...systemBadges, ...customBadges];
+
   // Calculate stats
   const earnedBadgeIds = new Set(earnedBadges.map((b) => b.badgeId));
-  const totalBadges = systemBadges.length;
+  const totalBadges = allBadges.length;
   const totalEarned = earnedBadges.length;
   const progressPercent =
     totalBadges > 0 ? Math.round((totalEarned / totalBadges) * 100) : 0;
 
-  // Group badges by rarity
-  const badgesByRarity = systemBadges.reduce(
+  // Group badges by rarity (including custom badges)
+  const badgesByRarity = allBadges.reduce(
     (acc, badge) => {
       if (!acc[badge.rarity]) acc[badge.rarity] = [];
       acc[badge.rarity].push(badge);

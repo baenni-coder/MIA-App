@@ -949,6 +949,40 @@ export async function getAllBadges(schoolId?: string): Promise<Badge[]> {
 }
 
 /**
+ * Holt nur Custom-Badges für eine Schule (ohne System-Badges)
+ */
+export async function getCustomBadgesForSchool(schoolId: string): Promise<Badge[]> {
+  const adminDb = getAdminDb();
+
+  const customSnapshot = await adminDb
+    .collection(BADGES_COLLECTION)
+    .where("isSystem", "==", false)
+    .where("schoolId", "==", schoolId)
+    .get();
+
+  const customBadges = customSnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      name: data.name,
+      emoji: data.emoji,
+      description: data.description,
+      rarity: data.rarity as BadgeRarity,
+      color: data.color,
+      criteria: data.criteria,
+      isSystem: data.isSystem,
+      createdBy: data.createdBy,
+      createdByName: data.createdByName,
+      schoolId: data.schoolId,
+      createdAt: timestampToDate(data.createdAt),
+      order: data.order || 100,
+    } as Badge;
+  });
+
+  return customBadges.sort((a, b) => a.order - b.order);
+}
+
+/**
  * Erstellt ein Custom-Badge
  */
 export async function createCustomBadge(data: {
