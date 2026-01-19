@@ -6,6 +6,7 @@ import {
   revokeBadge,
   getStudentBadges,
 } from "@/lib/firestore/student-progress";
+import { notifyStudentBadgeEarned } from "@/lib/firestore/notifications";
 import { BadgeRarity } from "@/types";
 
 /**
@@ -168,6 +169,13 @@ export async function POST(request: Request) {
       awardedBy: userId,
       awardedByName: teacherData.name || "Lehrer",
       reason: reason || `Manuell vergeben von ${teacherData.name || "Lehrer"}`,
+    });
+
+    // Benachrichtigung an den Schüler senden
+    await notifyStudentBadgeEarned({
+      studentId,
+      badgeName: badgeData.name,
+      badgeEmoji: badgeData.emoji,
     });
 
     return NextResponse.json({ id: studentBadgeId });
