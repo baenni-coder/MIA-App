@@ -16,6 +16,12 @@ import { Thema } from "@/types";
 import { BookOpen, FileText, ExternalLink, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
+// Feste Thumbnail-Mappings für bestimmte Lehrmittel
+// Diese überschreiben die Airtable-Bilder
+const LEHRMITTEL_THUMBNAILS: Record<string, string> = {
+  "PICTS BeLoSe": "/PICTS_Graffiti.png",
+};
+
 export default function LehrmittelPage() {
   const { user } = useAuth();
   const [allThemen, setAllThemen] = useState<Thema[]>([]);
@@ -73,7 +79,9 @@ export default function LehrmittelPage() {
           ) : sortedLehrmittel.length > 0 ? (
             <Accordion type="multiple" className="space-y-4">
               {sortedLehrmittel.map(([lehrmittel, themen]) => {
-                const bildUrl = themen.find((t) => t.bildLehrmittel)?.bildLehrmittel;
+                // Prüfe zuerst das feste Mapping, dann Airtable-Bild
+                const bildUrl = LEHRMITTEL_THUMBNAILS[lehrmittel] ||
+                  themen.find((t) => t.bildLehrmittel)?.bildLehrmittel;
 
                 return (
                   <AccordionItem
