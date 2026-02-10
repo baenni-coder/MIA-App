@@ -932,3 +932,195 @@ export const BADGE_RARITY_LABELS: Record<BadgeRarity, string> = {
   epic: "Episch",
   legendary: "Legendär",
 };
+
+// ============================================
+// Jahresplanung (Fächerübergreifende Planung)
+// ============================================
+
+// Status einer Planungseinheit
+export type JahresplanStatus = "geplant" | "durchgefuehrt" | "reflektiert";
+
+// Beurteilungstyp
+export type BeurteilungsTyp = "keine" | "formativ" | "summativ";
+
+// Jahresplan-Einheit (eine geplante Unterrichtseinheit)
+export interface JahresplanEinheit {
+  id: string;
+  teacherId: string; // Firebase UID
+  schuljahr: string; // z.B. "2025/2026"
+  fachbereichId: string; // z.B. "D", "MA", "NMG" (aus lehrplan21-fachbereiche.json)
+  fachbereichName?: string; // Aufgelöster Name
+  fachbereichFarbe?: string; // Farbe für UI
+  titel: string; // z.B. "Märchen lesen und schreiben"
+  lernziele: string; // Freitext
+  kompetenzenIds: string[]; // LP21-Kompetenz-IDs, z.B. ["D.2.B", "D.4.B"]
+  kompetenzenNamen?: string[]; // Aufgelöste Namen
+  zeitraumStart: number; // Kalenderwoche Start (1-52)
+  zeitraumEnde: number; // Kalenderwoche Ende (1-52)
+  quartal: number; // 1-4 (automatisch berechnet aus KW)
+  status: JahresplanStatus;
+  notizen: string; // Reflexionsnotizen
+  beurteilungstyp: BeurteilungsTyp;
+  beurteilungsNotiz: string; // Details zur Beurteilung
+  materialien: string[]; // Links, Lehrmittelseiten etc.
+  istPufferwoche: boolean; // Markierung als Pufferwoche
+  farbe: string; // Wird vom Fachbereich übernommen
+  sortOrder: number; // Reihenfolge innerhalb einer Woche
+  // Sharing
+  isShared: boolean; // Für Kolleg:innen freigegeben
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Benutzerdefinierte Schulferien
+export interface SchulferienCustom {
+  id: string;
+  teacherId: string; // oder schuleId für schulweite Ferien
+  schuleId?: string; // Für schulweite Ferien
+  schuljahr: string;
+  ferienName: string; // z.B. "Herbstferien"
+  start: string; // ISO-Datum
+  ende: string; // ISO-Datum
+  isCustom: boolean; // true = manuell angepasst
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Fachbereich aus LP21 JSON
+export interface LP21Fachbereich {
+  id: string; // z.B. "D", "MA"
+  name: string; // z.B. "Deutsch", "Mathematik"
+  fachbereichKuerzel: string;
+  farbe: string; // Hex-Farbe
+  zyklen: number[]; // [1, 2, 3]
+  kompetenzbereiche: LP21Kompetenzbereich[];
+}
+
+// Kompetenzbereich aus LP21 JSON
+export interface LP21Kompetenzbereich {
+  id: string; // z.B. "D.1"
+  code: string;
+  name: string; // z.B. "Hören"
+  kompetenzen: LP21KompetenzRef[];
+}
+
+// Kompetenz-Referenz aus LP21 JSON
+export interface LP21KompetenzRef {
+  id: string; // z.B. "D.1.A"
+  code: string; // z.B. "D.1.A.1"
+  name: string; // z.B. "Grundfertigkeiten"
+  beschreibung: string;
+}
+
+// Ferien-Preset aus schulkalender.json
+export interface FerienPreset {
+  label: string;
+  kanton: string;
+  schuljahre: {
+    [schuljahr: string]: {
+      [ferienName: string]: {
+        start: string;
+        ende: string;
+        label: string;
+      };
+    };
+  };
+}
+
+// Quartal-Schema
+export interface QuartalSchema {
+  quartal: number;
+  label: string;
+  typischeWochen: string;
+  beschreibung: string;
+}
+
+// Schulkalender-Daten (aus schulkalender.json)
+export interface SchulkalenderData {
+  meta: {
+    description: string;
+    version: string;
+    lastUpdated: string;
+    sources: string[];
+  };
+  feiertage_schweiz: Array<{
+    name: string;
+    datum?: string;
+    typ: "national" | "kantonal" | "beweglich";
+    kantone?: string[];
+    berechnung?: string;
+  }>;
+  ferienPresets: {
+    [presetId: string]: FerienPreset;
+  };
+  schulwochen_schema: {
+    description: string;
+    schuljahresBeginn: string;
+    schuljahresEnde: string;
+    quartalEinteilung: QuartalSchema[];
+    totalSchulwochen: number;
+    hinweis: string;
+  };
+}
+
+// LP21-Fachbereiche-Daten (aus lehrplan21-fachbereiche.json)
+export interface LP21FachbereicheData {
+  meta: {
+    description: string;
+    version: string;
+    lastUpdated: string;
+    quelle: string;
+    hinweis: string;
+    zyklen: {
+      [key: string]: string;
+    };
+  };
+  fachbereiche: LP21Fachbereich[];
+}
+
+// Jahresplan-Filter
+export interface JahresplanFilter {
+  schuljahr: string;
+  quartal?: number;
+  fachbereichId?: string;
+  status?: JahresplanStatus;
+}
+
+// Kompetenz-Abdeckung (für Übersicht)
+export interface KompetenzAbdeckung {
+  kompetenzId: string;
+  kompetenzCode: string;
+  kompetenzName: string;
+  fachbereichId: string;
+  status: "nicht_zugeordnet" | "geplant" | "durchgefuehrt";
+  einheitenIds: string[]; // Verknüpfte Einheiten
+}
+
+// Wochenübersicht
+export interface WochenUebersicht {
+  kalenderwoche: number;
+  jahr: number;
+  startDatum: string; // Montag
+  endDatum: string; // Freitag
+  istFerienWoche: boolean;
+  ferienName?: string;
+  einheiten: JahresplanEinheit[];
+  beurteilungenCount: {
+    formativ: number;
+    summativ: number;
+  };
+}
+
+// Quartal-Zusammenfassung
+export interface QuartalZusammenfassung {
+  quartal: number;
+  label: string;
+  wochen: WochenUebersicht[];
+  fachbereicheAnteil: Array<{
+    fachbereichId: string;
+    fachbereichName: string;
+    farbe: string;
+    einheitenCount: number;
+    prozent: number;
+  }>;
+}

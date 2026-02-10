@@ -382,5 +382,56 @@ service cloud.firestore {
         isSuperAdmin(request.auth.uid)
       );
     }
+
+    // ============================================
+    // Jahresplanung Collection (Fächerübergreifende Planung)
+    // ============================================
+
+    match /jahresplanung/{einheitId} {
+      // Lesen: Eigene Einheiten oder geteilte Einheiten
+      allow read: if isAuthenticated() && (
+        resource.data.teacherId == request.auth.uid ||
+        resource.data.isShared == true
+      );
+
+      // Erstellen: Jeder authentifizierte Lehrer
+      allow create: if isAuthenticated() &&
+        exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+        request.resource.data.teacherId == request.auth.uid;
+
+      // Aktualisieren: Nur der Ersteller
+      allow update: if isAuthenticated() &&
+        resource.data.teacherId == request.auth.uid;
+
+      // Löschen: Nur der Ersteller
+      allow delete: if isAuthenticated() &&
+        resource.data.teacherId == request.auth.uid;
+    }
+
+    // ============================================
+    // Schulferien Custom Collection (Benutzerdefinierte Ferien)
+    // ============================================
+
+    match /schulferien_custom/{ferienId} {
+      // Lesen: Eigene Ferien oder schulweite Ferien der eigenen Schule
+      allow read: if isAuthenticated() && (
+        resource.data.teacherId == request.auth.uid ||
+        (resource.data.schuleId != null &&
+         getTeacher(request.auth.uid).data.schuleId == resource.data.schuleId)
+      );
+
+      // Erstellen: Jeder authentifizierte Lehrer
+      allow create: if isAuthenticated() &&
+        exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+        request.resource.data.teacherId == request.auth.uid;
+
+      // Aktualisieren: Nur der Ersteller
+      allow update: if isAuthenticated() &&
+        resource.data.teacherId == request.auth.uid;
+
+      // Löschen: Nur der Ersteller
+      allow delete: if isAuthenticated() &&
+        resource.data.teacherId == request.auth.uid;
+    }
   }
 }
