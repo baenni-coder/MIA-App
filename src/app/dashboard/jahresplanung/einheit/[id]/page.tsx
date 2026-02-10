@@ -25,7 +25,6 @@ import {
   getAktuellesSchuljahr,
   getAlleFachbereiche,
   getFachbereichById,
-  berechneQuartal,
 } from "@/lib/data/lp21-data";
 import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus } from "@/types";
 
