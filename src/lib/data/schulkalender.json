@@ -1,0 +1,76 @@
+{
+  "meta": {
+    "description": "Schulferienkalender für das Jahresplanungstool. Enthält vordefinierte Feriendaten pro Kanton/Gemeinde. Lehrpersonen können Ferien manuell anpassen.",
+    "version": "1.0",
+    "lastUpdated": "2026-02-10",
+    "sources": [
+      "https://so.ch/verwaltung/departement-fuer-bildung-kultur-und-sport/volksschulamt/aktuell/ferienplan/"
+    ]
+  },
+  "feiertage_schweiz": [
+    { "name": "Neujahr", "datum": "01-01", "typ": "national" },
+    { "name": "Berchtoldstag", "datum": "01-02", "typ": "kantonal", "kantone": ["SO", "BE", "AG", "ZH", "LU"] },
+    { "name": "Karfreitag", "typ": "beweglich", "berechnung": "ostern-2" },
+    { "name": "Ostermontag", "typ": "beweglich", "berechnung": "ostern+1" },
+    { "name": "Tag der Arbeit", "datum": "05-01", "typ": "kantonal", "kantone": ["SO", "ZH", "BS", "BL", "AG"] },
+    { "name": "Auffahrt", "typ": "beweglich", "berechnung": "ostern+39" },
+    { "name": "Pfingstmontag", "typ": "beweglich", "berechnung": "ostern+50" },
+    { "name": "Bundesfeier", "datum": "08-01", "typ": "national" },
+    { "name": "Allerheiligen", "datum": "11-01", "typ": "kantonal", "kantone": ["SO", "LU", "AG", "SG"] },
+    { "name": "Weihnachten", "datum": "12-25", "typ": "national" },
+    { "name": "Stephanstag", "datum": "12-26", "typ": "kantonal", "kantone": ["SO", "BE", "AG", "ZH", "LU", "SG"] }
+  ],
+  "ferienPresets": {
+    "SO_BeLoSe": {
+      "label": "Schulkreis BeLoSe (Bellach, Lommiswil, Selzach)",
+      "kanton": "SO",
+      "schuljahre": {
+        "2025/2026": {
+          "herbstferien": { "start": "2025-09-29", "ende": "2025-10-17", "label": "Herbstferien" },
+          "weihnachtsferien": { "start": "2025-12-22", "ende": "2026-01-02", "label": "Weihnachtsferien" },
+          "sportferien": { "start": "2026-02-02", "ende": "2026-02-13", "label": "Sportferien" },
+          "fruehlingsferien": { "start": "2026-04-06", "ende": "2026-04-17", "label": "Frühlingsferien" },
+          "sommerferien": { "start": "2026-07-06", "ende": "2026-08-07", "label": "Sommerferien" }
+        },
+        "2026/2027": {
+          "herbstferien": { "start": "2026-09-28", "ende": "2026-10-16", "label": "Herbstferien" },
+          "weihnachtsferien": { "start": "2026-12-21", "ende": "2027-01-01", "label": "Weihnachtsferien" },
+          "sportferien": { "start": "2027-02-08", "ende": "2027-02-19", "label": "Sportferien" },
+          "fruehlingsferien": { "start": "2027-04-12", "ende": "2027-04-23", "label": "Frühlingsferien" },
+          "sommerferien": { "start": "2027-07-12", "ende": "2027-08-13", "label": "Sommerferien" }
+        }
+      }
+    },
+    "SO_Solothurn": {
+      "label": "Stadtschulen Solothurn",
+      "kanton": "SO",
+      "schuljahre": {
+        "2025/2026": {
+          "herbstferien": { "start": "2025-09-29", "ende": "2025-10-17", "label": "Herbstferien" },
+          "weihnachtsferien": { "start": "2025-12-20", "ende": "2026-01-04", "label": "Weihnachtsferien" },
+          "sportferien": { "start": "2026-01-31", "ende": "2026-02-15", "label": "Sportferien" },
+          "fruehlingsferien": { "start": "2026-04-04", "ende": "2026-04-19", "label": "Frühlingsferien" },
+          "sommerferien": { "start": "2026-07-04", "ende": "2026-08-09", "label": "Sommerferien" }
+        }
+      }
+    },
+    "CUSTOM": {
+      "label": "Benutzerdefiniert",
+      "kanton": "",
+      "schuljahre": {}
+    }
+  },
+  "schulwochen_schema": {
+    "description": "Standardmässiges Schuljahr-Schema für Kanton Solothurn",
+    "schuljahresBeginn": "Mitte August",
+    "schuljahresEnde": "Anfang Juli",
+    "quartalEinteilung": [
+      { "quartal": 1, "label": "Q1 – Sommer bis Herbst", "typischeWochen": "KW 33–39", "beschreibung": "Schuljahresstart bis Herbstferien" },
+      { "quartal": 2, "label": "Q2 – Herbst bis Weihnachten", "typischeWochen": "KW 42–51", "beschreibung": "Nach Herbstferien bis Weihnachtsferien" },
+      { "quartal": 3, "label": "Q3 – Winter bis Frühling", "typischeWochen": "KW 2–14", "beschreibung": "Nach Weihnachtsferien bis Frühlingsferien (inkl. Sportferien)" },
+      { "quartal": 4, "label": "Q4 – Frühling bis Sommer", "typischeWochen": "KW 17–27", "beschreibung": "Nach Frühlingsferien bis Sommerferien" }
+    ],
+    "totalSchulwochen": 38,
+    "hinweis": "Die genaue Verteilung der Schulwochen variiert je nach Gemeinde und Feriendaten."
+  }
+}

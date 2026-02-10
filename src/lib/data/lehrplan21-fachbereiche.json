@@ -1,0 +1,652 @@
+{
+  "meta": {
+    "description": "Lehrplan 21 – Fachbereichsstruktur mit Kompetenzbereichen und Kompetenzen. Fokus auf Zyklus 1 (KG–2. Klasse) und Zyklus 2 (3.–6. Klasse) für die Primarstufe. Basiert auf der Solothurner Version (so.lehrplan.ch).",
+    "version": "1.0",
+    "lastUpdated": "2026-02-10",
+    "quelle": "https://so.lehrplan.ch",
+    "hinweis": "Die LP21-API (api.lehrplan.ch) erfordert einen separaten Zugang bei der D-EDK. Diese Datei dient als statische Basis für das Jahresplanungstool und kann bei Bedarf über die API ergänzt werden.",
+    "zyklen": {
+      "1": "Kindergarten – 2. Klasse",
+      "2": "3. – 6. Klasse",
+      "3": "7. – 9. Klasse (Sekundarstufe I)"
+    }
+  },
+  "fachbereiche": [
+    {
+      "id": "D",
+      "name": "Deutsch",
+      "fachbereichKuerzel": "D",
+      "farbe": "#2563EB",
+      "zyklen": [1, 2, 3],
+      "kompetenzbereiche": [
+        {
+          "id": "D.1",
+          "code": "D.1",
+          "name": "Hören",
+          "kompetenzen": [
+            { "id": "D.1.A", "code": "D.1.A.1", "name": "Grundfertigkeiten", "beschreibung": "Die SuS können Laute, Silben, Stimmen, Geräusche und Töne wahrnehmen, einordnen und vergleichen." },
+            { "id": "D.1.B", "code": "D.1.B.1", "name": "Verstehen in monologischen Hörsituationen", "beschreibung": "Die SuS können wichtige Informationen aus Hörtexten entnehmen." },
+            { "id": "D.1.C", "code": "D.1.C.1", "name": "Verstehen in dialogischen Hörsituationen", "beschreibung": "Die SuS können Gesprächen folgen und dabei ihre Aufmerksamkeit zeigen." }
+          ]
+        },
+        {
+          "id": "D.2",
+          "code": "D.2",
+          "name": "Lesen",
+          "kompetenzen": [
+            { "id": "D.2.A", "code": "D.2.A.1", "name": "Grundfertigkeiten", "beschreibung": "Die SuS verfügen über Grundfertigkeiten des Lesens: Wörter lesen, Texte lesen und verstehen." },
+            { "id": "D.2.B", "code": "D.2.B.1", "name": "Verstehen von Sachtexten", "beschreibung": "Die SuS können wichtige Informationen aus Sachtexten entnehmen." },
+            { "id": "D.2.C", "code": "D.2.C.1", "name": "Verstehen literarischer Texte", "beschreibung": "Die SuS können literarische Texte lesen und verstehen." },
+            { "id": "D.2.D", "code": "D.2.D.1", "name": "Reflexion über das Leseverhalten", "beschreibung": "Die SuS können ihr Leseverhalten und ihre Leseinteressen reflektieren." }
+          ]
+        },
+        {
+          "id": "D.3",
+          "code": "D.3",
+          "name": "Sprechen",
+          "kompetenzen": [
+            { "id": "D.3.A", "code": "D.3.A.1", "name": "Grundfertigkeiten", "beschreibung": "Die SuS können ihre Sprechmotorik, Artikulation und Stimmführung angemessen nutzen." },
+            { "id": "D.3.B", "code": "D.3.B.1", "name": "Monologisches Sprechen", "beschreibung": "Die SuS können sich in monologischen Situationen angemessen und verständlich ausdrücken." },
+            { "id": "D.3.C", "code": "D.3.C.1", "name": "Dialogisches Sprechen", "beschreibung": "Die SuS können sich an einem Gespräch beteiligen." }
+          ]
+        },
+        {
+          "id": "D.4",
+          "code": "D.4",
+          "name": "Schreiben",
+          "kompetenzen": [
+            { "id": "D.4.A", "code": "D.4.A.1", "name": "Grundfertigkeiten", "beschreibung": "Die SuS können in einer persönlichen Handschrift leserlich und geläufig schreiben und die Tastatur geläufig nutzen." },
+            { "id": "D.4.B", "code": "D.4.B.1", "name": "Schreibprodukte", "beschreibung": "Die SuS kennen vielfältige Textmuster und können sie entsprechend ihrem Schreibziel einsetzen." },
+            { "id": "D.4.C", "code": "D.4.C.1", "name": "Schreibprozess: Ideen finden und planen", "beschreibung": "Die SuS können Ideen und Informationen sammeln und ordnen." },
+            { "id": "D.4.D", "code": "D.4.D.1", "name": "Schreibprozess: formulieren", "beschreibung": "Die SuS können ihre Gedanken und Ideen in eine sinnvolle und verständliche Abfolge bringen." },
+            { "id": "D.4.E", "code": "D.4.E.1", "name": "Schreibprozess: inhaltlich überarbeiten", "beschreibung": "Die SuS können ihren Text in Bezug auf Inhalt und Aufbau überarbeiten." },
+            { "id": "D.4.F", "code": "D.4.F.1", "name": "Schreibprozess: sprachformal überarbeiten", "beschreibung": "Die SuS können Rechtschreibung und Grammatik überprüfen." }
+          ]
+        },
+        {
+          "id": "D.5",
+          "code": "D.5",
+          "name": "Sprache(n) im Fokus",
+          "kompetenzen": [
+            { "id": "D.5.A", "code": "D.5.A.1", "name": "Verfahren und Proben", "beschreibung": "Die SuS können Sprache erforschen und Sprachen vergleichen." },
+            { "id": "D.5.B", "code": "D.5.B.1", "name": "Sprachgebrauch untersuchen", "beschreibung": "Die SuS können den Gebrauch und die Wirkung von Sprache untersuchen." },
+            { "id": "D.5.C", "code": "D.5.C.1", "name": "Grammatikbegriffe", "beschreibung": "Die SuS können Grammatikbegriffe verwenden." },
+            { "id": "D.5.D", "code": "D.5.D.1", "name": "Rechtschreibregeln", "beschreibung": "Die SuS können Rechtschreibregeln anwenden." }
+          ]
+        },
+        {
+          "id": "D.6",
+          "code": "D.6",
+          "name": "Literatur im Fokus",
+          "kompetenzen": [
+            { "id": "D.6.A", "code": "D.6.A.1", "name": "Auseinandersetzung mit literarischen Texten", "beschreibung": "Die SuS können spielerisch und kreativ gestaltend mit literarischen Texten umgehen." },
+            { "id": "D.6.B", "code": "D.6.B.1", "name": "Auseinandersetzung mit verschiedenen Autor/innen und Genres", "beschreibung": "Die SuS kennen einzelne Autor/innen und verschiedene Genres." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FS1",
+      "name": "Französisch (1. Fremdsprache)",
+      "fachbereichKuerzel": "FS1F",
+      "farbe": "#7C3AED",
+      "zyklen": [2, 3],
+      "kompetenzbereiche": [
+        {
+          "id": "FS1F.1",
+          "code": "FS1F.1",
+          "name": "Hören",
+          "kompetenzen": [
+            { "id": "FS1F.1.A", "code": "FS1F.1.A.1", "name": "Monologische und dialogische Texte hören und verstehen", "beschreibung": "Die SuS können verschiedenartige Hörtexte und Gespräche verstehen." }
+          ]
+        },
+        {
+          "id": "FS1F.2",
+          "code": "FS1F.2",
+          "name": "Lesen",
+          "kompetenzen": [
+            { "id": "FS1F.2.A", "code": "FS1F.2.A.1", "name": "Texte lesen und verstehen", "beschreibung": "Die SuS können verschiedenartige Texte lesen und verstehen." }
+          ]
+        },
+        {
+          "id": "FS1F.3",
+          "code": "FS1F.3",
+          "name": "Sprechen",
+          "kompetenzen": [
+            { "id": "FS1F.3.A", "code": "FS1F.3.A.1", "name": "Dialogisches Sprechen", "beschreibung": "Die SuS können an verschiedenen Gesprächen teilnehmen." },
+            { "id": "FS1F.3.B", "code": "FS1F.3.B.1", "name": "Monologisches Sprechen", "beschreibung": "Die SuS können zu verschiedenen Themen zusammenhängend sprechen." }
+          ]
+        },
+        {
+          "id": "FS1F.4",
+          "code": "FS1F.4",
+          "name": "Schreiben",
+          "kompetenzen": [
+            { "id": "FS1F.4.A", "code": "FS1F.4.A.1", "name": "Schriftliche Texte verfassen", "beschreibung": "Die SuS können verschiedene Texte verfassen." }
+          ]
+        },
+        {
+          "id": "FS1F.5",
+          "code": "FS1F.5",
+          "name": "Sprache(n) im Fokus",
+          "kompetenzen": [
+            { "id": "FS1F.5.A", "code": "FS1F.5.A.1", "name": "Bewusstheit für Sprache", "beschreibung": "Die SuS können Sprachen und Sprachgebrauch untersuchen." },
+            { "id": "FS1F.5.B", "code": "FS1F.5.B.1", "name": "Wortschatz", "beschreibung": "Die SuS verfügen über einen angemessenen Wortschatz." },
+            { "id": "FS1F.5.C", "code": "FS1F.5.C.1", "name": "Aussprache", "beschreibung": "Die SuS können klar und verständlich aussprechen." },
+            { "id": "FS1F.5.D", "code": "FS1F.5.D.1", "name": "Grammatik", "beschreibung": "Die SuS können grammatische Strukturen in Texten erkennen und anwenden." }
+          ]
+        },
+        {
+          "id": "FS1F.6",
+          "code": "FS1F.6",
+          "name": "Kulturen im Fokus",
+          "kompetenzen": [
+            { "id": "FS1F.6.A", "code": "FS1F.6.A.1", "name": "Kenntnisse", "beschreibung": "Die SuS kennen einige Merkmale des französischen Sprachgebiets." },
+            { "id": "FS1F.6.B", "code": "FS1F.6.B.1", "name": "Haltungen", "beschreibung": "Die SuS begegnen Kulturen respektvoll und interessiert." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "FS2",
+      "name": "Englisch (2. Fremdsprache)",
+      "fachbereichKuerzel": "FS2E",
+      "farbe": "#9333EA",
+      "zyklen": [2, 3],
+      "kompetenzbereiche": [
+        {
+          "id": "FS2E.1",
+          "code": "FS2E.1",
+          "name": "Hören",
+          "kompetenzen": [
+            { "id": "FS2E.1.A", "code": "FS2E.1.A.1", "name": "Monologische und dialogische Texte hören und verstehen", "beschreibung": "Die SuS können verschiedenartige Hörtexte und Gespräche verstehen." }
+          ]
+        },
+        {
+          "id": "FS2E.2",
+          "code": "FS2E.2",
+          "name": "Lesen",
+          "kompetenzen": [
+            { "id": "FS2E.2.A", "code": "FS2E.2.A.1", "name": "Texte lesen und verstehen", "beschreibung": "Die SuS können verschiedenartige Texte lesen und verstehen." }
+          ]
+        },
+        {
+          "id": "FS2E.3",
+          "code": "FS2E.3",
+          "name": "Sprechen",
+          "kompetenzen": [
+            { "id": "FS2E.3.A", "code": "FS2E.3.A.1", "name": "Dialogisches Sprechen", "beschreibung": "Die SuS können an verschiedenen Gesprächen teilnehmen." },
+            { "id": "FS2E.3.B", "code": "FS2E.3.B.1", "name": "Monologisches Sprechen", "beschreibung": "Die SuS können zu verschiedenen Themen zusammenhängend sprechen." }
+          ]
+        },
+        {
+          "id": "FS2E.4",
+          "code": "FS2E.4",
+          "name": "Schreiben",
+          "kompetenzen": [
+            { "id": "FS2E.4.A", "code": "FS2E.4.A.1", "name": "Schriftliche Texte verfassen", "beschreibung": "Die SuS können verschiedene Texte verfassen." }
+          ]
+        },
+        {
+          "id": "FS2E.5",
+          "code": "FS2E.5",
+          "name": "Sprache(n) im Fokus",
+          "kompetenzen": [
+            { "id": "FS2E.5.A", "code": "FS2E.5.A.1", "name": "Bewusstheit für Sprache", "beschreibung": "Die SuS können Sprachen und Sprachgebrauch untersuchen." },
+            { "id": "FS2E.5.B", "code": "FS2E.5.B.1", "name": "Wortschatz", "beschreibung": "Die SuS verfügen über einen angemessenen Wortschatz." },
+            { "id": "FS2E.5.C", "code": "FS2E.5.C.1", "name": "Aussprache", "beschreibung": "Die SuS können klar und verständlich aussprechen." },
+            { "id": "FS2E.5.D", "code": "FS2E.5.D.1", "name": "Grammatik", "beschreibung": "Die SuS können grammatische Strukturen in Texten erkennen und anwenden." }
+          ]
+        },
+        {
+          "id": "FS2E.6",
+          "code": "FS2E.6",
+          "name": "Kulturen im Fokus",
+          "kompetenzen": [
+            { "id": "FS2E.6.A", "code": "FS2E.6.A.1", "name": "Kenntnisse", "beschreibung": "Die SuS kennen einige Merkmale des englischen Sprachgebiets." },
+            { "id": "FS2E.6.B", "code": "FS2E.6.B.1", "name": "Haltungen", "beschreibung": "Die SuS begegnen Kulturen respektvoll und interessiert." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MA",
+      "name": "Mathematik",
+      "fachbereichKuerzel": "MA",
+      "farbe": "#DC2626",
+      "zyklen": [1, 2, 3],
+      "kompetenzbereiche": [
+        {
+          "id": "MA.1",
+          "code": "MA.1",
+          "name": "Zahl und Variable",
+          "kompetenzen": [
+            { "id": "MA.1.A", "code": "MA.1.A.1", "name": "Verstehen und verwenden von Zahlen", "beschreibung": "Die SuS verstehen und verwenden Begriffe und Symbole zu Zahlen und können Zahlen lesen und schreiben." },
+            { "id": "MA.1.B", "code": "MA.1.B.1", "name": "Zählen und Reihen bilden", "beschreibung": "Die SuS können flexibel zählen, Zahlenfolgen bilden und Gesetzmässigkeiten erkennen." },
+            { "id": "MA.1.C", "code": "MA.1.C.1", "name": "Addieren, Subtrahieren, Multiplizieren, Dividieren", "beschreibung": "Die SuS können addieren, subtrahieren, multiplizieren und dividieren." }
+          ]
+        },
+        {
+          "id": "MA.2",
+          "code": "MA.2",
+          "name": "Form und Raum",
+          "kompetenzen": [
+            { "id": "MA.2.A", "code": "MA.2.A.1", "name": "Figuren und Körper erforschen", "beschreibung": "Die SuS können Figuren und Körper abbilden, zerlegen und zusammensetzen." },
+            { "id": "MA.2.B", "code": "MA.2.B.1", "name": "Figuren und Körper darstellen", "beschreibung": "Die SuS können Längen, Flächen und Volumen bestimmen und berechnen." },
+            { "id": "MA.2.C", "code": "MA.2.C.1", "name": "Koordinaten und Transformationen", "beschreibung": "Die SuS können mit Koordinaten und Transformationen umgehen." }
+          ]
+        },
+        {
+          "id": "MA.3",
+          "code": "MA.3",
+          "name": "Grössen, Funktionen, Daten und Zufall",
+          "kompetenzen": [
+            { "id": "MA.3.A", "code": "MA.3.A.1", "name": "Operieren mit Grössen", "beschreibung": "Die SuS können Grössen schätzen, messen, umwandeln, runden und mit ihnen rechnen." },
+            { "id": "MA.3.B", "code": "MA.3.B.1", "name": "Erforschen und Argumentieren mit funktionalen Zusammenhängen", "beschreibung": "Die SuS können funktionale Zusammenhänge beschreiben und Funktionswerte bestimmen." },
+            { "id": "MA.3.C", "code": "MA.3.C.1", "name": "Daten und Zufall erforschen", "beschreibung": "Die SuS können Daten zu statistischen Untersuchungen sammeln, ordnen, darstellen und interpretieren." }
+          ]
+        }
+      ],
+      "handlungsaspekte": [
+        { "id": "MA.HA.1", "name": "Operieren und Benennen", "beschreibung": "Begriffe, Zahlen, Formen in Beziehung setzen, verändern, Ergebnisse festhalten." },
+        { "id": "MA.HA.2", "name": "Erforschen und Argumentieren", "beschreibung": "Mathematische Strukturen erkunden und begründen." },
+        { "id": "MA.HA.3", "name": "Mathematisieren und Darstellen", "beschreibung": "Situationen in mathematische Modelle übersetzen und darstellen." }
+      ]
+    },
+    {
+      "id": "NMG",
+      "name": "Natur, Mensch, Gesellschaft",
+      "fachbereichKuerzel": "NMG",
+      "farbe": "#16A34A",
+      "zyklen": [1, 2],
+      "hinweis": "Im 3. Zyklus aufgeteilt in: Natur und Technik (NT), Wirtschaft Arbeit Haushalt (WAH), Räume Zeiten Gesellschaften (RZG), Ethik Religionen Gemeinschaft (ERG)",
+      "kompetenzbereiche": [
+        {
+          "id": "NMG.1",
+          "code": "NMG.1",
+          "name": "Identität, Körper, Gesundheit – sich kennen und sich Sorge tragen",
+          "kompetenzen": [
+            { "id": "NMG.1.1", "code": "NMG.1.1", "name": "Sich und andere wahrnehmen", "beschreibung": "Die SuS können sich und andere wahrnehmen und beschreiben." },
+            { "id": "NMG.1.2", "code": "NMG.1.2", "name": "Körperfunktionen verstehen", "beschreibung": "Die SuS können Körperfunktionen verstehen und Körperreaktionen einordnen." },
+            { "id": "NMG.1.3", "code": "NMG.1.3", "name": "Gesundheit und Wohlbefinden", "beschreibung": "Die SuS können Zusammenhänge von Gesundheit und Wohlbefinden erkennen und für sich Verantwortung übernehmen." }
+          ]
+        },
+        {
+          "id": "NMG.2",
+          "code": "NMG.2",
+          "name": "Tiere, Pflanzen und Lebensräume erkunden und erhalten",
+          "kompetenzen": [
+            { "id": "NMG.2.1", "code": "NMG.2.1", "name": "Tiere und Pflanzen in ihren Lebensräumen", "beschreibung": "Die SuS können Tiere und Pflanzen in ihren Lebensräumen erkunden und dokumentieren." },
+            { "id": "NMG.2.2", "code": "NMG.2.2", "name": "Wachstum und Entwicklung", "beschreibung": "Die SuS können die Bedeutung von Sonne, Luft, Wasser, Boden und Steinen für Lebewesen erkennen." },
+            { "id": "NMG.2.3", "code": "NMG.2.3", "name": "Artenvielfalt und Naturschutz", "beschreibung": "Die SuS können die Artenvielfalt von Pflanzen und Tieren erkennen und sie ordnen." },
+            { "id": "NMG.2.4", "code": "NMG.2.4", "name": "Beziehung Mensch-Natur", "beschreibung": "Die SuS können die Einflüsse des Menschen auf die Natur einschätzen und über eine nachhaltige Entwicklung nachdenken." }
+          ]
+        },
+        {
+          "id": "NMG.3",
+          "code": "NMG.3",
+          "name": "Stoffe, Energie und Bewegungen beschreiben, untersuchen und nutzen",
+          "kompetenzen": [
+            { "id": "NMG.3.1", "code": "NMG.3.1", "name": "Stoffe und ihre Eigenschaften", "beschreibung": "Die SuS können Stoffe im Alltag und in natürlichen Lebensräumen wahrnehmen und untersuchen." },
+            { "id": "NMG.3.2", "code": "NMG.3.2", "name": "Energieformen und -umwandlung", "beschreibung": "Die SuS können Energieformen und Energieumwandlungen im Alltag erkennen." },
+            { "id": "NMG.3.3", "code": "NMG.3.3", "name": "Bewegung und Kraft", "beschreibung": "Die SuS können Kräfte und ihre Wirkungen erkennen und nutzen." }
+          ]
+        },
+        {
+          "id": "NMG.4",
+          "code": "NMG.4",
+          "name": "Phänomene der belebten und unbelebten Natur erforschen und erklären",
+          "kompetenzen": [
+            { "id": "NMG.4.1", "code": "NMG.4.1", "name": "Wetter und Klima", "beschreibung": "Die SuS können Wetterphänomene beobachten, beschreiben und erklären." },
+            { "id": "NMG.4.2", "code": "NMG.4.2", "name": "Erde und Universum", "beschreibung": "Die SuS können Erscheinungen auf der Erde und Bewegungen der Erde und Gestirne erkennen und erklären." }
+          ]
+        },
+        {
+          "id": "NMG.5",
+          "code": "NMG.5",
+          "name": "Technische Entwicklungen und Umsetzungen erschliessen, einschätzen und anwenden",
+          "kompetenzen": [
+            { "id": "NMG.5.1", "code": "NMG.5.1", "name": "Technische Alltagsgeräte", "beschreibung": "Die SuS können Alltagsgeräte und technische Anlagen untersuchen und nachkonstruieren." },
+            { "id": "NMG.5.2", "code": "NMG.5.2", "name": "Technische Entwicklungen einschätzen", "beschreibung": "Die SuS können technische Entwicklungen und ihre Auswirkungen reflektieren." },
+            { "id": "NMG.5.3", "code": "NMG.5.3", "name": "Planen, herstellen, bewerten", "beschreibung": "Die SuS können Lösungen für technische Problemstellungen entwickeln." }
+          ]
+        },
+        {
+          "id": "NMG.6",
+          "code": "NMG.6",
+          "name": "Arbeit, Produktion und Konsum – Loss, Gewinn und ihre Einflüsse wahrnehmen und verstehen",
+          "kompetenzen": [
+            { "id": "NMG.6.1", "code": "NMG.6.1", "name": "Bedürfnisse und Konsum", "beschreibung": "Die SuS können verschiedene Bedürfnisse und Güter unterscheiden und über den Konsum nachdenken." },
+            { "id": "NMG.6.2", "code": "NMG.6.2", "name": "Produktion und Wege von Gütern", "beschreibung": "Die SuS können Produktions- und Arbeitswelten erkunden." },
+            { "id": "NMG.6.3", "code": "NMG.6.3", "name": "Tauschen und Handeln", "beschreibung": "Die SuS können die Bedeutung und Wirkung von Handel und Tausch erkennen." }
+          ]
+        },
+        {
+          "id": "NMG.7",
+          "code": "NMG.7",
+          "name": "Lebensweisen und Lebensräume von Menschen erschliessen und vergleichen",
+          "kompetenzen": [
+            { "id": "NMG.7.1", "code": "NMG.7.1", "name": "Lebensweisen und Vielfalt", "beschreibung": "Die SuS können Menschen und Gruppen, deren unterschiedliche Lebensweisen und Wertvorstellungen beschreiben." },
+            { "id": "NMG.7.2", "code": "NMG.7.2", "name": "Heimatliche Räume", "beschreibung": "Die SuS können die unterschiedliche Nutzung von Räumen durch Menschen erkennen." },
+            { "id": "NMG.7.3", "code": "NMG.7.3", "name": "Weltweite Zusammenhänge", "beschreibung": "Die SuS können Veränderungen in Räumen und Gesellschaften erkennen." }
+          ]
+        },
+        {
+          "id": "NMG.8",
+          "code": "NMG.8",
+          "name": "Menschen nutzen Räume – Loss und Grenzen erkennen",
+          "kompetenzen": [
+            { "id": "NMG.8.1", "code": "NMG.8.1", "name": "Räume erkunden", "beschreibung": "Die SuS können Orte und Räume in der Wohnumgebung erkunden." },
+            { "id": "NMG.8.2", "code": "NMG.8.2", "name": "Räume und Karten", "beschreibung": "Die SuS können Räume mit Hilfe von Karten und Plänen erkunden." }
+          ]
+        },
+        {
+          "id": "NMG.9",
+          "code": "NMG.9",
+          "name": "Zeit, Dauer und Wandel verstehen – Geschichte und Geschichten unterscheiden",
+          "kompetenzen": [
+            { "id": "NMG.9.1", "code": "NMG.9.1", "name": "Zeitstrukturen", "beschreibung": "Die SuS können Zeitbegriffe, Zeiträume und Zeitstrukturen nutzen." },
+            { "id": "NMG.9.2", "code": "NMG.9.2", "name": "Vergangenheit und Geschichte", "beschreibung": "Die SuS können Dauer und Wandel bei sich sowie in der eigenen Lebenswelt und Umgebung erschliessen." },
+            { "id": "NMG.9.3", "code": "NMG.9.3", "name": "Geschichtskultur", "beschreibung": "Die SuS können verstehen, wie Geschichte rekonstruiert wird." }
+          ]
+        },
+        {
+          "id": "NMG.10",
+          "code": "NMG.10",
+          "name": "Gemeinschaft und Gesellschaft – Zusammenleben gestalten und sich engagieren",
+          "kompetenzen": [
+            { "id": "NMG.10.1", "code": "NMG.10.1", "name": "Zusammenleben", "beschreibung": "Die SuS können auf andere eingehen und Gemeinschaft mitgestalten." },
+            { "id": "NMG.10.2", "code": "NMG.10.2", "name": "Demokratie und Menschenrechte", "beschreibung": "Die SuS können Rechte und Pflichten erkennen und für Gerechtigkeit einstehen." },
+            { "id": "NMG.10.3", "code": "NMG.10.3", "name": "Lebenslagen und Lebenswelten", "beschreibung": "Die SuS können verschiedene Lebenslagen und Lebenswelten wahrnehmen." }
+          ]
+        },
+        {
+          "id": "NMG.11",
+          "code": "NMG.11",
+          "name": "Grunderfahrungen, Werte und Normen erkunden und reflektieren",
+          "kompetenzen": [
+            { "id": "NMG.11.1", "code": "NMG.11.1", "name": "Werte und Normen", "beschreibung": "Die SuS können Werte und Normen erläutern, prüfen und vertreten." },
+            { "id": "NMG.11.2", "code": "NMG.11.2", "name": "Ethisch urteilen", "beschreibung": "Die SuS können Situationen und Handlungen hinterfragen und ethisch beurteilen." },
+            { "id": "NMG.11.3", "code": "NMG.11.3", "name": "Existentielle Grunderfahrungen", "beschreibung": "Die SuS können Grunderfahrungen des Lebens beschreiben und reflektieren." },
+            { "id": "NMG.11.4", "code": "NMG.11.4", "name": "Religionen und Weltsichten", "beschreibung": "Die SuS können Weltsichten und Weltdeutungen reflektieren." }
+          ]
+        },
+        {
+          "id": "NMG.12",
+          "code": "NMG.12",
+          "name": "Religionen und Weltsichten begegnen",
+          "kompetenzen": [
+            { "id": "NMG.12.1", "code": "NMG.12.1", "name": "Religiöse Traditionen", "beschreibung": "Die SuS können religiöse Traditionen und kulturelle Prägungen in ihrer Lebenswelt erkennen." },
+            { "id": "NMG.12.2", "code": "NMG.12.2", "name": "Verschiedene Religionen kennen", "beschreibung": "Die SuS kennen Merkmale verschiedener Religionen und können diese vergleichen." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "BG",
+      "name": "Bildnerisches Gestalten",
+      "fachbereichKuerzel": "BG",
+      "farbe": "#F59E0B",
+      "zyklen": [1, 2, 3],
+      "kompetenzbereiche": [
+        {
+          "id": "BG.1",
+          "code": "BG.1",
+          "name": "Wahrnehmung und Kommunikation",
+          "kompetenzen": [
+            { "id": "BG.1.A", "code": "BG.1.A.1", "name": "Wahrnehmen und beschreiben", "beschreibung": "Die SuS können bildnerische Prozesse und Produkte wahrnehmen und darüber nachdenken." },
+            { "id": "BG.1.B", "code": "BG.1.B.1", "name": "Ästhetisch urteilen", "beschreibung": "Die SuS können ästhetische Urteile bilden und begründen." }
+          ]
+        },
+        {
+          "id": "BG.2",
+          "code": "BG.2",
+          "name": "Prozesse und Produkte",
+          "kompetenzen": [
+            { "id": "BG.2.A", "code": "BG.2.A.1", "name": "Bildnerischer Prozess", "beschreibung": "Die SuS können eigenständig bildnerische Prozesse allein und in Gruppen realisieren." },
+            { "id": "BG.2.B", "code": "BG.2.B.1", "name": "Grafik", "beschreibung": "Die SuS können Punkt, Linie und Fläche als bildnerische Mittel einsetzen." },
+            { "id": "BG.2.C", "code": "BG.2.C.1", "name": "Farbe", "beschreibung": "Die SuS können Farbe als bildnerisches Mittel einsetzen." },
+            { "id": "BG.2.D", "code": "BG.2.D.1", "name": "Plastik", "beschreibung": "Die SuS können plastische Werke gestalten." }
+          ]
+        },
+        {
+          "id": "BG.3",
+          "code": "BG.3",
+          "name": "Kontexte und Orientierung",
+          "kompetenzen": [
+            { "id": "BG.3.A", "code": "BG.3.A.1", "name": "Bilder und Kunst", "beschreibung": "Die SuS können verschiedene Bilder und Kunstwerke wahrnehmen und darüber sprechen." },
+            { "id": "BG.3.B", "code": "BG.3.B.1", "name": "Kultur und Geschichte", "beschreibung": "Die SuS können Bilder in kulturellen Zusammenhängen einordnen." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TTG",
+      "name": "Textiles und Technisches Gestalten",
+      "fachbereichKuerzel": "TTG",
+      "farbe": "#EA580C",
+      "zyklen": [1, 2, 3],
+      "kompetenzbereiche": [
+        {
+          "id": "TTG.1",
+          "code": "TTG.1",
+          "name": "Wahrnehmung und Kommunikation",
+          "kompetenzen": [
+            { "id": "TTG.1.A", "code": "TTG.1.A.1", "name": "Wahrnehmen und beschreiben", "beschreibung": "Die SuS können gestalterische und technische Zusammenhänge wahrnehmen und reflektieren." },
+            { "id": "TTG.1.B", "code": "TTG.1.B.1", "name": "Ästhetisch urteilen", "beschreibung": "Die SuS können ästhetische Urteile bilden und begründen." }
+          ]
+        },
+        {
+          "id": "TTG.2",
+          "code": "TTG.2",
+          "name": "Prozesse und Produkte",
+          "kompetenzen": [
+            { "id": "TTG.2.A", "code": "TTG.2.A.1", "name": "Gestaltungs- bzw. Designprozess", "beschreibung": "Die SuS können Gestaltungsprozesse allein und in Gruppen realisieren." },
+            { "id": "TTG.2.B", "code": "TTG.2.B.1", "name": "Funktion und Konstruktion", "beschreibung": "Die SuS können die Funktion und Konstruktion von Produkten erschliessen." },
+            { "id": "TTG.2.C", "code": "TTG.2.C.1", "name": "Verfahren und Material", "beschreibung": "Die SuS können Materialien und Verfahren sachgerecht einsetzen." },
+            { "id": "TTG.2.D", "code": "TTG.2.D.1", "name": "Spiel / Experiment", "beschreibung": "Die SuS können spielen und experimentieren." }
+          ]
+        },
+        {
+          "id": "TTG.3",
+          "code": "TTG.3",
+          "name": "Kontexte und Orientierung",
+          "kompetenzen": [
+            { "id": "TTG.3.A", "code": "TTG.3.A.1", "name": "Design- und Technikverständnis", "beschreibung": "Die SuS können Objekte als Produkte einer Gestaltungs- und Technikkultur erkennen." },
+            { "id": "TTG.3.B", "code": "TTG.3.B.1", "name": "Nachhaltigkeit und Konsum", "beschreibung": "Die SuS können Objekte in Bezug auf Herstellung, Gebrauch und Entsorgung beurteilen." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MU",
+      "name": "Musik",
+      "fachbereichKuerzel": "MU",
+      "farbe": "#EC4899",
+      "zyklen": [1, 2, 3],
+      "kompetenzbereiche": [
+        {
+          "id": "MU.1",
+          "code": "MU.1",
+          "name": "Singen und Sprechen",
+          "kompetenzen": [
+            { "id": "MU.1.A", "code": "MU.1.A.1", "name": "Stimme als Ausdrucksmittel", "beschreibung": "Die SuS können ihre Stimme und deren klangliche Vielfalt entdecken und nutzen." },
+            { "id": "MU.1.B", "code": "MU.1.B.1", "name": "Liedrepertoire", "beschreibung": "Die SuS können Lieder aus verschiedenen Zeiten, Kulturen und Stilarten singen." },
+            { "id": "MU.1.C", "code": "MU.1.C.1", "name": "Stimmbildung", "beschreibung": "Die SuS können ihre Stimme situationsgerecht einsetzen." }
+          ]
+        },
+        {
+          "id": "MU.2",
+          "code": "MU.2",
+          "name": "Hören und Sich-Orientieren",
+          "kompetenzen": [
+            { "id": "MU.2.A", "code": "MU.2.A.1", "name": "Akustische Orientierung", "beschreibung": "Die SuS können ihre Umwelt und musikalische Elemente hörend wahrnehmen." },
+            { "id": "MU.2.B", "code": "MU.2.B.1", "name": "Begegnung mit Musik", "beschreibung": "Die SuS können Musik aus verschiedenen Zeiten, Gattungen und Kulturen erkennen und zuordnen." },
+            { "id": "MU.2.C", "code": "MU.2.C.1", "name": "Bedeutung und Funktion von Musik", "beschreibung": "Die SuS können Wirkung und Bedeutung von Musik reflektieren." }
+          ]
+        },
+        {
+          "id": "MU.3",
+          "code": "MU.3",
+          "name": "Bewegen und Tanzen",
+          "kompetenzen": [
+            { "id": "MU.3.A", "code": "MU.3.A.1", "name": "Körperausdruck zu Musik", "beschreibung": "Die SuS können ihren Körper als Ausdrucksmittel einsetzen und sich zu Musik bewegen." },
+            { "id": "MU.3.B", "code": "MU.3.B.1", "name": "Tanzrepertoire", "beschreibung": "Die SuS können Tänze aus verschiedenen Zeiten und Kulturen tanzen." }
+          ]
+        },
+        {
+          "id": "MU.4",
+          "code": "MU.4",
+          "name": "Musizieren",
+          "kompetenzen": [
+            { "id": "MU.4.A", "code": "MU.4.A.1", "name": "Musizieren mit Instrumenten", "beschreibung": "Die SuS können mit Instrumenten und anderen Klangerzeugern musizieren." },
+            { "id": "MU.4.B", "code": "MU.4.B.1", "name": "Ensemblespiel", "beschreibung": "Die SuS können sich als Teil einer musizierenden Gruppe erleben." }
+          ]
+        },
+        {
+          "id": "MU.5",
+          "code": "MU.5",
+          "name": "Gestaltungsprozesse",
+          "kompetenzen": [
+            { "id": "MU.5.A", "code": "MU.5.A.1", "name": "Musikalische Gestaltungsprozesse", "beschreibung": "Die SuS können Musik und musikalische Ideen erfinden und umsetzen." },
+            { "id": "MU.5.B", "code": "MU.5.B.1", "name": "Notation lesen und schreiben", "beschreibung": "Die SuS können die Notation als Darstellungsmittel anwenden." }
+          ]
+        },
+        {
+          "id": "MU.6",
+          "code": "MU.6",
+          "name": "Praxis des musikalischen Wissens",
+          "kompetenzen": [
+            { "id": "MU.6.A", "code": "MU.6.A.1", "name": "Rhythmus, Melodie, Harmonie", "beschreibung": "Die SuS können rhythmische, melodische und harmonische Elemente erkennen und anwenden." },
+            { "id": "MU.6.B", "code": "MU.6.B.1", "name": "Instrumente", "beschreibung": "Die SuS kennen unterschiedliche Musikinstrumente." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "BS",
+      "name": "Bewegung und Sport",
+      "fachbereichKuerzel": "BS",
+      "farbe": "#0891B2",
+      "zyklen": [1, 2, 3],
+      "kompetenzbereiche": [
+        {
+          "id": "BS.1",
+          "code": "BS.1",
+          "name": "Laufen, Springen, Werfen",
+          "kompetenzen": [
+            { "id": "BS.1.A", "code": "BS.1.A.1", "name": "Laufen", "beschreibung": "Die SuS können schnell, über längere Zeit, in verschiedenen Formen und rhythmisch laufen." },
+            { "id": "BS.1.B", "code": "BS.1.B.1", "name": "Springen", "beschreibung": "Die SuS können weit und hoch springen und landen sicher." },
+            { "id": "BS.1.C", "code": "BS.1.C.1", "name": "Werfen", "beschreibung": "Die SuS können Gegenstände weit und/oder gezielt werfen." }
+          ]
+        },
+        {
+          "id": "BS.2",
+          "code": "BS.2",
+          "name": "Bewegen an Geräten",
+          "kompetenzen": [
+            { "id": "BS.2.A", "code": "BS.2.A.1", "name": "Grundbewegungen an Geräten", "beschreibung": "Die SuS können Grundbewegungen wie Balancieren, Rollen-Drehen, Schaukeln-Schwingen, Stützen und Klettern ausführen." },
+            { "id": "BS.2.B", "code": "BS.2.B.1", "name": "Beweglichkeit und Kraft", "beschreibung": "Die SuS können Kraft und Beweglichkeit aufbauen und erhalten." }
+          ]
+        },
+        {
+          "id": "BS.3",
+          "code": "BS.3",
+          "name": "Darstellen und Tanzen",
+          "kompetenzen": [
+            { "id": "BS.3.A", "code": "BS.3.A.1", "name": "Körperwahrnehmung", "beschreibung": "Die SuS können ihren Körper wahrnehmen, gezielt bewegen und ausdrücken." },
+            { "id": "BS.3.B", "code": "BS.3.B.1", "name": "Darstellen und Gestalten", "beschreibung": "Die SuS können sich kreativ mit dem Körper ausdrücken." },
+            { "id": "BS.3.C", "code": "BS.3.C.1", "name": "Tanzen", "beschreibung": "Die SuS können tanzen und rhythmisch bewegen." }
+          ]
+        },
+        {
+          "id": "BS.4",
+          "code": "BS.4",
+          "name": "Spielen",
+          "kompetenzen": [
+            { "id": "BS.4.A", "code": "BS.4.A.1", "name": "Spielfähigkeit", "beschreibung": "Die SuS können Spiele spielen, Regeln einhalten und fair handeln." },
+            { "id": "BS.4.B", "code": "BS.4.B.1", "name": "Sportspiele", "beschreibung": "Die SuS können technische und taktische Handlungsmuster in verschiedenen Sportspielen anwenden." },
+            { "id": "BS.4.C", "code": "BS.4.C.1", "name": "Rückschlagspiele", "beschreibung": "Die SuS können in Rückschlagspielen einen Ball oder Shuttle gezielt spielen." }
+          ]
+        },
+        {
+          "id": "BS.5",
+          "code": "BS.5",
+          "name": "Gleiten, Rollen, Fahren",
+          "kompetenzen": [
+            { "id": "BS.5.A", "code": "BS.5.A.1", "name": "Fahren und Rollen", "beschreibung": "Die SuS können mit verschiedenen Geräten sicher fahren und rollen." }
+          ]
+        },
+        {
+          "id": "BS.6",
+          "code": "BS.6",
+          "name": "Bewegen im Wasser",
+          "kompetenzen": [
+            { "id": "BS.6.A", "code": "BS.6.A.1", "name": "Schwimmen", "beschreibung": "Die SuS können sicher schwimmen." },
+            { "id": "BS.6.B", "code": "BS.6.B.1", "name": "Ins Wasser springen und Tauchen", "beschreibung": "Die SuS können ins Wasser springen und tauchen." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MI",
+      "name": "Informatische Bildung (Medien und Informatik)",
+      "fachbereichKuerzel": "MI",
+      "farbe": "#6366F1",
+      "zyklen": [1, 2, 3],
+      "hinweis": "In der Solothurner Version als 'Informatische Bildung' bezeichnet. Diese Kompetenzen sind bereits in der MIA-App über Airtable integriert.",
+      "kompetenzbereiche": [
+        {
+          "id": "MI.1",
+          "code": "MI.1",
+          "name": "Medien",
+          "kompetenzen": [
+            { "id": "MI.1.1", "code": "MI.1.1", "name": "Leben in der Mediengesellschaft", "beschreibung": "Die SuS können sich in der physischen Umwelt sowie in medialen und virtuellen Lebensräumen orientieren." },
+            { "id": "MI.1.2", "code": "MI.1.2", "name": "Medien und Medienbeiträge verstehen", "beschreibung": "Die SuS können Medien und Medienbeiträge entschlüsseln und reflektieren." },
+            { "id": "MI.1.3", "code": "MI.1.3", "name": "Medien und Medienbeiträge produzieren", "beschreibung": "Die SuS können Gedanken, Meinungen, Erfahrungen und Wissen in Medienbeiträge umsetzen." },
+            { "id": "MI.1.4", "code": "MI.1.4", "name": "Mit Medien kommunizieren und kooperieren", "beschreibung": "Die SuS können Medien interaktiv nutzen sowie mit anderen kommunizieren und kooperieren." }
+          ]
+        },
+        {
+          "id": "MI.2",
+          "code": "MI.2",
+          "name": "Informatik",
+          "kompetenzen": [
+            { "id": "MI.2.1", "code": "MI.2.1", "name": "Datenstrukturen", "beschreibung": "Die SuS können Daten aus ihrer Umwelt darstellen, strukturieren und auswerten." },
+            { "id": "MI.2.2", "code": "MI.2.2", "name": "Algorithmen", "beschreibung": "Die SuS können einfache Problemstellungen analysieren, mögliche Lösungsverfahren beschreiben und in Programmen umsetzen." },
+            { "id": "MI.2.3", "code": "MI.2.3", "name": "Informatiksysteme", "beschreibung": "Die SuS verstehen Aufbau und Funktionsweise von informationsverarbeitenden Systemen." }
+          ]
+        }
+      ]
+    }
+  ],
+  "ueberfachlicheKompetenzen": [
+    {
+      "id": "PK",
+      "name": "Personale Kompetenzen",
+      "kompetenzen": [
+        { "id": "PK.1", "name": "Selbstreflexion", "beschreibung": "Eigene Ressourcen kennen und nutzen" },
+        { "id": "PK.2", "name": "Selbstständigkeit", "beschreibung": "Schulalltag und Lernprozesse zunehmend selbstständig bewältigen" },
+        { "id": "PK.3", "name": "Eigenständigkeit", "beschreibung": "Eigene Ziele und Werte reflektieren und verfolgen" }
+      ]
+    },
+    {
+      "id": "SK",
+      "name": "Soziale Kompetenzen",
+      "kompetenzen": [
+        { "id": "SK.1", "name": "Dialog- und Kooperationsfähigkeit", "beschreibung": "Sich mit Menschen austauschen, zusammenarbeiten" },
+        { "id": "SK.2", "name": "Konfliktfähigkeit", "beschreibung": "Konflikte benennen, Lösungen suchen" },
+        { "id": "SK.3", "name": "Umgang mit Vielfalt", "beschreibung": "Menschen in ihren Gemeinsamkeiten und Differenzen wahrnehmen und verstehen" }
+      ]
+    },
+    {
+      "id": "MK",
+      "name": "Methodische Kompetenzen",
+      "kompetenzen": [
+        { "id": "MK.1", "name": "Sprachfähigkeit", "beschreibung": "Ein breites Repertoire sprachlicher Ausdrucksmittel nutzen" },
+        { "id": "MK.2", "name": "Informationen nutzen", "beschreibung": "Informationen suchen, bewerten, aufbereiten, präsentieren" },
+        { "id": "MK.3", "name": "Aufgaben/Probleme lösen", "beschreibung": "Problemstellungen analysieren und Lösungen entwickeln" }
+      ]
+    }
+  ]
+}
