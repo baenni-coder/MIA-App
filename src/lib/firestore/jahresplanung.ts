@@ -3,6 +3,7 @@ import {
   JahresplanEinheit,
   JahresplanStatus,
   BeurteilungsTyp,
+  Beurteilung,
   SchulferienCustom,
   JahresplanFilter,
 } from "@/types";
@@ -45,6 +46,28 @@ function docToEinheit(
   doc: FirebaseFirestore.DocumentSnapshot
 ): JahresplanEinheit {
   const data = doc.data()!;
+
+  // Migration: alte Einzelbeurteilung → Array
+  let beurteilungen: Beurteilung[] = [];
+  if (Array.isArray(data.beurteilungen) && data.beurteilungen.length > 0) {
+    beurteilungen = data.beurteilungen;
+  } else if (data.beurteilungstyp && data.beurteilungstyp !== "keine") {
+    // Legacy: einzelne Beurteilung in Array konvertieren
+    beurteilungen = [{
+      typ: data.beurteilungstyp as "formativ" | "summativ",
+      kalenderwoche: data.zeitraumEnde, // Default: letzte Woche
+      notiz: data.beurteilungsNotiz || "",
+    }];
+  }
+
+  // Legacy-Felder ableiten aus Array
+  const beurteilungstyp: BeurteilungsTyp = beurteilungen.length > 0
+    ? beurteilungen[0].typ
+    : "keine";
+  const beurteilungsNotiz = beurteilungen.length > 0
+    ? beurteilungen[0].notiz
+    : "";
+
   return {
     id: doc.id,
     teacherId: data.teacherId,
@@ -61,8 +84,9 @@ function docToEinheit(
     quartal: data.quartal,
     status: data.status as JahresplanStatus,
     notizen: data.notizen || "",
-    beurteilungstyp: data.beurteilungstyp as BeurteilungsTyp,
-    beurteilungsNotiz: data.beurteilungsNotiz || "",
+    beurteilungstyp,
+    beurteilungsNotiz,
+    beurteilungen,
     materialien: data.materialien || [],
     istPufferwoche: data.istPufferwoche || false,
     farbe: data.farbe || "#6b7280",
@@ -97,6 +121,7 @@ export async function createJahresplanEinheit(data: {
   status?: JahresplanStatus;
   beurteilungstyp?: BeurteilungsTyp;
   beurteilungsNotiz?: string;
+  beurteilungen?: Beurteilung[];
   materialien?: string[];
   istPufferwoche?: boolean;
   farbe?: string;
@@ -127,6 +152,7 @@ export async function createJahresplanEinheit(data: {
       notizen: "",
       beurteilungstyp: data.beurteilungstyp || "keine",
       beurteilungsNotiz: data.beurteilungsNotiz || "",
+      beurteilungen: data.beurteilungen || [],
       materialien: data.materialien || [],
       istPufferwoche: data.istPufferwoche || false,
       farbe: data.farbe || data.fachbereichFarbe || "#6b7280",
@@ -384,6 +410,7 @@ export async function kopiereJahresplan(
         notizen: "", // Reset notes
         beurteilungstyp: einheit.beurteilungstyp,
         beurteilungsNotiz: "",
+        beurteilungen: einheit.beurteilungen.map(b => ({ ...b, notiz: "" })),
         materialien: einheit.materialien,
         istPufferwoche: einheit.istPufferwoche,
         farbe: einheit.farbe,
@@ -530,25 +557,35 @@ export async function getBeurteilungenProWoche(
   try {
     const einheiten = await getJahresplanEinheiten(teacherId, { schuljahr });
 
-    const beurteilungen = new Map<number, { formativ: number; summativ: number }>();
+    const beurteilungenMap = new Map<number, { formativ: number; summativ: number }>();
 
     for (const einheit of einheiten) {
-      if (einheit.beurteilungstyp === "keine") continue;
-
-      for (let kw = einheit.zeitraumStart; kw <= einheit.zeitraumEnde; kw++) {
-        const current = beurteilungen.get(kw) || { formativ: 0, summativ: 0 };
-
-        if (einheit.beurteilungstyp === "formativ") {
-          current.formativ++;
-        } else if (einheit.beurteilungstyp === "summativ") {
-          current.summativ++;
+      // Neue beurteilungen-Array nutzen
+      if (einheit.beurteilungen && einheit.beurteilungen.length > 0) {
+        for (const b of einheit.beurteilungen) {
+          const current = beurteilungenMap.get(b.kalenderwoche) || { formativ: 0, summativ: 0 };
+          if (b.typ === "formativ") {
+            current.formativ++;
+          } else if (b.typ === "summativ") {
+            current.summativ++;
+          }
+          beurteilungenMap.set(b.kalenderwoche, current);
         }
-
-        beurteilungen.set(kw, current);
+      } else if (einheit.beurteilungstyp !== "keine") {
+        // Legacy-Fallback: alle Wochen der Einheit markieren
+        for (let kw = einheit.zeitraumStart; kw <= einheit.zeitraumEnde; kw++) {
+          const current = beurteilungenMap.get(kw) || { formativ: 0, summativ: 0 };
+          if (einheit.beurteilungstyp === "formativ") {
+            current.formativ++;
+          } else if (einheit.beurteilungstyp === "summativ") {
+            current.summativ++;
+          }
+          beurteilungenMap.set(kw, current);
+        }
       }
     }
 
-    return beurteilungen;
+    return beurteilungenMap;
   } catch (error) {
     console.error("Error getting beurteilungen pro woche:", error);
     throw new Error("Failed to get beurteilungen pro woche");

@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save, Trash2, Plus, X, BookOpen, LinkIcon } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, X, BookOpen, LinkIcon, Circle, Diamond } from "lucide-react";
 import Link from "next/link";
 import KompetenzPicker from "@/components/jahresplanung/KompetenzPicker";
 import {
@@ -26,7 +26,7 @@ import {
   getAlleFachbereiche,
   getFachbereichById,
 } from "@/lib/data/lp21-data";
-import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema } from "@/types";
+import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema, Beurteilung } from "@/types";
 
 // Import der berechneQuartal Funktion aus den Helper-Funktionen
 function calculateQuartal(kw: number): number {
@@ -65,8 +65,7 @@ export default function EinheitFormPage() {
   const [kompetenzenNamen, setKompetenzenNamen] = useState<string[]>([]);
   const [zeitraumStart, setZeitraumStart] = useState<number>(initialKw || 33);
   const [zeitraumEnde, setZeitraumEnde] = useState<number>(initialKw || 35);
-  const [beurteilungstyp, setBeurteilungstyp] = useState<BeurteilungsTyp>("keine");
-  const [beurteilungsNotiz, setBeurteilungsNotiz] = useState("");
+  const [beurteilungen, setBeurteilungen] = useState<Beurteilung[]>([]);
   const [materialien, setMaterialien] = useState<string[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
   const [istPufferwoche, setIstPufferwoche] = useState(false);
@@ -180,8 +179,7 @@ export default function EinheitFormPage() {
           setKompetenzenNamen(einheit.kompetenzenNamen || []);
           setZeitraumStart(einheit.zeitraumStart);
           setZeitraumEnde(einheit.zeitraumEnde);
-          setBeurteilungstyp(einheit.beurteilungstyp);
-          setBeurteilungsNotiz(einheit.beurteilungsNotiz || "");
+          setBeurteilungen(einheit.beurteilungen || []);
           setMaterialien(einheit.materialien || []);
           setIstPufferwoche(einheit.istPufferwoche);
           setIsShared(einheit.isShared);
@@ -232,8 +230,9 @@ export default function EinheitFormPage() {
         kompetenzenNamen,
         zeitraumStart,
         zeitraumEnde,
-        beurteilungstyp,
-        beurteilungsNotiz,
+        beurteilungen,
+        beurteilungstyp: beurteilungen.length > 0 ? beurteilungen[0].typ : "keine",
+        beurteilungsNotiz: beurteilungen.length > 0 ? beurteilungen[0].notiz : "",
         materialien,
         istPufferwoche,
         isShared,
@@ -551,45 +550,137 @@ export default function EinheitFormPage() {
             </CardContent>
           </Card>
 
-          {/* Beurteilung */}
+          {/* Beurteilungen */}
           <Card>
             <CardHeader>
-              <CardTitle>Beurteilung</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Beurteilungen</CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setBeurteilungen([
+                      ...beurteilungen,
+                      {
+                        typ: "formativ",
+                        kalenderwoche: zeitraumEnde,
+                        notiz: "",
+                      },
+                    ])
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Beurteilung
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Beurteilungstyp</label>
-                <Select
-                  value={beurteilungstyp}
-                  onValueChange={(v) => setBeurteilungstyp(v as BeurteilungsTyp)}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="keine">Keine Beurteilung</SelectItem>
-                    <SelectItem value="formativ">
-                      Formativ (prozessbegleitend)
-                    </SelectItem>
-                    <SelectItem value="summativ">
-                      Summativ (abschließend)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {beurteilungen.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">
+                  Noch keine Beurteilung geplant
+                </p>
+              ) : (
+                beurteilungen.map((b, idx) => (
+                  <div
+                    key={idx}
+                    className="border rounded-lg p-4 space-y-3 relative"
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBeurteilungen(beurteilungen.filter((_, i) => i !== idx))
+                      }
+                      className="absolute top-3 right-3 text-gray-400 hover:text-red-500"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
 
-              {beurteilungstyp !== "keine" && (
-                <div>
-                  <label className="text-sm font-medium">
-                    Details zur Beurteilung
-                  </label>
-                  <Textarea
-                    value={beurteilungsNotiz}
-                    onChange={(e) => setBeurteilungsNotiz(e.target.value)}
-                    placeholder="z.B. Lernkontrolle, Präsentation, Portfolio..."
-                    className="mt-1"
-                  />
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Typ</label>
+                        <Select
+                          value={b.typ}
+                          onValueChange={(v) => {
+                            const updated = [...beurteilungen];
+                            updated[idx] = { ...updated[idx], typ: v as "formativ" | "summativ" };
+                            setBeurteilungen(updated);
+                          }}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="formativ">
+                              Formativ (prozessbegleitend)
+                            </SelectItem>
+                            <SelectItem value="summativ">
+                              Summativ (abschliessend)
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium">
+                          Kalenderwoche
+                        </label>
+                        <Select
+                          value={b.kalenderwoche.toString()}
+                          onValueChange={(v) => {
+                            const updated = [...beurteilungen];
+                            updated[idx] = { ...updated[idx], kalenderwoche: parseInt(v) };
+                            setBeurteilungen(updated);
+                          }}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from(
+                              { length: zeitraumEnde - zeitraumStart + 1 },
+                              (_, i) => zeitraumStart + i
+                            ).map((kwOpt) => (
+                              <SelectItem key={kwOpt} value={kwOpt.toString()}>
+                                KW {kwOpt}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">
+                        Details
+                      </label>
+                      <Textarea
+                        value={b.notiz}
+                        onChange={(e) => {
+                          const updated = [...beurteilungen];
+                          updated[idx] = { ...updated[idx], notiz: e.target.value };
+                          setBeurteilungen(updated);
+                        }}
+                        placeholder="z.B. Lernkontrolle, Präsentation, Portfolio..."
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {b.typ === "formativ" ? (
+                        <Badge variant="outline" className="text-xs">
+                          <Circle className="h-3 w-3 fill-blue-500 text-blue-500 mr-1" />
+                          Formativ · KW {b.kalenderwoche}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">
+                          <Diamond className="h-3 w-3 fill-orange-500 text-orange-500 mr-1" />
+                          Summativ · KW {b.kalenderwoche}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))
               )}
             </CardContent>
           </Card>

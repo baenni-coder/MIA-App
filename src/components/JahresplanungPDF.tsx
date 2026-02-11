@@ -7,7 +7,7 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
-import type { JahresplanEinheit, JahresplanStatus, BeurteilungsTyp } from "@/types";
+import type { JahresplanEinheit, JahresplanStatus, BeurteilungsTyp, Beurteilung } from "@/types";
 
 // Farben
 const colors = {
@@ -386,41 +386,52 @@ export function QuartalsplanungPDF({ schuljahr, quartal, wochen, einheiten }: Qu
                 ) : (
                   wochenEinheiten.map((einheit) => {
                     const statusStyle = getStatusStyle(einheit.status);
+                    // Beurteilungen nur für diese KW anzeigen
+                    const kwBeurteilungen = (einheit.beurteilungen || [])
+                      .filter((b: Beurteilung) => b.kalenderwoche === woche.kw);
+                    const kompetenzLabel =
+                      einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
+                        ? einheit.kompetenzenNamen[0]
+                        : einheit.fachbereichName || einheit.fachbereichId;
+
                     return (
-                      <View key={einheit.id} style={styles.einheitRow}>
-                        <View
-                          style={[
-                            styles.einheitFarbe,
-                            { backgroundColor: einheit.fachbereichFarbe || "#6b7280" },
-                          ]}
-                        />
-                        <Text style={styles.einheitFachbereich}>
-                          {einheit.fachbereichName || einheit.fachbereichId}
-                        </Text>
-                        <Text style={styles.einheitTitle}>{einheit.titel}</Text>
-                        <Text
-                          style={[
-                            styles.statusBadge,
-                            { backgroundColor: statusStyle.backgroundColor, color: statusStyle.color },
-                          ]}
-                        >
-                          {STATUS_LABELS[einheit.status]}
-                        </Text>
-                        {einheit.beurteilungstyp && einheit.beurteilungstyp !== "keine" && (
+                      <View key={einheit.id} style={{ marginBottom: 2 }}>
+                        <View style={styles.einheitRow}>
+                          <View
+                            style={[
+                              styles.einheitFarbe,
+                              { backgroundColor: einheit.fachbereichFarbe || "#6b7280" },
+                            ]}
+                          />
+                          <Text style={styles.einheitFachbereich}>
+                            {kompetenzLabel}
+                          </Text>
+                          <Text style={styles.einheitTitle}>{einheit.titel}</Text>
                           <Text
                             style={[
-                              styles.beurteilungBadge,
-                              {
-                                backgroundColor:
-                                  einheit.beurteilungstyp === "formativ"
-                                    ? colors.beurteilungFormativ
-                                    : colors.beurteilungSummativ,
-                              },
+                              styles.statusBadge,
+                              { backgroundColor: statusStyle.backgroundColor, color: statusStyle.color },
                             ]}
                           >
-                            {BEURTEILUNG_LABELS[einheit.beurteilungstyp]}
+                            {STATUS_LABELS[einheit.status]}
                           </Text>
-                        )}
+                          {kwBeurteilungen.map((b: Beurteilung, bIdx: number) => (
+                            <Text
+                              key={bIdx}
+                              style={[
+                                styles.beurteilungBadge,
+                                {
+                                  backgroundColor:
+                                    b.typ === "formativ"
+                                      ? colors.beurteilungFormativ
+                                      : colors.beurteilungSummativ,
+                                },
+                              ]}
+                            >
+                              {b.typ === "formativ" ? "Formativ" : "Summativ"}
+                            </Text>
+                          ))}
+                        </View>
                       </View>
                     );
                   })
@@ -579,11 +590,29 @@ export function WochenplanungPDF({
                     </View>
                   )}
 
-                  {/* Beurteilungsnotiz */}
-                  {einheit.beurteilungsNotiz && (
+                  {/* Beurteilungen */}
+                  {einheit.beurteilungen && einheit.beurteilungen.length > 0 && (
                     <View style={styles.detailSection}>
-                      <Text style={styles.detailSectionLabel}>Beurteilungsnotiz</Text>
-                      <Text style={styles.detailSectionText}>{einheit.beurteilungsNotiz}</Text>
+                      <Text style={styles.detailSectionLabel}>Beurteilungen</Text>
+                      {einheit.beurteilungen.map((b: Beurteilung, bIdx: number) => (
+                        <View key={bIdx} style={{ flexDirection: "row", alignItems: "center", marginBottom: 2 }}>
+                          <Text
+                            style={[
+                              styles.beurteilungBadge,
+                              {
+                                backgroundColor: b.typ === "formativ" ? colors.beurteilungFormativ : colors.beurteilungSummativ,
+                                marginLeft: 0,
+                                marginRight: 4,
+                              },
+                            ]}
+                          >
+                            {b.typ === "formativ" ? "Formativ" : "Summativ"}
+                          </Text>
+                          <Text style={{ fontSize: 8, color: colors.textSecondary }}>
+                            KW {b.kalenderwoche}{b.notiz ? ` – ${b.notiz}` : ""}
+                          </Text>
+                        </View>
+                      ))}
                     </View>
                   )}
 
@@ -690,41 +719,51 @@ export function JahresplanungPDF({ schuljahr, wochen, einheiten }: Jahresplanung
                     ) : (
                       wochenEinheiten.map((einheit) => {
                         const statusStyle = getStatusStyle(einheit.status);
+                        const kwBeurteilungen = (einheit.beurteilungen || [])
+                          .filter((b: Beurteilung) => b.kalenderwoche === woche.kw);
+                        const kompetenzLabel =
+                          einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
+                            ? einheit.kompetenzenNamen[0]
+                            : einheit.fachbereichName || einheit.fachbereichId;
+
                         return (
-                          <View key={einheit.id} style={styles.einheitRow}>
-                            <View
-                              style={[
-                                styles.einheitFarbe,
-                                { backgroundColor: einheit.fachbereichFarbe || "#6b7280" },
-                              ]}
-                            />
-                            <Text style={styles.einheitFachbereich}>
-                              {einheit.fachbereichName || einheit.fachbereichId}
-                            </Text>
-                            <Text style={styles.einheitTitle}>{einheit.titel}</Text>
-                            <Text
-                              style={[
-                                styles.statusBadge,
-                                { backgroundColor: statusStyle.backgroundColor, color: statusStyle.color },
-                              ]}
-                            >
-                              {STATUS_LABELS[einheit.status]}
-                            </Text>
-                            {einheit.beurteilungstyp && einheit.beurteilungstyp !== "keine" && (
+                          <View key={einheit.id} style={{ marginBottom: 2 }}>
+                            <View style={styles.einheitRow}>
+                              <View
+                                style={[
+                                  styles.einheitFarbe,
+                                  { backgroundColor: einheit.fachbereichFarbe || "#6b7280" },
+                                ]}
+                              />
+                              <Text style={styles.einheitFachbereich}>
+                                {kompetenzLabel}
+                              </Text>
+                              <Text style={styles.einheitTitle}>{einheit.titel}</Text>
                               <Text
                                 style={[
-                                  styles.beurteilungBadge,
-                                  {
-                                    backgroundColor:
-                                      einheit.beurteilungstyp === "formativ"
-                                        ? colors.beurteilungFormativ
-                                        : colors.beurteilungSummativ,
-                                  },
+                                  styles.statusBadge,
+                                  { backgroundColor: statusStyle.backgroundColor, color: statusStyle.color },
                                 ]}
                               >
-                                {BEURTEILUNG_LABELS[einheit.beurteilungstyp]}
+                                {STATUS_LABELS[einheit.status]}
                               </Text>
-                            )}
+                              {kwBeurteilungen.map((b: Beurteilung, bIdx: number) => (
+                                <Text
+                                  key={bIdx}
+                                  style={[
+                                    styles.beurteilungBadge,
+                                    {
+                                      backgroundColor:
+                                        b.typ === "formativ"
+                                          ? colors.beurteilungFormativ
+                                          : colors.beurteilungSummativ,
+                                    },
+                                  ]}
+                                >
+                                  {b.typ === "formativ" ? "Formativ" : "Summativ"}
+                                </Text>
+                              ))}
+                            </View>
                           </View>
                         );
                       })
