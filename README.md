@@ -107,85 +107,130 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **Drag & Drop**: @dnd-kit (ready to implement)
 - **Permissions**: Rollen-basiertes System (teacher, picts_admin, super_admin)
 
-## 📋 Voraussetzungen
+## Voraussetzungen
 
-- Node.js 18+ und npm
-- Firebase Projekt mit Authentication und Firestore
-- Airtable Base mit Themen und Schulen
+Bevor du starten kannst, müssen folgende Programme auf deinem Computer installiert sein:
 
-## 🚀 Installation
+| Programm | Wofür? | Download |
+|----------|--------|----------|
+| **Node.js 18+** | Laufzeitumgebung (= das "Betriebssystem" für die App) | [nodejs.org](https://nodejs.org/) |
+| **npm** | Paketmanager (wird mit Node.js mitinstalliert) | Kommt automatisch mit Node.js |
+| **Git** | Versionsverwaltung (= speichert alle Änderungen am Code) | [git-scm.com](https://git-scm.com/) |
 
-1. **Repository klonen**
-   ```bash
-   git clone <repository-url>
-   cd MIA-App
-   ```
+Zusätzlich brauchst du Zugang zu:
+- **Firebase Projekt** mit Authentication und Firestore (= die Datenbank und Login-System)
+- **Airtable Base** mit den MIA-Themen (= die Datenquelle für Lehrplan-Inhalte)
 
-2. **Dependencies installieren**
-   ```bash
-   npm install
-   ```
+## Installation - Schritt für Schritt
 
-3. **Umgebungsvariablen konfigurieren**
-
-   Erstellen Sie eine `.env.local` Datei im Root-Verzeichnis:
-
-   ```env
-   # Firebase Client Configuration
-   NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-   NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-
-   # Firebase Admin SDK (Server-side only)
-   FIREBASE_ADMIN_PROJECT_ID=your_project_id
-   FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk@your_project.iam.gserviceaccount.com
-   FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nyour_private_key\n-----END PRIVATE KEY-----\n"
-
-   # Airtable Configuration
-   AIRTABLE_API_KEY=your_airtable_api_key
-   AIRTABLE_BASE_ID=your_base_id
-   AIRTABLE_THEMEN_TABLE=Themen
-   AIRTABLE_SCHULEN_TABLE=Schulen
-   AIRTABLE_KOMPETENZEN_TABLE=Kompetenzen Lehrplan
-   AIRTABLE_UNTERRICHTSIDEEN_TABLE=Themen
-   AIRTABLE_LEKTIONSPLANUNG_TABLE=Lektionsplanung
-   ```
-
-4. **Firebase Setup**
-
-   - Erstellen Sie ein Firebase-Projekt in der [Firebase Console](https://console.firebase.google.com/)
-   - Aktivieren Sie **Email/Password Authentication**
-   - Erstellen Sie eine **Firestore-Datenbank**
-   - Laden Sie das **Service Account JSON** für das Admin SDK herunter
-   - Kopieren Sie die Werte in die `.env.local`
-
-5. **Airtable Setup**
-
-   - Ihre Airtable-Base sollte folgende Tabellen enthalten:
-     - **Themen**: Mit den Feldern aus `airtableinhalte/Themen-Grid view.csv`
-     - **Schulen**: Mit Feldern `Name`, `Ort`, `PICTS buchen`, `Created`
-     - **Kompetenzen Lehrplan**: LP-Codes, Beschreibungen, Unterrichtsideen
-     - **Lektionsplanung**: Lektionen mit Aufgaben, Material, Einstieg/Hauptteil/Abschluss
-   - Erstellen Sie einen API-Key in Ihren [Airtable Account Settings](https://airtable.com/account)
-   - Finden Sie die Base-ID in der URL: `https://airtable.com/appXXXXXXXXXXXXXX/...`
-
-## 🎮 Entwicklung starten
+### Schritt 1: Repository klonen
 
 ```bash
-npm run dev
+git clone https://github.com/baenni-coder/MIA-App.git
 ```
+> Was passiert hier: Du lädst eine vollständige Kopie des Projekts von GitHub auf deinen Computer herunter.
 
-Die Anwendung ist dann verfügbar unter `http://localhost:3000`
-
-## 📦 Build für Produktion
+### Schritt 2: In den Projektordner wechseln
 
 ```bash
-npm run build
-npm start
+cd MIA-App
 ```
+> Was passiert hier: Du navigierst in den Ordner, der gerade heruntergeladen wurde.
+
+### Schritt 3: Abhängigkeiten installieren
+
+```bash
+npm install
+```
+> Was passiert hier: Alle benötigten Zusatzpakete (ca. 200 Stück) werden aus dem Internet heruntergeladen und im Ordner `node_modules` gespeichert. Das kann 1-3 Minuten dauern.
+
+### Schritt 4: Umgebungsvariablen einrichten
+
+Die App braucht geheime Schlüssel, um sich mit Firebase und Airtable zu verbinden. Diese werden in einer speziellen Datei gespeichert, die **nie** auf GitHub hochgeladen wird.
+
+1. Erstelle eine neue Datei namens `.env.local` im Hauptordner des Projekts (dort wo auch `package.json` liegt)
+2. Kopiere folgenden Inhalt hinein und ersetze die Platzhalter mit deinen echten Werten:
+
+```env
+# Firebase Client Configuration
+# Diese Werte findest du in der Firebase Console unter Projekteinstellungen > Allgemein
+NEXT_PUBLIC_FIREBASE_API_KEY=dein_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=dein_projekt.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=dein_projekt_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=dein_projekt.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=dein_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=dein_app_id
+
+# Firebase Admin SDK (nur serverseitig - für API-Routen)
+# Diese Werte findest du im heruntergeladenen Service Account JSON
+FIREBASE_ADMIN_PROJECT_ID=dein_projekt_id
+FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk@dein_projekt.iam.gserviceaccount.com
+FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\ndein_private_key\n-----END PRIVATE KEY-----\n"
+
+# Airtable Configuration
+# API Key: https://airtable.com/account > API > Personal access token
+# Base ID: Steht in der URL deiner Airtable-Base nach "app"
+AIRTABLE_API_KEY=dein_airtable_api_key
+AIRTABLE_BASE_ID=dein_base_id
+AIRTABLE_THEMEN_TABLE=Themen
+AIRTABLE_SCHULEN_TABLE=Schulen
+AIRTABLE_KOMPETENZEN_TABLE=Kompetenzen Lehrplan
+AIRTABLE_UNTERRICHTSIDEEN_TABLE=Themen
+AIRTABLE_LEKTIONSPLANUNG_TABLE=Lektionsplanung
+```
+
+> Was passiert hier: Du sagst der App, wie sie sich mit den externen Diensten (Firebase, Airtable) verbinden soll. Ohne diese Datei kann die App nicht starten.
+
+### Schritt 5: Firebase einrichten
+
+Falls du noch kein Firebase-Projekt hast, folge diesen Schritten:
+
+1. Öffne die [Firebase Console](https://console.firebase.google.com/) und erstelle ein neues Projekt
+2. Gehe zu **Authentication** > **Sign-in method** > Aktiviere **Email/Password**
+3. Gehe zu **Firestore Database** > **Datenbank erstellen** (Produktionsmodus)
+4. Gehe zu **Projekteinstellungen** > **Dienstkonten** > **Neuen privaten Schlüssel generieren**
+   > Was passiert hier: Du lädst eine JSON-Datei herunter, die die Admin-Zugangsdaten enthält. Die Werte daraus kommen in die `.env.local`.
+5. Kopiere die Werte aus der JSON-Datei in deine `.env.local`
+
+### Schritt 6: Airtable einrichten
+
+1. Deine Airtable-Base sollte folgende Tabellen enthalten:
+   - **Themen**: Mit den Feldern aus `airtableinhalte/Themen-Grid view.csv`
+   - **Schulen**: Mit Feldern `Name`, `Ort`, `PICTS buchen`, `Created`
+   - **Kompetenzen Lehrplan**: LP-Codes, Beschreibungen, Unterrichtsideen
+   - **Lektionsplanung**: Lektionen mit Aufgaben, Material, Einstieg/Hauptteil/Abschluss
+2. Erstelle einen Personal Access Token unter [airtable.com/create/tokens](https://airtable.com/create/tokens)
+3. Finde die Base-ID in der URL: `https://airtable.com/appXXXXXXXXXXXXXX/...` (der Teil nach `airtable.com/`)
+
+## Projekt starten - Schritt für Schritt
+
+### Entwicklungsmodus (zum Arbeiten an der App)
+
+1. **Öffne ein Terminal** im Projektordner `MIA-App`
+
+2. **Starte den Entwicklungsserver:**
+   ```bash
+   npm run dev
+   ```
+   > Was passiert hier: Die App wird gestartet und ist unter `http://localhost:3000` im Browser erreichbar. Änderungen am Code werden automatisch im Browser angezeigt (sogenanntes "Hot Reload").
+
+3. **Öffne den Browser** und navigiere zu: [http://localhost:3000](http://localhost:3000)
+
+4. **Zum Stoppen** drücke `Ctrl+C` im Terminal
+
+### Produktions-Build (für Deployment)
+
+1. **Build erstellen:**
+   ```bash
+   npm run build
+   ```
+   > Was passiert hier: Der Code wird optimiert und in eine produktionsreife Version umgewandelt. Das dauert ca. 1-2 Minuten.
+
+2. **Produktionsserver starten:**
+   ```bash
+   npm start
+   ```
+   > Was passiert hier: Die optimierte Version der App wird gestartet. Diese ist schneller als der Entwicklungsmodus.
 
 ## 📁 Projektstruktur
 
@@ -405,34 +450,59 @@ Die App verwendet **shadcn/ui** - eine moderne, accessible Komponenten-Bibliothe
 - [ ] Unit & E2E Tests
 - [ ] Monitoring & Analytics
 
-## 🔧 Troubleshooting
+## Häufige Probleme und Lösungen
 
-### Dev-Server findet @radix-ui/react-select nicht
+### Problem: "Module not found: Can't resolve '@radix-ui/react-select'"
 
-Wenn nach Installation die Fehlermeldung "Module not found: Can't resolve '@radix-ui/react-select'" erscheint:
+**Wann tritt das auf?** Nach der Installation oder nach Updates von Paketen.
 
-```bash
-# 1. Dev-Server stoppen (Ctrl+C im Terminal)
-# 2. Cache und node_modules löschen
-rm -rf .next node_modules
-# 3. Dependencies neu installieren
-npm install
-# 4. Dev-Server neu starten
-npm run dev
-```
+**Lösung - Schritt für Schritt:**
 
-### Codespace startet nicht
+1. **Dev-Server stoppen** - Drücke `Ctrl+C` im Terminal
+2. **Cache und Pakete löschen:**
+   ```bash
+   rm -rf .next node_modules
+   ```
+   > Was passiert hier: Der Build-Cache (`.next`) und alle installierten Pakete (`node_modules`) werden gelöscht, damit alles frisch neu aufgebaut werden kann.
+3. **Pakete neu installieren:**
+   ```bash
+   npm install
+   ```
+4. **Dev-Server neu starten:**
+   ```bash
+   npm run dev
+   ```
 
-- Browser-Cache leeren mit `Ctrl+Shift+R` (Windows/Linux) oder `Cmd+Shift+R` (Mac)
-- Über GitHub.com → Codespaces → Codespace "Restart"
-- Falls nicht hilft: Codespace "Stop" → 30 Sekunden warten → "Start"
+### Problem: Dev-Server zeigt Fehler, aber Build funktioniert
 
-### Build funktioniert, aber Dev-Server zeigt Fehler
+**Wann tritt das auf?** Wenn der Entwicklungsserver nach Code-Änderungen seltsame Fehler zeigt.
 
-Dies ist ein Caching-Problem. Lösung:
+**Ursache:** Der lokale Cache ist veraltet.
+
+**Lösung:**
 ```bash
 rm -rf .next
 npm run dev
+```
+> Was passiert hier: Nur der Build-Cache wird gelöscht. Der Server erstellt dann alles neu.
+
+### Problem: Codespace startet nicht
+
+**Lösung - der Reihe nach ausprobieren:**
+
+1. Browser-Cache leeren: `Ctrl+Shift+R` (Windows/Linux) oder `Cmd+Shift+R` (Mac)
+2. Über GitHub.com > Codespaces > "Restart" klicken
+3. Falls das nicht hilft: "Stop" klicken > 30 Sekunden warten > "Start" klicken
+
+### Problem: Firebase Private Key Fehler auf Vercel
+
+**Wann tritt das auf?** Nach dem Deployment auf Vercel.
+
+**Ursache:** Der Private Key muss korrekt formatiert sein.
+
+**Lösung:** Im Vercel Dashboard den Private Key mit doppelten Anführungszeichen eingeben und `\n` für Zeilenumbrüche verwenden:
+```
+"-----BEGIN PRIVATE KEY-----\nMIIEvQ...\n-----END PRIVATE KEY-----\n"
 ```
 
 ## 📝 Lizenz
