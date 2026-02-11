@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   Circle,
   Diamond,
+  FileDown,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -45,6 +47,7 @@ export default function QuartalsansichtPage() {
   const [einheiten, setEinheiten] = useState<JahresplanEinheit[]>([]);
   const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const quartalSchema = useMemo(() => getQuartalSchema(), []);
   const quartalInfo = quartalSchema.find((q) => q.quartal === quartal);
@@ -134,6 +137,37 @@ export default function QuartalsansichtPage() {
     return map;
   }, [einheiten]);
 
+  const exportPDF = async () => {
+    setExporting(true);
+    try {
+      const { pdf } = await import("@react-pdf/renderer");
+      const { QuartalsplanungPDF } = await import("@/components/JahresplanungPDF");
+
+      const blob = await pdf(
+        <QuartalsplanungPDF
+          schuljahr={schuljahr}
+          quartal={quartal}
+          wochen={quartalWochen}
+          einheiten={einheiten}
+        />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Quartalsplanung-Q${quartal}-${schuljahr.replace("/", "-")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error exporting PDF:", err);
+      alert("Fehler beim Erstellen des PDFs. Bitte versuchen Sie es erneut.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
@@ -156,14 +190,28 @@ export default function QuartalsansichtPage() {
               </div>
             </div>
 
-            <Link
-              href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}`}
-            >
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Neue Einheit
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={exportPDF}
+                disabled={exporting || loading}
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4 mr-2" />
+                )}
+                PDF
               </Button>
-            </Link>
+              <Link
+                href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}`}
+              >
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Neue Einheit
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Legende */}

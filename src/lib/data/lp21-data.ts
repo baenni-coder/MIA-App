@@ -118,6 +118,16 @@ export function getQuartalSchema(): QuartalSchema[] {
 }
 
 /**
+ * Parst ein "YYYY-MM-DD" Datum als Lokalzeit (nicht UTC).
+ * new Date("2026-02-02") wird als UTC geparst, was in CET/CEST
+ * zu Fehlern bei Datums-Vergleichen führt.
+ */
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/**
  * Prüft, ob eine Kalenderwoche in den Ferien liegt
  */
 export function istFerienWoche(
@@ -131,15 +141,17 @@ export function istFerienWoche(
     return { istFerien: false };
   }
 
-  // Datum des Montags der Kalenderwoche berechnen
+  // Datum des Montags und Freitags der Kalenderwoche berechnen
   const montag = getMondayOfWeek(kalenderwoche, jahr);
+  const freitag = getFridayOfWeek(kalenderwoche, jahr);
 
   for (const [, ferienData] of Object.entries(ferien)) {
-    const start = new Date(ferienData.start);
-    const ende = new Date(ferienData.ende);
+    const start = parseLocalDate(ferienData.start);
+    const ende = parseLocalDate(ferienData.ende);
 
-    // Prüfen, ob der Montag der Woche in den Ferien liegt
-    if (montag >= start && montag <= ende) {
+    // Prüfen, ob die Woche die Ferien überlappt
+    // (Montag liegt in den Ferien ODER Freitag liegt in den Ferien ODER Ferien liegen komplett in der Woche)
+    if (montag <= ende && freitag >= start) {
       return { istFerien: true, ferienName: ferienData.label };
     }
   }
@@ -224,12 +236,14 @@ export function istFerienWocheCustom(
   }
 
   const montag = getMondayOfWeek(kalenderwoche, jahr);
+  const freitag = getFridayOfWeek(kalenderwoche, jahr);
 
   for (const ferien of customFerien) {
-    const start = new Date(ferien.start);
-    const ende = new Date(ferien.ende);
+    const start = parseLocalDate(ferien.start);
+    const ende = parseLocalDate(ferien.ende);
 
-    if (montag >= start && montag <= ende) {
+    // Overlap-Prüfung: Woche überlappt mit Ferien
+    if (montag <= ende && freitag >= start) {
       return { istFerien: true, ferienName: ferien.ferienName };
     }
   }

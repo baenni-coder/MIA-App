@@ -21,6 +21,8 @@ import {
   CheckCircle2,
   Clock,
   MessageSquare,
+  FileDown,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -67,6 +69,7 @@ export default function WochenansichtPage() {
   const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   // Wocheninformationen
   const montag = useMemo(() => getMondayOfWeek(kw, jahr), [kw, jahr]);
@@ -182,6 +185,39 @@ export default function WochenansichtPage() {
       year: "numeric",
     });
 
+  const exportPDF = async () => {
+    setExporting(true);
+    try {
+      const { pdf } = await import("@react-pdf/renderer");
+      const { WochenplanungPDF } = await import("@/components/JahresplanungPDF");
+
+      const blob = await pdf(
+        <WochenplanungPDF
+          schuljahr={schuljahr}
+          kw={kw}
+          jahr={jahr}
+          einheiten={einheiten}
+          istFerien={ferienInfo.istFerien}
+          ferienName={ferienInfo.ferienName}
+        />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Wochenplanung-KW${kw}-${schuljahr.replace("/", "-")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error exporting PDF:", err);
+      alert("Fehler beim Erstellen des PDFs. Bitte versuchen Sie es erneut.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
@@ -190,7 +226,7 @@ export default function WochenansichtPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
-                href={`/dashboard/jahresplanung/quartal/${Math.ceil(kw / 13)}?schuljahr=${schuljahr}`}
+                href={`/dashboard/jahresplanung/quartal/${kw >= 33 && kw <= 41 ? 1 : kw >= 42 ? 2 : kw <= 14 ? 3 : 4}?schuljahr=${schuljahr}`}
               >
                 <Button variant="ghost" size="icon">
                   <ArrowLeft className="h-5 w-5" />
@@ -207,16 +243,30 @@ export default function WochenansichtPage() {
               </div>
             </div>
 
-            {!ferienInfo.istFerien && (
-              <Link
-                href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&kw=${kw}`}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={exportPDF}
+                disabled={exporting || loading}
               >
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Einheit hinzufügen
-                </Button>
-              </Link>
-            )}
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4 mr-2" />
+                )}
+                PDF
+              </Button>
+              {!ferienInfo.istFerien && (
+                <Link
+                  href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&kw=${kw}`}
+                >
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Einheit hinzufügen
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Ferienhinweis */}
