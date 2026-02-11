@@ -185,8 +185,8 @@ const styles = StyleSheet.create({
   },
   detailHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 6,
+    alignItems: "flex-start",
+    paddingVertical: 8,
     paddingHorizontal: 8,
     borderBottomWidth: 0.5,
     borderBottomColor: colors.border,
@@ -196,11 +196,12 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     marginRight: 6,
+    marginTop: 2,
   },
   detailTitle: {
     fontSize: 11,
     fontFamily: "Helvetica-Bold",
-    flex: 1,
+    marginBottom: 3,
   },
   detailSubtitle: {
     fontSize: 8,
@@ -208,29 +209,29 @@ const styles = StyleSheet.create({
   },
   detailBody: {
     paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   detailSection: {
-    marginBottom: 6,
+    marginBottom: 8,
   },
   detailSectionLabel: {
     fontSize: 8,
     fontFamily: "Helvetica-Bold",
     color: colors.textSecondary,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   detailSectionText: {
     fontSize: 9,
-    lineHeight: 1.4,
+    lineHeight: 1.5,
   },
   kompetenzBadge: {
     fontSize: 7,
     backgroundColor: colors.background,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
     borderRadius: 2,
-    marginRight: 3,
-    marginBottom: 2,
+    marginRight: 4,
+    marginBottom: 3,
   },
   badgeRow: {
     flexDirection: "row",
@@ -239,14 +240,14 @@ const styles = StyleSheet.create({
   detailStatusRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    marginLeft: 6,
   },
   notizenBox: {
     backgroundColor: colors.background,
-    padding: 6,
+    padding: 8,
     borderRadius: 3,
     fontSize: 8,
-    lineHeight: 1.3,
+    lineHeight: 1.5,
     color: colors.textSecondary,
   },
 });
@@ -509,35 +510,34 @@ export function WochenplanungPDF({
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.detailTitle}>{einheit.titel}</Text>
-                    <Text style={styles.detailSubtitle}>
-                      {einheit.fachbereichName || einheit.fachbereichId} · KW{" "}
-                      {einheit.zeitraumStart}–{einheit.zeitraumEnde}
-                    </Text>
-                  </View>
-                  <View style={styles.detailStatusRow}>
-                    {einheit.beurteilungstyp && einheit.beurteilungstyp !== "keine" && (
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <Text style={styles.detailSubtitle}>
+                        {einheit.fachbereichName || einheit.fachbereichId} · KW {einheit.zeitraumStart}–{einheit.zeitraumEnde}
+                      </Text>
                       <Text
                         style={[
-                          styles.beurteilungBadge,
-                          {
-                            backgroundColor:
-                              einheit.beurteilungstyp === "formativ"
-                                ? colors.beurteilungFormativ
-                                : colors.beurteilungSummativ,
-                          },
+                          styles.statusBadge,
+                          { backgroundColor: statusStyle.backgroundColor, color: statusStyle.color },
                         ]}
                       >
-                        {BEURTEILUNG_LABELS[einheit.beurteilungstyp]}
+                        {STATUS_LABELS[einheit.status]}
                       </Text>
-                    )}
-                    <Text
-                      style={[
-                        styles.statusBadge,
-                        { backgroundColor: statusStyle.backgroundColor, color: statusStyle.color },
-                      ]}
-                    >
-                      {STATUS_LABELS[einheit.status]}
-                    </Text>
+                      {einheit.beurteilungstyp && einheit.beurteilungstyp !== "keine" && (
+                        <Text
+                          style={[
+                            styles.beurteilungBadge,
+                            {
+                              backgroundColor:
+                                einheit.beurteilungstyp === "formativ"
+                                  ? colors.beurteilungFormativ
+                                  : colors.beurteilungSummativ,
+                            },
+                          ]}
+                        >
+                          {BEURTEILUNG_LABELS[einheit.beurteilungstyp]}
+                        </Text>
+                      )}
+                    </View>
                   </View>
                 </View>
 
