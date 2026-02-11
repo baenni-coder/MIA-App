@@ -118,6 +118,8 @@ export async function PUT(
     if (body.farbe !== undefined) updateData.farbe = body.farbe;
     if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
     if (body.isShared !== undefined) updateData.isShared = body.isShared;
+    if (body.linkedMiaThemeId !== undefined) updateData.linkedMiaThemeId = body.linkedMiaThemeId;
+    if (body.linkedMiaThemeName !== undefined) updateData.linkedMiaThemeName = body.linkedMiaThemeName;
 
     await updateJahresplanEinheit(id, updateData);
 

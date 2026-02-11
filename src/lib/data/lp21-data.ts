@@ -8,6 +8,7 @@ import type {
   LP21KompetenzRef,
   FerienPreset,
   QuartalSchema,
+  SchulferienCustom,
 } from "@/types";
 
 // JSON-Daten mit korrekten Typen
@@ -211,11 +212,39 @@ export function getSchuljahrListe(count: number = 3): string[] {
 }
 
 /**
+ * Prüft, ob eine Kalenderwoche in benutzerdefinierten Ferien liegt
+ */
+export function istFerienWocheCustom(
+  customFerien: SchulferienCustom[],
+  kalenderwoche: number,
+  jahr: number
+): { istFerien: boolean; ferienName?: string } {
+  if (customFerien.length === 0) {
+    return { istFerien: false };
+  }
+
+  const montag = getMondayOfWeek(kalenderwoche, jahr);
+
+  for (const ferien of customFerien) {
+    const start = new Date(ferien.start);
+    const ende = new Date(ferien.ende);
+
+    if (montag >= start && montag <= ende) {
+      return { istFerien: true, ferienName: ferien.ferienName };
+    }
+  }
+
+  return { istFerien: false };
+}
+
+/**
  * Gibt die Schulwochen eines Schuljahrs zurück (ca. 38 Wochen)
+ * Unterstützt optionale benutzerdefinierte Ferien, die Preset-Ferien überschreiben.
  */
 export function getSchulwochenFuerSchuljahr(
   presetId: string,
-  schuljahr: string
+  schuljahr: string,
+  customFerien?: SchulferienCustom[]
 ): Array<{
   kw: number;
   jahr: number;
@@ -231,13 +260,17 @@ export function getSchulwochenFuerSchuljahr(
     ferienName?: string;
   }> = [];
 
+  const useCustom = customFerien && customFerien.length > 0;
+
   // Schuljahr parsen (z.B. "2025/2026")
   const [startYear] = schuljahr.split("/").map(Number);
   const endYear = startYear + 1;
 
   // Q1: August - September (KW 33-39)
   for (let kw = 33; kw <= 52; kw++) {
-    const ferien = istFerienWoche(presetId, schuljahr, kw, startYear);
+    const ferien = useCustom
+      ? istFerienWocheCustom(customFerien, kw, startYear)
+      : istFerienWoche(presetId, schuljahr, kw, startYear);
     wochen.push({
       kw,
       jahr: startYear,
@@ -248,7 +281,9 @@ export function getSchulwochenFuerSchuljahr(
 
   // Q3-Q4: Januar - Juli (KW 1-27)
   for (let kw = 1; kw <= 27; kw++) {
-    const ferien = istFerienWoche(presetId, schuljahr, kw, endYear);
+    const ferien = useCustom
+      ? istFerienWocheCustom(customFerien, kw, endYear)
+      : istFerienWoche(presetId, schuljahr, kw, endYear);
     wochen.push({
       kw,
       jahr: endYear,

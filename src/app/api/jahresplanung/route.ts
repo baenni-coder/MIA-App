@@ -131,6 +131,8 @@ export async function POST(request: NextRequest) {
       materialien: body.materialien,
       istPufferwoche: body.istPufferwoche,
       farbe: body.farbe,
+      linkedMiaThemeId: body.linkedMiaThemeId,
+      linkedMiaThemeName: body.linkedMiaThemeName,
     });
 
     return NextResponse.json({ id }, { status: 201 });

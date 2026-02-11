@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save, Trash2, Plus, X } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, X, BookOpen, LinkIcon } from "lucide-react";
 import Link from "next/link";
 import KompetenzPicker from "@/components/jahresplanung/KompetenzPicker";
 import {
@@ -26,7 +26,7 @@ import {
   getAlleFachbereiche,
   getFachbereichById,
 } from "@/lib/data/lp21-data";
-import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus } from "@/types";
+import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema } from "@/types";
 
 // Import der berechneQuartal Funktion aus den Helper-Funktionen
 function calculateQuartal(kw: number): number {
@@ -72,7 +72,88 @@ export default function EinheitFormPage() {
   const [istPufferwoche, setIstPufferwoche] = useState(false);
   const [isShared, setIsShared] = useState(false);
 
+  // MIA-Thema Verknüpfung
+  const [linkedMiaThemeId, setLinkedMiaThemeId] = useState<string>("");
+  const [linkedMiaThemeName, setLinkedMiaThemeName] = useState<string>("");
+  const [miaThemen, setMiaThemen] = useState<Thema[]>([]);
+  const [loadingMiaThemen, setLoadingMiaThemen] = useState(false);
+
   const fachbereiche = useMemo(() => getAlleFachbereiche(), []);
+
+  // MIA-Themen laden wenn Fachbereich = MI
+  useEffect(() => {
+    async function fetchMiaThemen() {
+      if (fachbereichId !== "MI") {
+        setMiaThemen([]);
+        return;
+      }
+
+      try {
+        setLoadingMiaThemen(true);
+        const response = await fetch("/api/themen?grouped=true");
+        if (response.ok) {
+          const data = await response.json();
+          // Alle Themen aus allen Zeiträumen sammeln
+          const alleThemen: Thema[] = [];
+          for (const zeitraum of Object.values(data)) {
+            if (Array.isArray(zeitraum)) {
+              alleThemen.push(...(zeitraum as Thema[]));
+            }
+          }
+          // Duplikate entfernen (nach ID) und sortieren
+          const unique = alleThemen.filter(
+            (t, i, arr) => arr.findIndex((a) => a.id === t.id) === i
+          );
+          unique.sort((a, b) => a.thema.localeCompare(b.thema, "de"));
+          setMiaThemen(unique);
+        }
+      } catch (error) {
+        console.error("Error fetching MIA themen:", error);
+      } finally {
+        setLoadingMiaThemen(false);
+      }
+    }
+
+    fetchMiaThemen();
+  }, [fachbereichId]);
+
+  // MIA-Thema auswählen und Felder vorbefüllen
+  const handleMiaThemeSelect = (themeId: string) => {
+    if (!themeId || themeId === "none") {
+      setLinkedMiaThemeId("");
+      setLinkedMiaThemeName("");
+      return;
+    }
+
+    const theme = miaThemen.find((t) => t.id === themeId);
+    if (!theme) return;
+
+    setLinkedMiaThemeId(theme.id);
+    setLinkedMiaThemeName(theme.thema);
+
+    // Felder vorbefüllen (nur wenn noch leer)
+    if (!titel) {
+      setTitel(theme.thema);
+    }
+    if (!lernziele && theme.beschreibung) {
+      setLernziele(theme.beschreibung);
+    }
+
+    // Kompetenzen aus dem MIA-Thema übernehmen
+    if (theme.kompetenzen && theme.kompetenzen.length > 0) {
+      const ids = theme.kompetenzen.map((k) => k.id);
+      const namen = theme.kompetenzen.map(
+        (k) => k.lpCode || k.name || k.id
+      );
+      setKompetenzenIds(ids);
+      setKompetenzenNamen(namen);
+    }
+
+    // Materialien aus Unterlagen-Link
+    if (theme.unterlagen && materialien.length === 0) {
+      setMaterialien([theme.unterlagen]);
+    }
+  };
 
   // Bestehende Einheit laden
   useEffect(() => {
@@ -104,6 +185,10 @@ export default function EinheitFormPage() {
           setMaterialien(einheit.materialien || []);
           setIstPufferwoche(einheit.istPufferwoche);
           setIsShared(einheit.isShared);
+          if (einheit.linkedMiaThemeId) {
+            setLinkedMiaThemeId(einheit.linkedMiaThemeId);
+            setLinkedMiaThemeName(einheit.linkedMiaThemeName || "");
+          }
         } else if (response.status === 404) {
           alert("Einheit nicht gefunden");
           router.push(`/dashboard/jahresplanung?schuljahr=${schuljahr}`);
@@ -136,7 +221,7 @@ export default function EinheitFormPage() {
 
       const fb = getFachbereichById(fachbereichId);
 
-      const body = {
+      const body: Record<string, unknown> = {
         schuljahr,
         titel,
         fachbereichId,
@@ -154,6 +239,15 @@ export default function EinheitFormPage() {
         isShared,
         farbe: fb?.farbe,
       };
+
+      // MIA-Thema Verknüpfung hinzufügen (auch leerer String zum Entfernen)
+      if (fachbereichId === "MI") {
+        body.linkedMiaThemeId = linkedMiaThemeId || null;
+        body.linkedMiaThemeName = linkedMiaThemeName || null;
+      } else {
+        body.linkedMiaThemeId = null;
+        body.linkedMiaThemeName = null;
+      }
 
       const url = isNew
         ? "/api/jahresplanung"
@@ -326,6 +420,67 @@ export default function EinheitFormPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* MIA-Thema Verknüpfung (nur bei Informatische Bildung) */}
+              {fachbereichId === "MI" && (
+                <div>
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-indigo-600" />
+                    MIA-Thema als Vorlage
+                  </label>
+                  <p className="text-xs text-gray-500 mt-0.5 mb-1">
+                    Wählen Sie ein bestehendes MIA-Thema, um Titel, Beschreibung und Kompetenzen zu übernehmen.
+                  </p>
+                  {loadingMiaThemen ? (
+                    <div className="flex items-center gap-2 py-2 text-sm text-gray-500">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600" />
+                      Themen werden geladen...
+                    </div>
+                  ) : (
+                    <Select
+                      value={linkedMiaThemeId}
+                      onValueChange={handleMiaThemeSelect}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="MIA-Thema auswählen (optional)..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          Kein Thema verknüpfen
+                        </SelectItem>
+                        {miaThemen.map((thema) => (
+                          <SelectItem key={thema.id} value={thema.id}>
+                            <div className="flex items-center gap-2">
+                              <span className="truncate">{thema.thema}</span>
+                              {thema.lehrmittel && (
+                                <span className="text-xs text-gray-400 flex-shrink-0">
+                                  ({thema.lehrmittel})
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {linkedMiaThemeId && linkedMiaThemeName && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-indigo-600">
+                      <LinkIcon className="h-3.5 w-3.5" />
+                      <span>Verknüpft mit: {linkedMiaThemeName}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLinkedMiaThemeId("");
+                          setLinkedMiaThemeName("");
+                        }}
+                        className="ml-auto text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Zeitraum */}
               <div className="grid grid-cols-2 gap-4">

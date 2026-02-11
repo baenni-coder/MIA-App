@@ -25,7 +25,7 @@ import {
   getMondayOfWeek,
   getFridayOfWeek,
 } from "@/lib/data/lp21-data";
-import type { JahresplanEinheit, JahresplanStatus } from "@/types";
+import type { JahresplanEinheit, JahresplanStatus, SchulferienCustom } from "@/types";
 
 // Status-Farben
 const STATUS_COLORS: Record<JahresplanStatus, string> = {
@@ -43,46 +43,59 @@ export default function QuartalsansichtPage() {
   const schuljahr = searchParams.get("schuljahr") || getAktuellesSchuljahr();
 
   const [einheiten, setEinheiten] = useState<JahresplanEinheit[]>([]);
+  const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
   const [loading, setLoading] = useState(true);
 
   const quartalSchema = useMemo(() => getQuartalSchema(), []);
   const quartalInfo = quartalSchema.find((q) => q.quartal === quartal);
 
-  // Wochen für dieses Quartal
+  // Wochen für dieses Quartal (mit Custom-Ferien wenn vorhanden)
   const quartalWochen = useMemo(() => {
-    const alleWochen = getSchulwochenFuerSchuljahr("SO_BeLoSe", schuljahr);
+    const alleWochen = getSchulwochenFuerSchuljahr(
+      "SO_BeLoSe",
+      schuljahr,
+      customFerien.length > 0 ? customFerien : undefined
+    );
     return alleWochen.filter((w) => w.quartal === quartal);
-  }, [schuljahr, quartal]);
+  }, [schuljahr, quartal, customFerien]);
 
-  // Einheiten laden
+  // Einheiten und Custom-Ferien laden
   useEffect(() => {
-    async function fetchEinheiten() {
+    async function fetchData() {
       if (!user) return;
 
       try {
         setLoading(true);
         const token = await user.getIdToken();
-        const response = await fetch(
-          `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}&quartal=${quartal}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
 
-        if (response.ok) {
-          const data = await response.json();
+        const [einheitenRes, ferienRes] = await Promise.all([
+          fetch(
+            `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}&quartal=${quartal}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+          fetch(
+            `/api/jahresplanung/ferien?schuljahr=${encodeURIComponent(schuljahr)}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+        ]);
+
+        if (einheitenRes.ok) {
+          const data = await einheitenRes.json();
           setEinheiten(data.einheiten || []);
         }
+
+        if (ferienRes.ok) {
+          const data = await ferienRes.json();
+          setCustomFerien(data.ferien || []);
+        }
       } catch (error) {
-        console.error("Error fetching einheiten:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchEinheiten();
+    fetchData();
   }, [user, schuljahr, quartal]);
 
   // Einheiten pro Woche gruppieren
