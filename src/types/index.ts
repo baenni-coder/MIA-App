@@ -968,6 +968,9 @@ export interface JahresplanEinheit {
   sortOrder: number; // Reihenfolge innerhalb einer Woche
   // Sharing
   isShared: boolean; // Für Kolleg:innen freigegeben
+  // MIA-Thema Verknüpfung
+  linkedMiaThemeId?: string; // Verknüpftes MIA-Thema (Airtable oder Custom Theme ID)
+  linkedMiaThemeName?: string; // Name des verknüpften Themas
   createdAt: Date;
   updatedAt: Date;
 }

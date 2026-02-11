@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   Users,
   BarChart3,
+  Settings2,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -37,7 +38,7 @@ import {
   getSchulwochenFuerSchuljahr,
   getAlleFachbereiche,
 } from "@/lib/data/lp21-data";
-import type { JahresplanEinheit } from "@/types";
+import type { JahresplanEinheit, SchulferienCustom } from "@/types";
 
 // Typ für Quartal-Daten
 interface QuartalData {
@@ -58,46 +59,59 @@ export default function JahresplanungPage() {
   const [copyFromYear, setCopyFromYear] = useState("");
   const [copying, setCopying] = useState(false);
   const [showShared, setShowShared] = useState(false);
+  const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
 
   const schuljahrListe = useMemo(() => getSchuljahrListe(4), []);
   const quartalSchema = useMemo(() => getQuartalSchema(), []);
   const fachbereiche = useMemo(() => getAlleFachbereiche(), []);
 
-  // Wochen für das Schuljahr berechnen
+  // Wochen für das Schuljahr berechnen (mit Custom-Ferien wenn vorhanden)
   const schulwochen = useMemo(() => {
-    return getSchulwochenFuerSchuljahr("SO_BeLoSe", schuljahr);
-  }, [schuljahr]);
+    return getSchulwochenFuerSchuljahr(
+      "SO_BeLoSe",
+      schuljahr,
+      customFerien.length > 0 ? customFerien : undefined
+    );
+  }, [schuljahr, customFerien]);
 
-  // Einheiten laden
+  // Einheiten und Custom-Ferien laden
   useEffect(() => {
-    async function fetchEinheiten() {
+    async function fetchData() {
       if (!user) return;
 
       try {
         setLoading(true);
         const token = await user.getIdToken();
-        const response = await fetch(
-          `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}&includeShared=true`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
 
-        if (response.ok) {
-          const data = await response.json();
+        const [einheitenRes, ferienRes] = await Promise.all([
+          fetch(
+            `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}&includeShared=true`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+          fetch(
+            `/api/jahresplanung/ferien?schuljahr=${encodeURIComponent(schuljahr)}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          ),
+        ]);
+
+        if (einheitenRes.ok) {
+          const data = await einheitenRes.json();
           setEinheiten(data.einheiten || []);
           setSharedEinheiten(data.sharedEinheiten || []);
         }
+
+        if (ferienRes.ok) {
+          const data = await ferienRes.json();
+          setCustomFerien(data.ferien || []);
+        }
       } catch (error) {
-        console.error("Error fetching einheiten:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchEinheiten();
+    fetchData();
   }, [user, schuljahr]);
 
   // Quartale mit Einheiten gruppieren
@@ -204,6 +218,14 @@ export default function JahresplanungPage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Ferien verwalten */}
+              <Link href={`/dashboard/jahresplanung/ferien?schuljahr=${schuljahr}`}>
+                <Button variant="outline">
+                  <Settings2 className="h-4 w-4 mr-2" />
+                  Ferien
+                </Button>
+              </Link>
 
               {/* Vorjahr kopieren */}
               <Button

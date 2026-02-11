@@ -68,6 +68,8 @@ function docToEinheit(
     farbe: data.farbe || "#6b7280",
     sortOrder: data.sortOrder || 0,
     isShared: data.isShared || false,
+    linkedMiaThemeId: data.linkedMiaThemeId || undefined,
+    linkedMiaThemeName: data.linkedMiaThemeName || undefined,
     createdAt: timestampToDate(data.createdAt),
     updatedAt: timestampToDate(data.updatedAt),
   };
@@ -98,6 +100,8 @@ export async function createJahresplanEinheit(data: {
   materialien?: string[];
   istPufferwoche?: boolean;
   farbe?: string;
+  linkedMiaThemeId?: string | null;
+  linkedMiaThemeName?: string | null;
 }): Promise<string> {
   try {
     const adminDb = getAdminDb();
@@ -128,6 +132,8 @@ export async function createJahresplanEinheit(data: {
       farbe: data.farbe || data.fachbereichFarbe || "#6b7280",
       sortOrder: 0,
       isShared: false,
+      ...(data.linkedMiaThemeId ? { linkedMiaThemeId: data.linkedMiaThemeId } : {}),
+      ...(data.linkedMiaThemeName ? { linkedMiaThemeName: data.linkedMiaThemeName } : {}),
       createdAt: now,
       updatedAt: now,
     };
