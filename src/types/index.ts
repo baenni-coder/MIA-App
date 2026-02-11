@@ -943,6 +943,13 @@ export type JahresplanStatus = "geplant" | "durchgefuehrt" | "reflektiert";
 // Beurteilungstyp
 export type BeurteilungsTyp = "keine" | "formativ" | "summativ";
 
+// Einzelne Beurteilung mit KW-Zuordnung
+export interface Beurteilung {
+  typ: "formativ" | "summativ";
+  kalenderwoche: number; // KW in der die Beurteilung stattfindet
+  notiz: string; // Details zur Beurteilung
+}
+
 // Jahresplan-Einheit (eine geplante Unterrichtseinheit)
 export interface JahresplanEinheit {
   id: string;
@@ -960,8 +967,9 @@ export interface JahresplanEinheit {
   quartal: number; // 1-4 (automatisch berechnet aus KW)
   status: JahresplanStatus;
   notizen: string; // Reflexionsnotizen
-  beurteilungstyp: BeurteilungsTyp;
-  beurteilungsNotiz: string; // Details zur Beurteilung
+  beurteilungstyp: BeurteilungsTyp; // Legacy: einzelne Beurteilung
+  beurteilungsNotiz: string; // Legacy: Details zur Beurteilung
+  beurteilungen: Beurteilung[]; // Array von Beurteilungen mit KW-Zuordnung
   materialien: string[]; // Links, Lehrmittelseiten etc.
   istPufferwoche: boolean; // Markierung als Pufferwoche
   farbe: string; // Wird vom Fachbereich übernommen

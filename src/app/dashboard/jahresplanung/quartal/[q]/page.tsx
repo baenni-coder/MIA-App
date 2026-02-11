@@ -116,21 +116,27 @@ export default function QuartalsansichtPage() {
     return map;
   }, [einheiten]);
 
-  // Beurteilungen pro Woche zählen
+  // Beurteilungen pro Woche zählen (nur in zugewiesener KW)
   const beurteilungenProWoche = useMemo(() => {
     const map = new Map<number, { formativ: number; summativ: number }>();
 
     einheiten.forEach((einheit) => {
-      if (einheit.beurteilungstyp === "keine") return;
-
-      for (let kw = einheit.zeitraumStart; kw <= einheit.zeitraumEnde; kw++) {
-        const current = map.get(kw) || { formativ: 0, summativ: 0 };
-        if (einheit.beurteilungstyp === "formativ") {
-          current.formativ++;
-        } else if (einheit.beurteilungstyp === "summativ") {
-          current.summativ++;
+      // Neue beurteilungen-Array nutzen
+      if (einheit.beurteilungen && einheit.beurteilungen.length > 0) {
+        for (const b of einheit.beurteilungen) {
+          const current = map.get(b.kalenderwoche) || { formativ: 0, summativ: 0 };
+          if (b.typ === "formativ") current.formativ++;
+          else if (b.typ === "summativ") current.summativ++;
+          map.set(b.kalenderwoche, current);
         }
-        map.set(kw, current);
+      } else if (einheit.beurteilungstyp && einheit.beurteilungstyp !== "keine") {
+        // Legacy-Fallback
+        for (let kw = einheit.zeitraumStart; kw <= einheit.zeitraumEnde; kw++) {
+          const current = map.get(kw) || { formativ: 0, summativ: 0 };
+          if (einheit.beurteilungstyp === "formativ") current.formativ++;
+          else if (einheit.beurteilungstyp === "summativ") current.summativ++;
+          map.set(kw, current);
+        }
       }
     });
 
@@ -287,20 +293,34 @@ export default function QuartalsansichtPage() {
                               </p>
                             ) : (
                               <div className="flex flex-wrap gap-2">
-                                {wochenEinheiten.map((einheit) => (
-                                  <Badge
-                                    key={einheit.id}
-                                    style={{
-                                      backgroundColor: `${einheit.fachbereichFarbe || "#6b7280"}20`,
-                                      color: einheit.fachbereichFarbe || "#6b7280",
-                                      borderColor: einheit.fachbereichFarbe || "#6b7280",
-                                    }}
-                                    variant="outline"
-                                    className="max-w-[200px] truncate"
-                                  >
-                                    {einheit.titel}
-                                  </Badge>
-                                ))}
+                                {wochenEinheiten.map((einheit) => {
+                                  // Kompetenzbereich oder Fachbereich anzeigen
+                                  const kompetenzLabel =
+                                    einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
+                                      ? einheit.kompetenzenNamen[0]
+                                      : einheit.fachbereichName || einheit.fachbereichId;
+
+                                  return (
+                                    <div
+                                      key={einheit.id}
+                                      className="rounded-md border px-2.5 py-1 max-w-[250px]"
+                                      style={{
+                                        backgroundColor: `${einheit.fachbereichFarbe || "#6b7280"}10`,
+                                        borderColor: `${einheit.fachbereichFarbe || "#6b7280"}40`,
+                                      }}
+                                    >
+                                      <p
+                                        className="text-[10px] leading-tight truncate"
+                                        style={{ color: einheit.fachbereichFarbe || "#6b7280" }}
+                                      >
+                                        {kompetenzLabel}
+                                      </p>
+                                      <p className="text-xs font-medium truncate text-gray-800">
+                                        {einheit.titel}
+                                      </p>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>

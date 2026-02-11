@@ -113,6 +113,7 @@ export async function PUT(
     if (body.notizen !== undefined) updateData.notizen = body.notizen;
     if (body.beurteilungstyp !== undefined) updateData.beurteilungstyp = body.beurteilungstyp;
     if (body.beurteilungsNotiz !== undefined) updateData.beurteilungsNotiz = body.beurteilungsNotiz;
+    if (body.beurteilungen !== undefined) updateData.beurteilungen = body.beurteilungen;
     if (body.materialien !== undefined) updateData.materialien = body.materialien;
     if (body.istPufferwoche !== undefined) updateData.istPufferwoche = body.istPufferwoche;
     if (body.farbe !== undefined) updateData.farbe = body.farbe;

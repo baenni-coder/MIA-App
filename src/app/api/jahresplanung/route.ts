@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
       status: body.status,
       beurteilungstyp: body.beurteilungstyp,
       beurteilungsNotiz: body.beurteilungsNotiz,
+      beurteilungen: body.beurteilungen,
       materialien: body.materialien,
       istPufferwoche: body.istPufferwoche,
       farbe: body.farbe,

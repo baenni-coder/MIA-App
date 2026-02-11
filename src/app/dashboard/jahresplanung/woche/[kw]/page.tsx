@@ -23,6 +23,8 @@ import {
   MessageSquare,
   FileDown,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -185,6 +187,17 @@ export default function WochenansichtPage() {
       year: "numeric",
     });
 
+  // Nachbar-Wochen berechnen
+  const prevWeek = useMemo(() => {
+    if (kw === 1) return { kw: 52, jahr: jahr - 1 };
+    return { kw: kw - 1, jahr };
+  }, [kw, jahr]);
+
+  const nextWeek = useMemo(() => {
+    if (kw === 52) return { kw: 1, jahr: jahr + 1 };
+    return { kw: kw + 1, jahr };
+  }, [kw, jahr]);
+
   const exportPDF = async () => {
     setExporting(true);
     try {
@@ -233,10 +246,26 @@ export default function WochenansichtPage() {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2">
-                  <Calendar className="h-6 w-6 text-blue-600" />
-                  Kalenderwoche {kw}
-                </h1>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/dashboard/jahresplanung/woche/${prevWeek.kw}?schuljahr=${schuljahr}&jahr=${prevWeek.jahr}`}
+                  >
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                  <h1 className="text-2xl font-bold flex items-center gap-2">
+                    <Calendar className="h-6 w-6 text-blue-600" />
+                    Kalenderwoche {kw}
+                  </h1>
+                  <Link
+                    href={`/dashboard/jahresplanung/woche/${nextWeek.kw}?schuljahr=${schuljahr}&jahr=${nextWeek.jahr}`}
+                  >
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  </Link>
+                </div>
                 <p className="text-gray-600">
                   {formatDate(montag)} – {formatDate(freitag)}
                 </p>
@@ -335,19 +364,19 @@ export default function WochenansichtPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {/* Beurteilungs-Marker */}
-                        {einheit.beurteilungstyp === "formativ" && (
-                          <Badge variant="outline" className="flex items-center gap-1">
-                            <Circle className="h-3 w-3 fill-blue-500 text-blue-500" />
-                            Formativ
-                          </Badge>
-                        )}
-                        {einheit.beurteilungstyp === "summativ" && (
-                          <Badge variant="outline" className="flex items-center gap-1">
-                            <Diamond className="h-3 w-3 fill-orange-500 text-orange-500" />
-                            Summativ
-                          </Badge>
-                        )}
+                        {/* Beurteilungs-Marker für diese KW */}
+                        {(einheit.beurteilungen || [])
+                          .filter((b) => b.kalenderwoche === kw)
+                          .map((b, bIdx) => (
+                            <Badge key={bIdx} variant="outline" className="flex items-center gap-1">
+                              {b.typ === "formativ" ? (
+                                <Circle className="h-3 w-3 fill-blue-500 text-blue-500" />
+                              ) : (
+                                <Diamond className="h-3 w-3 fill-orange-500 text-orange-500" />
+                              )}
+                              {b.typ === "formativ" ? "Formativ" : "Summativ"}
+                            </Badge>
+                          ))}
 
                         {/* Status-Buttons */}
                         <div className="flex rounded-lg overflow-hidden border">
