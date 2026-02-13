@@ -31,6 +31,17 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Badge-Vergabe**: Lehrpersonen können eigene Badges erstellen und an Schüler vergeben
 - **Lehrmittel-Sortierung**: Themen innerhalb der Lehrmittel alphabetisch sortiert
 
+**NEU (2026-02)**:
+- **Jahresplanung**: Fächerübergreifende Jahresplanung mit Quartals- und Wochenansicht
+- **Ferienverwaltung**: Manuelle Anpassung der Schulferien pro Schuljahr
+- **MIA-Themen-Verknüpfung**: Einheiten mit MIA-Themen verknüpfen
+- **Beurteilungen mit KW-Zuordnung**: Mehrere Beurteilungen pro Einheit, mit Wochen-Zuweisung
+- **PDF-Export Jahresplanung**: Quartals-, Wochen- und Jahresplanung als PDF exportieren
+- **PDF mit Lehrperson**: Name und Klasse der Lehrperson im PDF-Header
+- **Schuljahr kopieren**: Einheiten aus beliebigem vergangenen Schuljahr kopieren
+- **Jahresplan MIA**: Umbenennung für Klarheit (Menü, Dashboard)
+- **Konfigurierbare Dashboard-Kacheln**: Lehrpersonen wählen ihre Dashboard-Kacheln selbst
+
 ## Tech Stack
 
 - **Framework**: Next.js 15 mit App Router
@@ -77,6 +88,11 @@ src/
 │   │   │   ├── [id]/           # Single Artifact (GET, PUT, DELETE)
 │   │   │   │   └── comment/    # Lehrer-Kommentare
 │   │   │   └── route.ts         # List & Create
+│   │   ├── jahresplanung/       # Jahresplanung-Endpunkte (NEU)
+│   │   │   ├── [id]/           # Single Einheit (GET, PUT, DELETE)
+│   │   │   ├── kopieren/       # Schuljahr kopieren (POST)
+│   │   │   ├── ferien/         # Custom-Ferien (GET, POST, PUT, DELETE)
+│   │   │   └── route.ts         # List & Create Einheiten
 │   │   ├── admin/               # Admin-Endpunkte
 │   │   │   ├── schools/         # Schulverwaltung
 │   │   │   │   ├── [id]/       # PUT, DELETE einzelne Schule
@@ -96,7 +112,12 @@ src/
 │   │   ├── admin/               # Admin Dashboard (Review Workflow)
 │   │   │   ├── schools/         # Schulverwaltung (Super-Admin) (NEU)
 │   │   │   └── sync/            # Daten-Synchronisation
-│   │   ├── jahresplan/          # Jahresplan mit Stufe-Auswahl & Search
+│   │   ├── jahresplan/          # Jahresplan MIA mit Stufe-Auswahl & Search
+│   │   ├── jahresplanung/       # Fächerübergreifende Jahresplanung (NEU)
+│   │   │   ├── quartal/[q]/    # Quartalsansicht mit Wochen-Raster
+│   │   │   ├── woche/[kw]/     # Wochenansicht mit Einheiten
+│   │   │   ├── einheit/[id]/   # Einheit bearbeiten/erstellen
+│   │   │   └── ferien/          # Ferienverwaltung
 │   │   ├── lehrmittel/          # Lehrmittel-Übersicht (Akkordeon)
 │   │   ├── lehrplan/            # Lehrplan-Kompetenzen (Kachel-Layout)
 │   │   ├── thema-erstellen/     # Custom Theme erstellen (mit Inline-Lektionen)
@@ -118,6 +139,7 @@ src/
 │   │   └── ...                  # Weitere UI-Komponenten
 │   ├── AdminThemeReview.tsx     # Admin Review Dialog
 │   ├── CustomThemeForm.tsx      # Formular für Custom Themes (mit Inline-Lektionen)
+│   ├── JahresplanungPDF.tsx     # PDF-Export: Quartals-, Wochen-, Jahresplanung (NEU)
 │   ├── DashboardLayout.tsx      # Dashboard Layout mit Collapsible Sidebar
 │   ├── InlineLektionEditor.tsx  # Kompakter Lektion-Editor für Akkordeon
 │   ├── KanbanBoard.tsx          # Kanban-Board mit Roboter-Bildern & Search
@@ -150,7 +172,12 @@ src/
 │   │   ├── notifications.ts     # Notifications CRUD
 │   │   ├── school-files.ts      # School Files CRUD
 │   │   ├── faq.ts               # FAQ CRUD
-│   │   └── student-artifacts.ts # Schüler-Artefakte CRUD (NEU)
+│   │   ├── student-artifacts.ts # Schüler-Artefakte CRUD (NEU)
+│   │   └── jahresplanung.ts    # Jahresplanung CRUD (NEU)
+│   ├── data/                    # Statische Daten (NEU)
+│   │   ├── lp21-data.ts        # LP21-Fachbereiche, Schulkalender, Ferienpresets
+│   │   ├── schulkalender.json  # Ferien-Daten nach Kanton
+│   │   └── lehrplan21-fachbereiche.json # LP21-Fachbereiche mit Kompetenzbereichen
 │   └── storage/                 # Firebase Storage
 │       ├── upload.ts            # Image Upload & Validation
 │       └── school-files.ts      # School Files Storage (NEU)
@@ -224,6 +251,7 @@ ENABLE_FIRESTORE_CACHE=true
   stufe: Stufe              // z.B. "1. Klasse", "5. Klasse"
   kanton?: Kanton           // Schweizer Kanton (z.B. "ZH", "BE", "SG")
   role: UserRole            // "teacher" | "picts_admin" | "super_admin"
+  dashboardTiles?: string[] // Benutzerdefinierte Dashboard-Kacheln (Pfade)
   createdAt: string
 }
 ```
@@ -357,6 +385,49 @@ ENABLE_FIRESTORE_CACHE=true
 }
 ```
 
+**Collection: `jahresplan_einheiten`** (NEU - Jahresplanung)
+```typescript
+{
+  userId: string            // Firebase UID der Lehrperson
+  schuljahr: string         // z.B. "2025/2026"
+  quartal: number           // 1-4
+  titel: string             // Titel der Einheit
+  fachbereichId: string     // LP21-Fachbereich-ID
+  fachbereichName: string   // Fachbereich-Name (z.B. "Deutsch")
+  fachbereichFarbe: string  // Farbe des Fachbereichs
+  kompetenzbereichId?: string // Optional: Kompetenzbereich-ID
+  kompetenzbereichName?: string
+  kompetenzenIds?: string[] // Verlinkte Kompetenz-IDs
+  kompetenzenNamen?: string[] // Kompetenz-Namen
+  zeitraumStart: number     // Startwoche (KW)
+  zeitraumEnde: number      // Endwoche (KW)
+  wochenstunden: number     // Stunden pro Woche
+  status: JahresplanStatus  // "geplant" | "durchgefuehrt" | "reflektiert"
+  beurteilungstyp: string   // Legacy: "formativ" | "summativ" | "keine"
+  beurteilungsNotiz: string // Legacy: Notiz
+  beurteilungen: Beurteilung[] // Array mit KW-Zuordnung
+  notizen: string           // Freitext-Notizen
+  linkedMiaThemeId?: string // Optional: Verknüpftes MIA-Thema
+  linkedMiaThemeName?: string
+  isShared: boolean         // Für Kolleg:innen sichtbar
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+**Collection: `schulferien_custom`** (NEU - Benutzerdefinierte Ferien)
+```typescript
+{
+  userId: string            // Firebase UID
+  schuljahr: string         // z.B. "2025/2026"
+  name: string              // z.B. "Herbstferien"
+  start: string             // ISO-Datum "2025-10-06"
+  ende: string              // ISO-Datum "2025-10-17"
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
 ### Airtable
 
 **Tabelle: `Themen`**
@@ -429,7 +500,7 @@ ENABLE_FIRESTORE_CACHE=true
   - Zeigt Icons + Labels (erweitert) oder nur Icons (eingeklappt)
 - **Mobile Navigation**: Sheet/Drawer für kleine Bildschirme
 - **Gruppierte Menüstruktur** (NEU):
-  - **Übersicht**: Dashboard, Jahresplan
+  - **Übersicht**: Dashboard, Jahresplan MIA, Jahresplanung
   - **Unterricht**: Lehrmittel, Lehrplan, Regelstandards (nur SO)
   - **Eigene Inhalte**: Thema erstellen, Meine Themen, Schul-Dateien
   - **Kompetenzenpass**: Meine Klassen, Indikatoren, Badges, Statistiken
@@ -440,8 +511,14 @@ ENABLE_FIRESTORE_CACHE=true
   - Schule (Dropdown mit allen verfügbaren Schulen)
   - Kanton (Dropdown mit allen Schweizer Kantonen)
   - Stufe (KiGa bis 9. Klasse)
+- **Konfigurierbare Dashboard-Kacheln** (NEU):
+  - Lehrpersonen wählen selbst, welche Kacheln auf dem Dashboard erscheinen
+  - 12 verfügbare Kacheln: Jahresplan MIA, Jahresplanung, Lehrmittel, Lehrplan, Thema erstellen, Meine Themen, Schul-Dateien, Meine Klassen, Badges, Statistiken, FAQ, PICTS Buchungen
+  - Standard-Kacheln: Jahresplan MIA, Lehrmittel, PICTS Buchungen
+  - Einstellungen werden im Firestore-Profil gespeichert (`dashboardTiles`)
+  - Dialog zum Anpassen mit Checkboxen und "Standard wiederherstellen" Option
 
-### 3. Jahresplan Kanban-Board
+### 3. Jahresplan MIA (Kanban-Board)
 - **6 Spalten für Zeiträume** mit Roboter-Bildern:
   - Sommerferien - Herbstferien (roboter_herbst.png)
   - Herbstferien - Weihnachtsferien (roboter_weihnachten.png)
@@ -796,6 +873,51 @@ Lehrpersonen können eigene Badges erstellen und vergeben.
   - Klasse → Schüler → Badge auswählen
   - Optionale Begründung
 - **API**: `/api/student-badges` (POST für Vergabe, DELETE für Entfernen)
+
+### 26. Fächerübergreifende Jahresplanung (NEU)
+Lehrpersonen können ihren gesamten Unterricht über alle Fachbereiche hinweg planen.
+
+- **Übersicht** (`/dashboard/jahresplanung`):
+  - Schuljahr-Auswahl (aktuelles + vergangene/zukünftige)
+  - 4 Quartalskarten mit Einheiten-Vorschau
+  - Statistiken: Einheiten, Fachbereiche, Schulwochen
+  - Fachbereich-Verteilung als farbige Badges
+  - Schuljahr kopieren: Einheiten aus beliebigem Schuljahr übernehmen
+  - Geteilte Einheiten von Kolleg:innen anzeigen
+- **Quartalsansicht** (`/dashboard/jahresplanung/quartal/[q]`):
+  - Wochen-Raster mit KW-Nummern und Daten
+  - Farbige Balken für jede Einheit über die zugewiesenen Wochen
+  - Beurteilungsmarker (blauer Kreis = formativ, orange Raute = summativ)
+  - Kompetenzbereich-Label oberhalb des Titels
+  - Ferienwochen grau markiert
+  - PDF-Export mit Lehrperson und Klasse
+- **Wochenansicht** (`/dashboard/jahresplanung/woche/[kw]`):
+  - Detailansicht aller Einheiten in einer Woche
+  - Status-Verwaltung (Geplant → Durchgeführt → Reflektiert)
+  - Beurteilungsanzeige mit Typ und Notiz
+  - Notizen-Feld pro Einheit
+  - Navigation: Vor/Zurück-Buttons zwischen Wochen
+  - PDF-Export mit Lehrperson und Klasse
+- **Einheit bearbeiten** (`/dashboard/jahresplanung/einheit/[id]`):
+  - Fachbereich und Kompetenzbereich aus LP21
+  - Titel, Wochenstunden, Zeitraum (von KW bis KW)
+  - Mehrere Beurteilungen pro Einheit (formativ + summativ)
+  - Jede Beurteilung mit eigener KW-Zuordnung und Notiz
+  - Verknüpfung mit MIA-Themen aus dem Jahresplan
+  - Teilen mit Kolleg:innen
+- **Ferienverwaltung** (`/dashboard/jahresplanung/ferien`):
+  - Preset-Ferien nach Kanton laden
+  - Individuelle Ferien hinzufügen/bearbeiten/löschen
+  - Ferien pro Schuljahr verwalten
+- **PDF-Export**:
+  - Quartalsplanung, Wochenplanung und Jahresplanung als PDF
+  - Name und Klasse der Lehrperson im Header
+  - Beurteilungsmarker und Fachbereich-Farben
+  - Erstellt mit `@react-pdf/renderer`
+- **Schuljahr kopieren**:
+  - Auswahl aus 6 vergangenen Schuljahren
+  - Kopiert alle Einheiten mit KW-Zuordnung
+  - Warnung bei bestehenden Einheiten im Ziel-Schuljahr
 
 ## Umgebungsvariablen
 
@@ -1616,6 +1738,36 @@ makeSuperAdmin("deine-email@schule.ch");
 - [x] **Scrollbare Dialoge** - Bessere UX auf kleinen Bildschirmen
   - max-height mit viewport-basierter Berechnung
   - overflow-y-auto für lange Inhalte
+
+### ✅ Abgeschlossen (Februar 2026)
+
+- [x] **Fächerübergreifende Jahresplanung** - Komplettes Planungstool
+  - Quartals- und Wochenansicht mit Wochen-Raster
+  - LP21-Fachbereiche und Kompetenzbereiche
+  - Einheiten erstellen, bearbeiten, löschen
+  - Farbige Darstellung nach Fachbereich
+- [x] **Manuelle Ferienverwaltung** - Schulferien pro Schuljahr anpassen
+  - Preset-Ferien nach Kanton laden
+  - Individuelle Ferien erstellen/bearbeiten/löschen
+  - Timezone-sichere Datumserkennung
+- [x] **MIA-Themen-Verknüpfung** - Einheiten mit MIA-Themen verknüpfen
+- [x] **Beurteilungen mit KW-Zuordnung** - Mehrere Beurteilungen pro Einheit
+  - Formative und summative Beurteilungen
+  - Jede Beurteilung einer spezifischen KW zugewiesen
+  - Marker in Quartalsübersicht nur in zugewiesener Woche
+  - Abwärtskompatible Migration von Einzel-Beurteilungen
+- [x] **PDF-Export Jahresplanung** - Quartals-, Wochen- und Jahresplanung
+  - Name und Klasse der Lehrperson im Header
+  - Fachbereich-Farben und Beurteilungsmarker
+  - Kompetenzbereich-Label in Quartalsübersicht
+- [x] **Wochennavigation** - Vor/Zurück-Buttons in Wochenansicht
+- [x] **Schuljahr kopieren** - Einheiten aus beliebigem vergangenen Schuljahr übernehmen
+  - Auswahl aus 6 vergangenen Schuljahren (statt nur Vorjahr)
+- [x] **Jahresplan MIA** - Umbenennung im Menü und Dashboard
+- [x] **Konfigurierbare Dashboard-Kacheln** - Lehrpersonen wählen ihre Kacheln
+  - 12 verfügbare Kacheln
+  - Einstellungen in Firestore-Profil gespeichert
+  - Standard-Kacheln wiederherstellbar
 
 ### 🚧 In Arbeit / Geplant
 

@@ -439,6 +439,57 @@ export async function initializeFAQItems(
       order: 9,
       isActive: true,
     },
+    // Jahresplanung (NEU)
+    {
+      question: "Was ist die Jahresplanung?",
+      answer: "Die Jahresplanung ist ein Planungstool für den gesamten Unterricht über alle Fachbereiche (Deutsch, Mathematik, NMG etc.). Sie können Unterrichtseinheiten pro Quartal und Woche planen, Beurteilungen zuordnen und die Planung als PDF exportieren. Sie finden die Jahresplanung im Menü unter 'Übersicht'.",
+      category: "jahresplan",
+      order: 5,
+      isActive: true,
+    },
+    {
+      question: "Was ist der Unterschied zwischen 'Jahresplan MIA' und 'Jahresplanung'?",
+      answer: "'Jahresplan MIA' zeigt die vorgefertigten MIA-Themen (Medien, Informatik und Anwendungskompetenzen) im Kanban-Board. Die 'Jahresplanung' ist ein separates Tool für die fächerübergreifende Unterrichtsplanung über alle Fachbereiche hinweg, mit Quartals- und Wochenansicht.",
+      category: "jahresplan",
+      order: 6,
+      isActive: true,
+    },
+    {
+      question: "Wie erstelle ich eine Unterrichtseinheit in der Jahresplanung?",
+      answer: "Öffnen Sie die Jahresplanung und klicken Sie auf 'Neue Einheit'. Wählen Sie einen Fachbereich, geben Sie einen Titel ein und legen Sie den Zeitraum (von KW bis KW) fest. Optional können Sie Kompetenzen, Beurteilungen und MIA-Themen verknüpfen.",
+      category: "jahresplan",
+      order: 7,
+      isActive: true,
+    },
+    {
+      question: "Wie kopiere ich eine Jahresplanung aus einem früheren Schuljahr?",
+      answer: "In der Jahresplanung klicken Sie auf 'Schuljahr kopieren'. Wählen Sie das Quell-Schuljahr aus (bis zu 6 Jahre zurück) und bestätigen Sie. Alle Einheiten werden in das aktuelle Schuljahr kopiert. Praktisch, wenn Sie alle zwei Jahre dieselbe Stufe unterrichten.",
+      category: "jahresplan",
+      order: 8,
+      isActive: true,
+    },
+    {
+      question: "Wie verwalte ich die Schulferien in der Jahresplanung?",
+      answer: "Klicken Sie in der Jahresplanung auf den Button 'Ferien'. Dort können Sie Ferien-Presets für Ihren Kanton laden oder individuelle Ferien manuell hinzufügen, bearbeiten und löschen. Die Ferienwochen werden in der Quartalsansicht grau markiert.",
+      category: "jahresplan",
+      order: 9,
+      isActive: true,
+    },
+    {
+      question: "Wie exportiere ich meine Jahresplanung als PDF?",
+      answer: "In der Quartals- und Wochenansicht finden Sie einen 'PDF exportieren' Button. Das PDF enthält alle Einheiten mit Fachbereich-Farben, Beurteilungsmarkern sowie Ihren Namen und Ihre Klasse im Header.",
+      category: "jahresplan",
+      order: 10,
+      isActive: true,
+    },
+    // Dashboard
+    {
+      question: "Wie kann ich meine Dashboard-Kacheln anpassen?",
+      answer: "Auf dem Dashboard sehen Sie eine Kachel 'Kacheln anpassen' mit gestricheltem Rahmen. Klicken Sie darauf, um aus 12 verfügbaren Kacheln auszuwählen, welche auf Ihrem Dashboard angezeigt werden sollen. Mit 'Standard wiederherstellen' können Sie die Auswahl zurücksetzen.",
+      category: "allgemein",
+      order: 10,
+      isActive: true,
+    },
   ];
 
   const batch = adminDb.batch();
@@ -532,6 +583,57 @@ export async function updateFAQItemsWithDefaults(
       answer: "Schüler:innen können unter 'Export' ihren Kompetenzenpass als PDF herunterladen. Das PDF enthält ein Deckblatt mit Avatar, eine Übersicht aller Bewertungen mit Sternen, erhaltene Badges und bearbeitete Themen.",
       category: "allgemein",
       order: 9,
+      isActive: true,
+    },
+    // Jahresplanung (NEU)
+    {
+      question: "Was ist die Jahresplanung?",
+      answer: "Die Jahresplanung ist ein Planungstool für den gesamten Unterricht über alle Fachbereiche (Deutsch, Mathematik, NMG etc.). Sie können Unterrichtseinheiten pro Quartal und Woche planen, Beurteilungen zuordnen und die Planung als PDF exportieren. Sie finden die Jahresplanung im Menü unter 'Übersicht'.",
+      category: "jahresplan",
+      order: 5,
+      isActive: true,
+    },
+    {
+      question: "Was ist der Unterschied zwischen 'Jahresplan MIA' und 'Jahresplanung'?",
+      answer: "'Jahresplan MIA' zeigt die vorgefertigten MIA-Themen (Medien, Informatik und Anwendungskompetenzen) im Kanban-Board. Die 'Jahresplanung' ist ein separates Tool für die fächerübergreifende Unterrichtsplanung über alle Fachbereiche hinweg, mit Quartals- und Wochenansicht.",
+      category: "jahresplan",
+      order: 6,
+      isActive: true,
+    },
+    {
+      question: "Wie erstelle ich eine Unterrichtseinheit in der Jahresplanung?",
+      answer: "Öffnen Sie die Jahresplanung und klicken Sie auf 'Neue Einheit'. Wählen Sie einen Fachbereich, geben Sie einen Titel ein und legen Sie den Zeitraum (von KW bis KW) fest. Optional können Sie Kompetenzen, Beurteilungen und MIA-Themen verknüpfen.",
+      category: "jahresplan",
+      order: 7,
+      isActive: true,
+    },
+    {
+      question: "Wie kopiere ich eine Jahresplanung aus einem früheren Schuljahr?",
+      answer: "In der Jahresplanung klicken Sie auf 'Schuljahr kopieren'. Wählen Sie das Quell-Schuljahr aus (bis zu 6 Jahre zurück) und bestätigen Sie. Alle Einheiten werden in das aktuelle Schuljahr kopiert. Praktisch, wenn Sie alle zwei Jahre dieselbe Stufe unterrichten.",
+      category: "jahresplan",
+      order: 8,
+      isActive: true,
+    },
+    {
+      question: "Wie verwalte ich die Schulferien in der Jahresplanung?",
+      answer: "Klicken Sie in der Jahresplanung auf den Button 'Ferien'. Dort können Sie Ferien-Presets für Ihren Kanton laden oder individuelle Ferien manuell hinzufügen, bearbeiten und löschen. Die Ferienwochen werden in der Quartalsansicht grau markiert.",
+      category: "jahresplan",
+      order: 9,
+      isActive: true,
+    },
+    {
+      question: "Wie exportiere ich meine Jahresplanung als PDF?",
+      answer: "In der Quartals- und Wochenansicht finden Sie einen 'PDF exportieren' Button. Das PDF enthält alle Einheiten mit Fachbereich-Farben, Beurteilungsmarkern sowie Ihren Namen und Ihre Klasse im Header.",
+      category: "jahresplan",
+      order: 10,
+      isActive: true,
+    },
+    // Dashboard
+    {
+      question: "Wie kann ich meine Dashboard-Kacheln anpassen?",
+      answer: "Auf dem Dashboard sehen Sie eine Kachel 'Kacheln anpassen' mit gestricheltem Rahmen. Klicken Sie darauf, um aus 12 verfügbaren Kacheln auszuwählen, welche auf Ihrem Dashboard angezeigt werden sollen. Mit 'Standard wiederherstellen' können Sie die Auswahl zurücksetzen.",
+      category: "allgemein",
+      order: 10,
       isActive: true,
     },
   ];
