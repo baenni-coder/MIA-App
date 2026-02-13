@@ -281,7 +281,7 @@ export async function PUT(request: Request) {
 
     const authenticatedUserId = decodedToken.uid;
 
-    const { userId, stufe, kanton, schuleId, newSchuleName, role } = await request.json();
+    const { userId, stufe, kanton, schuleId, newSchuleName, role, dashboardTiles } = await request.json();
 
     if (!userId) {
       return NextResponse.json(
@@ -311,9 +311,10 @@ export async function PUT(request: Request) {
     }
     const teacherData = teacherDoc.data()!;
 
-    // 3. Stufe und Kanton kann jeder User für sich selbst ändern
+    // 3. Stufe, Kanton und Dashboard-Kacheln kann jeder User für sich selbst ändern
     if (stufe) updateData.stufe = stufe;
     if (kanton !== undefined) updateData.kanton = kanton || null; // null um zu löschen
+    if (dashboardTiles !== undefined) updateData.dashboardTiles = dashboardTiles;
 
     // 4. Schulwechsel erfordert Genehmigung durch Super-Admin
     if (schuleId && schuleId !== teacherData.schuleId) {
@@ -409,7 +410,7 @@ export async function PUT(request: Request) {
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: "At least one field (stufe, kanton, schuleId or role) is required" },
+        { error: "At least one field (stufe, kanton, schuleId, role or dashboardTiles) is required" },
         { status: 400 }
       );
     }

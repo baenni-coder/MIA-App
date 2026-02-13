@@ -61,7 +61,8 @@ export default function JahresplanungPage() {
   const [showShared, setShowShared] = useState(false);
   const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
 
-  const schuljahrListe = useMemo(() => getSchuljahrListe(4), []);
+  const schuljahrListe = useMemo(() => getSchuljahrListe(4, 1), []);
+  const copySchuljahrListe = useMemo(() => getSchuljahrListe(1, 6), []);
   const quartalSchema = useMemo(() => getQuartalSchema(), []);
   const fachbereiche = useMemo(() => getAlleFachbereiche(), []);
 
@@ -231,10 +232,9 @@ export default function JahresplanungPage() {
               <Button
                 variant="outline"
                 onClick={() => setShowCopyDialog(true)}
-                disabled={einheiten.length > 0}
               >
                 <Copy className="h-4 w-4 mr-2" />
-                Vorjahr kopieren
+                Schuljahr kopieren
               </Button>
 
               {/* Neue Einheit */}
@@ -422,7 +422,7 @@ export default function JahresplanungPage() {
                   </Link>
                   <Button variant="outline" onClick={() => setShowCopyDialog(true)}>
                     <Copy className="h-4 w-4 mr-2" />
-                    Vorjahr kopieren
+                    Schuljahr kopieren
                   </Button>
                 </div>
               </CardContent>
@@ -475,7 +475,7 @@ export default function JahresplanungPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <p className="text-sm text-gray-600">
-                Kopieren Sie alle Einheiten aus einem vorherigen Schuljahr nach{" "}
+                Kopieren Sie alle Einheiten aus einem anderen Schuljahr nach{" "}
                 <strong>{schuljahr}</strong>.
               </p>
 
@@ -496,7 +496,7 @@ export default function JahresplanungPage() {
                     <SelectValue placeholder="Schuljahr wählen..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {schuljahrListe
+                    {copySchuljahrListe
                       .filter((sj) => sj !== schuljahr)
                       .map((sj) => (
                         <SelectItem key={sj} value={sj}>

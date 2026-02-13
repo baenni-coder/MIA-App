@@ -130,7 +130,7 @@ export default function DashboardLayout({
           path: "/dashboard",
         },
         {
-          label: "Jahresplan",
+          label: "Jahresplan MIA",
           icon: <CalendarRange className="h-5 w-5" />,
           path: "/dashboard/jahresplan",
         },
