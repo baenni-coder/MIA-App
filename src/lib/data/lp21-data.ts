@@ -211,11 +211,11 @@ export function getAktuellesSchuljahr(): string {
 /**
  * Generiert eine Liste von Schuljahren
  */
-export function getSchuljahrListe(count: number = 3): string[] {
+export function getSchuljahrListe(futureCount: number = 3, pastCount: number = 1): string[] {
   const currentYear = new Date().getFullYear();
   const schuljahre: string[] = [];
 
-  for (let i = -1; i < count; i++) {
+  for (let i = -pastCount; i < futureCount; i++) {
     const startYear = currentYear + i;
     schuljahre.push(`${startYear}/${startYear + 1}`);
   }

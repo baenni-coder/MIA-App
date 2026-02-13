@@ -7,10 +7,36 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarRange, BookOpen, Users, Edit2, Check, X, Clock, AlertCircle, Trash2 } from "lucide-react";
+import {
+  CalendarRange,
+  CalendarDays,
+  BookOpen,
+  GraduationCap,
+  Users,
+  Edit2,
+  Check,
+  X,
+  Clock,
+  AlertCircle,
+  Trash2,
+  Settings2,
+  PlusCircle,
+  FolderOpen,
+  FileArchive,
+  Award,
+  Lightbulb,
+  BarChart3,
+  HelpCircle,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Teacher, Stufe, Schule, Kanton, KANTONE, SchoolChangeRequest } from "@/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -23,6 +49,110 @@ const STUFEN: Stufe[] = [
   "7. Klasse",
   "8. Klasse",
   "9. Klasse",
+];
+
+// Verfügbare Dashboard-Kacheln
+interface TileOption {
+  path: string;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  buttonLabel: string;
+  isExternal?: boolean;
+}
+
+const TILE_OPTIONS: TileOption[] = [
+  {
+    path: "/dashboard/jahresplan",
+    label: "Jahresplan MIA",
+    description: "Verwalten Sie Ihren MIA-Jahresplan im Kanban-Board",
+    icon: <CalendarRange className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zum Jahresplan MIA",
+  },
+  {
+    path: "/dashboard/jahresplanung",
+    label: "Jahresplanung",
+    description: "Planen Sie Ihren Unterricht über alle Fachbereiche",
+    icon: <CalendarDays className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zur Jahresplanung",
+  },
+  {
+    path: "/dashboard/lehrmittel",
+    label: "Lehrmittel",
+    description: "Übersicht über alle verfügbaren Lehrmittel und Materialien",
+    icon: <BookOpen className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zu den Lehrmitteln",
+  },
+  {
+    path: "/dashboard/lehrplan",
+    label: "Lehrplan",
+    description: "Lehrplan-Kompetenzen mit Unterrichtsideen",
+    icon: <GraduationCap className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zum Lehrplan",
+  },
+  {
+    path: "/dashboard/thema-erstellen",
+    label: "Thema erstellen",
+    description: "Eigene Unterrichtsthemen mit Lektionsplanung erstellen",
+    icon: <PlusCircle className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Thema erstellen",
+  },
+  {
+    path: "/dashboard/meine-themen",
+    label: "Meine Themen",
+    description: "Übersicht über Ihre eigenen Themen",
+    icon: <FolderOpen className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zu meinen Themen",
+  },
+  {
+    path: "/dashboard/dateien",
+    label: "Schul-Dateien",
+    description: "Dateien schulintern teilen und verwalten",
+    icon: <FileArchive className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zu den Dateien",
+  },
+  {
+    path: "/dashboard/klassen",
+    label: "Meine Klassen",
+    description: "Kompetenzenpass und Klassenverwaltung",
+    icon: <Users className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zu meinen Klassen",
+  },
+  {
+    path: "/dashboard/badges",
+    label: "Badges",
+    description: "Badges erstellen und an Schüler vergeben",
+    icon: <Award className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zu den Badges",
+  },
+  {
+    path: "/dashboard/statistiken",
+    label: "Statistiken",
+    description: "Statistiken zum Kompetenzenpass",
+    icon: <BarChart3 className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zu den Statistiken",
+  },
+  {
+    path: "/dashboard/faq",
+    label: "FAQ",
+    description: "Häufig gestellte Fragen und Antworten",
+    icon: <HelpCircle className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zu den FAQ",
+  },
+  {
+    path: "picts",
+    label: "PICTS Buchungen",
+    description: "Buchen Sie Unterstützung durch PICTS",
+    icon: <Users className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "PICTS buchen",
+    isExternal: true,
+  },
+];
+
+const DEFAULT_TILES = [
+  "/dashboard/jahresplan",
+  "/dashboard/lehrmittel",
+  "picts",
 ];
 
 export default function DashboardPage() {
@@ -48,6 +178,11 @@ export default function DashboardPage() {
   const [pendingSchoolRequest, setPendingSchoolRequest] = useState<SchoolChangeRequest | null>(null);
   const [cancellingRequest, setCancellingRequest] = useState(false);
 
+  // Dashboard tile configuration
+  const [showTileSettings, setShowTileSettings] = useState(false);
+  const [selectedTiles, setSelectedTiles] = useState<string[]>(DEFAULT_TILES);
+  const [savingTiles, setSavingTiles] = useState(false);
+
   useEffect(() => {
     const loadTeacherData = async () => {
       if (!user) return;
@@ -72,6 +207,11 @@ export default function DashboardPage() {
 
         const data = await res.json();
         setTeacherData(data);
+
+        // Load dashboard tiles from profile
+        if (data.dashboardTiles && Array.isArray(data.dashboardTiles)) {
+          setSelectedTiles(data.dashboardTiles);
+        }
 
         // Load pending school change request
         const reqRes = await fetch("/api/school-change-request", {
@@ -279,6 +419,43 @@ export default function DashboardPage() {
     }
   };
 
+  const handleSaveTiles = async (tiles: string[]) => {
+    if (!user) return;
+
+    setSavingTiles(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) return;
+
+      const response = await fetch("/api/teachers", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          dashboardTiles: tiles,
+        }),
+      });
+
+      if (response.ok) {
+        setSelectedTiles(tiles);
+        setTeacherData({ ...teacherData!, dashboardTiles: tiles });
+        setShowTileSettings(false);
+      }
+    } catch (error) {
+      console.error("Error saving tile settings:", error);
+    } finally {
+      setSavingTiles(false);
+    }
+  };
+
+  // Active tiles based on user selection
+  const activeTiles = selectedTiles
+    .map((path) => TILE_OPTIONS.find((t) => t.path === path))
+    .filter(Boolean) as TileOption[];
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
@@ -293,47 +470,48 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/dashboard/jahresplan")}>
-              <CardHeader>
-                <CalendarRange className="h-8 w-8 text-primary mb-2" />
-                <CardTitle>Jahresplan</CardTitle>
-                <CardDescription>
-                  Verwalten Sie Ihren MIA-Jahresplan im Kanban-Board
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="outline" className="w-full">
-                  Zum Jahresplan
-                </Button>
-              </CardContent>
-            </Card>
+            {activeTiles.map((tile) => (
+              <Card
+                key={tile.path}
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => {
+                  if (tile.isExternal) {
+                    if (teacherData?.schule?.pictsBuchen) {
+                      window.open(teacherData.schule.pictsBuchen, "_blank");
+                    }
+                  } else {
+                    router.push(tile.path);
+                  }
+                }}
+              >
+                <CardHeader>
+                  {tile.icon}
+                  <CardTitle>{tile.label}</CardTitle>
+                  <CardDescription>{tile.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full">
+                    {tile.buttonLabel}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
 
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/dashboard/lehrmittel")}>
+            {/* Kacheln konfigurieren */}
+            <Card
+              className="hover:shadow-lg transition-shadow cursor-pointer border-dashed"
+              onClick={() => setShowTileSettings(true)}
+            >
               <CardHeader>
-                <BookOpen className="h-8 w-8 text-primary mb-2" />
-                <CardTitle>Lehrmittel</CardTitle>
+                <Settings2 className="h-8 w-8 text-muted-foreground mb-2" />
+                <CardTitle className="text-muted-foreground">Kacheln anpassen</CardTitle>
                 <CardDescription>
-                  Übersicht über alle verfügbaren Lehrmittel und Materialien
+                  Wählen Sie, welche Kacheln hier angezeigt werden
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button variant="outline" className="w-full">
-                  Zu den Lehrmitteln
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => teacherData?.schule?.pictsBuchen && window.open(teacherData.schule.pictsBuchen, '_blank')}>
-              <CardHeader>
-                <Users className="h-8 w-8 text-primary mb-2" />
-                <CardTitle>PICTS Buchungen</CardTitle>
-                <CardDescription>
-                  Buchen Sie Unterstützung durch PICTS
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="outline" className="w-full">
-                  PICTS buchen
+                  Anpassen
                 </Button>
               </CardContent>
             </Card>
@@ -564,7 +742,108 @@ export default function DashboardPage() {
             </Card>
           )}
         </div>
+
+        {/* Kacheln-Einstellungen Dialog */}
+        <TileSettingsDialog
+          open={showTileSettings}
+          onOpenChange={setShowTileSettings}
+          selectedTiles={selectedTiles}
+          onSave={handleSaveTiles}
+          saving={savingTiles}
+        />
       </DashboardLayout>
     </ProtectedRoute>
+  );
+}
+
+function TileSettingsDialog({
+  open,
+  onOpenChange,
+  selectedTiles,
+  onSave,
+  saving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedTiles: string[];
+  onSave: (tiles: string[]) => void;
+  saving: boolean;
+}) {
+  const [localTiles, setLocalTiles] = useState<string[]>(selectedTiles);
+
+  // Sync with parent when dialog opens
+  useEffect(() => {
+    if (open) {
+      setLocalTiles(selectedTiles);
+    }
+  }, [open, selectedTiles]);
+
+  const toggleTile = (path: string) => {
+    setLocalTiles((prev) =>
+      prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Dashboard-Kacheln anpassen</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <p className="text-sm text-muted-foreground">
+            Wählen Sie die Kacheln, die auf Ihrem Dashboard angezeigt werden sollen.
+          </p>
+          <div className="space-y-2">
+            {TILE_OPTIONS.map((tile) => {
+              const isSelected = localTiles.includes(tile.path);
+              return (
+                <label
+                  key={tile.path}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    isSelected
+                      ? "border-primary bg-primary/5"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleTile(tile.path)}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{tile.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {tile.description}
+                    </p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+          <div className="flex justify-between items-center pt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocalTiles(DEFAULT_TILES)}
+            >
+              Standard wiederherstellen
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Abbrechen
+              </Button>
+              <Button
+                onClick={() => onSave(localTiles)}
+                disabled={saving || localTiles.length === 0}
+              >
+                {saving ? "Speichern..." : "Speichern"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

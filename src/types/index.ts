@@ -139,6 +139,7 @@ export interface Teacher {
   role: UserRole; // Rolle des Benutzers
   schule?: Schule | null;
   schoolApproved: boolean; // true wenn Schulzugehörigkeit genehmigt wurde
+  dashboardTiles?: string[]; // Benutzerdefinierte Dashboard-Kacheln (Pfade)
   createdAt: Date;
 }
 

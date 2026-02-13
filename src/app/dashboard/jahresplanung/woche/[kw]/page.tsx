@@ -61,7 +61,7 @@ const STATUS_CONFIG: Record<
 export default function WochenansichtPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
 
   const kw = parseInt(params.kw as string) || 1;
   const schuljahr = searchParams.get("schuljahr") || getAktuellesSchuljahr();
@@ -212,6 +212,8 @@ export default function WochenansichtPage() {
           einheiten={einheiten}
           istFerien={ferienInfo.istFerien}
           ferienName={ferienInfo.ferienName}
+          lehrerName={userProfile && "name" in userProfile ? userProfile.name : undefined}
+          klasse={userProfile && "stufe" in userProfile ? userProfile.stufe : undefined}
         />
       ).toBlob();
 

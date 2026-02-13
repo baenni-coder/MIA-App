@@ -39,7 +39,7 @@ const STATUS_COLORS: Record<JahresplanStatus, string> = {
 export default function QuartalsansichtPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
 
   const quartal = parseInt(params.q as string) || 1;
   const schuljahr = searchParams.get("schuljahr") || getAktuellesSchuljahr();
@@ -155,6 +155,8 @@ export default function QuartalsansichtPage() {
           quartal={quartal}
           wochen={quartalWochen}
           einheiten={einheiten}
+          lehrerName={userProfile && "name" in userProfile ? userProfile.name : undefined}
+          klasse={userProfile && "stufe" in userProfile ? userProfile.stufe : undefined}
         />
       ).toBlob();
 

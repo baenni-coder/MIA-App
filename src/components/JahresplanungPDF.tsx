@@ -308,6 +308,8 @@ interface QuartalsplanungPDFProps {
   quartal: number;
   wochen: WocheInfo[];
   einheiten: JahresplanEinheit[];
+  lehrerName?: string;
+  klasse?: string;
 }
 
 interface WochenplanungPDFProps {
@@ -317,18 +319,22 @@ interface WochenplanungPDFProps {
   einheiten: JahresplanEinheit[];
   istFerien: boolean;
   ferienName?: string;
+  lehrerName?: string;
+  klasse?: string;
 }
 
 interface JahresplanungPDFProps {
   schuljahr: string;
   wochen: WocheInfo[];
   einheiten: JahresplanEinheit[];
+  lehrerName?: string;
+  klasse?: string;
 }
 
 /**
  * PDF für Quartalsplanung - Übersicht aller Wochen eines Quartals
  */
-export function QuartalsplanungPDF({ schuljahr, quartal, wochen, einheiten }: QuartalsplanungPDFProps) {
+export function QuartalsplanungPDF({ schuljahr, quartal, wochen, einheiten, lehrerName, klasse }: QuartalsplanungPDFProps) {
   const now = new Date();
   const dateStr = now.toLocaleDateString("de-CH", { day: "2-digit", month: "long", year: "numeric" });
 
@@ -352,6 +358,7 @@ export function QuartalsplanungPDF({ schuljahr, quartal, wochen, einheiten }: Qu
           </Text>
           <Text style={styles.headerSubtitle}>
             Schuljahr {schuljahr}
+            {lehrerName || klasse ? ` · ${[lehrerName, klasse].filter(Boolean).join(" · ")}` : ""}
           </Text>
           <Text style={styles.headerMeta}>
             Erstellt am {dateStr} · MIA-App Jahresplanung
@@ -461,6 +468,8 @@ export function WochenplanungPDF({
   einheiten,
   istFerien,
   ferienName,
+  lehrerName,
+  klasse,
 }: WochenplanungPDFProps) {
   const now = new Date();
   const dateStr = now.toLocaleDateString("de-CH", { day: "2-digit", month: "long", year: "numeric" });
@@ -485,7 +494,9 @@ export function WochenplanungPDF({
             {formatDateLong(montag)} – {formatDateLong(freitag)}
           </Text>
           <Text style={styles.headerMeta}>
-            Schuljahr {schuljahr} · Erstellt am {dateStr} · MIA-App Jahresplanung
+            Schuljahr {schuljahr}
+            {lehrerName || klasse ? ` · ${[lehrerName, klasse].filter(Boolean).join(" · ")}` : ""}
+            {" · "}Erstellt am {dateStr} · MIA-App Jahresplanung
           </Text>
         </View>
 
@@ -650,7 +661,7 @@ export function WochenplanungPDF({
 /**
  * PDF für komplette Jahresplanung - alle 4 Quartale
  */
-export function JahresplanungPDF({ schuljahr, wochen, einheiten }: JahresplanungPDFProps) {
+export function JahresplanungPDF({ schuljahr, wochen, einheiten, lehrerName, klasse }: JahresplanungPDFProps) {
   const now = new Date();
   const dateStr = now.toLocaleDateString("de-CH", { day: "2-digit", month: "long", year: "numeric" });
 
@@ -685,6 +696,7 @@ export function JahresplanungPDF({ schuljahr, wochen, einheiten }: Jahresplanung
               <Text style={styles.headerTitle}>Jahresplanung {schuljahr}</Text>
               <Text style={styles.headerSubtitle}>
                 {QUARTAL_LABELS[q]}
+                {lehrerName || klasse ? ` · ${[lehrerName, klasse].filter(Boolean).join(" · ")}` : ""}
               </Text>
               <Text style={styles.headerMeta}>
                 Erstellt am {dateStr} · MIA-App
