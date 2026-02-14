@@ -17,8 +17,11 @@ import {
   Diamond,
   FileDown,
   Loader2,
+  List,
+  LayoutGrid,
 } from "lucide-react";
 import Link from "next/link";
+import KanbanQuartal from "@/components/jahresplanung/KanbanQuartal";
 import {
   getAktuellesSchuljahr,
   getQuartalSchema,
@@ -56,6 +59,12 @@ export default function QuartalsansichtPage() {
   const [klassenBezeichnung, setKlassenBezeichnung] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("jahresplanung-view") as "list" | "kanban") || "list";
+    }
+    return "list";
+  });
 
   const quartalSchema = useMemo(() => getQuartalSchema(), []);
   const quartalInfo = quartalSchema.find((q) => q.quartal === quartal);
@@ -252,6 +261,30 @@ export default function QuartalsansichtPage() {
     }
   };
 
+  // View toggle
+  const toggleView = (mode: "list" | "kanban") => {
+    setViewMode(mode);
+    localStorage.setItem("jahresplanung-view", mode);
+  };
+
+  // Einheit update (für Drag & Drop Reorder)
+  const handleEinheitUpdate = async (id: string, data: Record<string, unknown>) => {
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      await fetch(`/api/jahresplanung/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      console.error("Error updating einheit:", error);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <DashboardLayout>
@@ -275,6 +308,28 @@ export default function QuartalsansichtPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* View Toggle */}
+              <div className="flex items-center border rounded-md">
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  size="icon"
+                  className="h-9 w-9 rounded-r-none"
+                  onClick={() => toggleView("list")}
+                  title="Listenansicht"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "kanban" ? "default" : "ghost"}
+                  size="icon"
+                  className="h-9 w-9 rounded-l-none"
+                  onClick={() => toggleView("kanban")}
+                  title="Kanban-Ansicht"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+              </div>
+
               <Button
                 variant="outline"
                 onClick={exportPDF}
@@ -298,191 +353,222 @@ export default function QuartalsansichtPage() {
             </div>
           </div>
 
-          {/* Legende */}
-          <Card>
-            <CardContent className="py-3">
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <Circle className="h-4 w-4 fill-blue-500 text-blue-500" />
-                  <span>Formative Beurteilung</span>
+          {/* Legende (nur in Listenansicht) */}
+          {viewMode === "list" && (
+            <Card>
+              <CardContent className="py-3">
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Circle className="h-4 w-4 fill-blue-500 text-blue-500" />
+                    <span>Formative Beurteilung</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Diamond className="h-4 w-4 fill-orange-500 text-orange-500" />
+                    <span>Summative Beurteilung</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-gray-200 rounded" />
+                    <span>Ferienwochen</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Diamond className="h-4 w-4 fill-orange-500 text-orange-500" />
-                  <span>Summative Beurteilung</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gray-200 rounded" />
-                  <span>Ferienwochen</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Wochenübersicht */}
+          {/* Content */}
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
             </div>
-          ) : (
-            <div className="space-y-2">
-              {quartalWochen.map((woche) => {
-                const wochenEinheiten = einheitenProWoche.get(woche.kw) || [];
-                const beurteilungen = beurteilungenProWoche.get(woche.kw);
-                const hasWarning = beurteilungen && beurteilungen.summativ >= 2;
-
-                const montag = getMondayOfWeek(woche.kw, woche.jahr);
-                const freitag = getFridayOfWeek(woche.kw, woche.jahr);
-
-                return (
+          ) : viewMode === "kanban" ? (
+            /* Kanban-Ansicht */
+            gefilterteEinheiten.length === 0 ? (
+              <Card className="border-dashed mt-4">
+                <CardContent className="py-8 text-center">
+                  <p className="text-gray-500 mb-4">
+                    Noch keine Einheiten in diesem Quartal geplant
+                  </p>
                   <Link
-                    key={`${woche.kw}-${woche.jahr}`}
-                    href={`/dashboard/jahresplanung/woche/${woche.kw}?schuljahr=${schuljahr}&jahr=${woche.jahr}`}
+                    href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}`}
                   >
-                    <Card
-                      className={`hover:border-blue-500 transition-colors cursor-pointer ${
-                        woche.istFerien ? "bg-gray-50 opacity-75" : ""
-                      }`}
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Erste Einheit erstellen
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <KanbanQuartal
+                einheiten={gefilterteEinheiten}
+                schuljahr={schuljahr}
+                quartal={quartal}
+                onEinheitUpdate={handleEinheitUpdate}
+              />
+            )
+          ) : (
+            /* Listenansicht */
+            <>
+              <div className="space-y-2">
+                {quartalWochen.map((woche) => {
+                  const wochenEinheiten = einheitenProWoche.get(woche.kw) || [];
+                  const beurteilungen = beurteilungenProWoche.get(woche.kw);
+                  const hasWarning = beurteilungen && beurteilungen.summativ >= 2;
+
+                  const montag = getMondayOfWeek(woche.kw, woche.jahr);
+                  const freitag = getFridayOfWeek(woche.kw, woche.jahr);
+
+                  return (
+                    <Link
+                      key={`${woche.kw}-${woche.jahr}`}
+                      href={`/dashboard/jahresplanung/woche/${woche.kw}?schuljahr=${schuljahr}&jahr=${woche.jahr}`}
                     >
-                      <CardContent className="py-3">
-                        <div className="flex items-center gap-4">
-                          {/* Kalenderwoche */}
-                          <div className="w-16 text-center flex-shrink-0">
-                            <p className="text-lg font-bold text-blue-600">
-                              KW {woche.kw}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {formatDatumKurz(montag)}–{formatDatumKurz(freitag)}
-                            </p>
-                          </div>
-
-                          {/* Trennlinie */}
-                          <div className="w-px h-12 bg-gray-200" />
-
-                          {/* Inhalt */}
-                          <div className="flex-1 min-w-0">
-                            {woche.istFerien ? (
-                              <div className="flex items-center gap-2 text-gray-500">
-                                <Calendar className="h-4 w-4" />
-                                <span>{woche.ferienName || "Ferien"}</span>
-                              </div>
-                            ) : wochenEinheiten.length === 0 ? (
-                              <p className="text-gray-400 italic">
-                                Keine Einheiten geplant
+                      <Card
+                        className={`hover:border-blue-500 transition-colors cursor-pointer ${
+                          woche.istFerien ? "bg-gray-50 opacity-75" : ""
+                        }`}
+                      >
+                        <CardContent className="py-3">
+                          <div className="flex items-center gap-4">
+                            {/* Kalenderwoche */}
+                            <div className="w-16 text-center flex-shrink-0">
+                              <p className="text-lg font-bold text-blue-600">
+                                KW {woche.kw}
                               </p>
-                            ) : (
-                              <div className="flex flex-wrap gap-2">
-                                {wochenEinheiten.map((einheit) => {
-                                  // Kompetenzbereich oder Fachbereich anzeigen
-                                  const kompetenzLabel =
-                                    einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
-                                      ? einheit.kompetenzenNamen[0]
-                                      : einheit.fachbereichName || einheit.fachbereichId;
+                              <p className="text-xs text-gray-500">
+                                {formatDatumKurz(montag)}–{formatDatumKurz(freitag)}
+                              </p>
+                            </div>
 
-                                  return (
-                                    <div
-                                      key={einheit.id}
-                                      className="rounded-md border px-2.5 py-1 max-w-[250px]"
-                                      style={{
-                                        backgroundColor: `${einheit.fachbereichFarbe || "#6b7280"}10`,
-                                        borderColor: `${einheit.fachbereichFarbe || "#6b7280"}40`,
-                                      }}
-                                    >
-                                      <p
-                                        className="text-[10px] leading-tight truncate"
-                                        style={{ color: einheit.fachbereichFarbe || "#6b7280" }}
+                            {/* Trennlinie */}
+                            <div className="w-px h-12 bg-gray-200" />
+
+                            {/* Inhalt */}
+                            <div className="flex-1 min-w-0">
+                              {woche.istFerien ? (
+                                <div className="flex items-center gap-2 text-gray-500">
+                                  <Calendar className="h-4 w-4" />
+                                  <span>{woche.ferienName || "Ferien"}</span>
+                                </div>
+                              ) : wochenEinheiten.length === 0 ? (
+                                <p className="text-gray-400 italic">
+                                  Keine Einheiten geplant
+                                </p>
+                              ) : (
+                                <div className="flex flex-wrap gap-2">
+                                  {wochenEinheiten.map((einheit) => {
+                                    // Kompetenzbereich oder Fachbereich anzeigen
+                                    const kompetenzLabel =
+                                      einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
+                                        ? einheit.kompetenzenNamen[0]
+                                        : einheit.fachbereichName || einheit.fachbereichId;
+
+                                    return (
+                                      <div
+                                        key={einheit.id}
+                                        className="rounded-md border px-2.5 py-1 max-w-[250px]"
+                                        style={{
+                                          backgroundColor: `${einheit.fachbereichFarbe || "#6b7280"}10`,
+                                          borderColor: `${einheit.fachbereichFarbe || "#6b7280"}40`,
+                                        }}
                                       >
-                                        {kompetenzLabel}
-                                      </p>
-                                      <p className="text-xs font-medium truncate text-gray-800">
-                                        {einheit.titel}
-                                      </p>
-                                    </div>
-                                  );
-                                })}
+                                        <p
+                                          className="text-[10px] leading-tight truncate"
+                                          style={{ color: einheit.fachbereichFarbe || "#6b7280" }}
+                                        >
+                                          {kompetenzLabel}
+                                        </p>
+                                        <p className="text-xs font-medium truncate text-gray-800">
+                                          {einheit.titel}
+                                        </p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Beurteilungs-Marker mit Tooltip */}
+                            {beurteilungen && !woche.istFerien && (
+                              <div className="relative group/marker flex items-center gap-2 flex-shrink-0">
+                                {beurteilungen.formativ > 0 && (
+                                  <div className="flex items-center gap-1">
+                                    <Circle className="h-4 w-4 fill-blue-500 text-blue-500" />
+                                    {beurteilungen.formativ > 1 && (
+                                      <span className="text-xs text-blue-600">
+                                        {beurteilungen.formativ}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {beurteilungen.summativ > 0 && (
+                                  <div className="flex items-center gap-1">
+                                    <Diamond className="h-4 w-4 fill-orange-500 text-orange-500" />
+                                    {beurteilungen.summativ > 1 && (
+                                      <span className="text-xs text-orange-600">
+                                        {beurteilungen.summativ}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {/* Tooltip */}
+                                <div className="hidden group-hover/marker:block absolute right-0 top-full mt-1 z-50 w-64 bg-white border rounded-lg shadow-lg p-3 text-sm">
+                                  <p className="font-medium mb-1.5">Beurteilungen KW {woche.kw}</p>
+                                  <div className="space-y-1.5">
+                                    {beurteilungen.details.map((d, i) => (
+                                      <div key={i} className="flex items-start gap-2">
+                                        {d.typ === "Formativ" ? (
+                                          <Circle className="h-3 w-3 fill-blue-500 text-blue-500 mt-0.5 flex-shrink-0" />
+                                        ) : (
+                                          <Diamond className="h-3 w-3 fill-orange-500 text-orange-500 mt-0.5 flex-shrink-0" />
+                                        )}
+                                        <div className="min-w-0">
+                                          <p className="text-xs">
+                                            <span className="font-medium">{d.typ}</span>
+                                            {" – "}{d.titel}
+                                          </p>
+                                          {d.notiz && (
+                                            <p className="text-xs text-gray-500 truncate">{d.notiz}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               </div>
                             )}
+
+                            {/* Warnung */}
+                            {hasWarning && (
+                              <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+                            )}
                           </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
+              </div>
 
-                          {/* Beurteilungs-Marker mit Tooltip */}
-                          {beurteilungen && !woche.istFerien && (
-                            <div className="relative group/marker flex items-center gap-2 flex-shrink-0">
-                              {beurteilungen.formativ > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Circle className="h-4 w-4 fill-blue-500 text-blue-500" />
-                                  {beurteilungen.formativ > 1 && (
-                                    <span className="text-xs text-blue-600">
-                                      {beurteilungen.formativ}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              {beurteilungen.summativ > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Diamond className="h-4 w-4 fill-orange-500 text-orange-500" />
-                                  {beurteilungen.summativ > 1 && (
-                                    <span className="text-xs text-orange-600">
-                                      {beurteilungen.summativ}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              {/* Tooltip */}
-                              <div className="hidden group-hover/marker:block absolute right-0 top-full mt-1 z-50 w-64 bg-white border rounded-lg shadow-lg p-3 text-sm">
-                                <p className="font-medium mb-1.5">Beurteilungen KW {woche.kw}</p>
-                                <div className="space-y-1.5">
-                                  {beurteilungen.details.map((d, i) => (
-                                    <div key={i} className="flex items-start gap-2">
-                                      {d.typ === "Formativ" ? (
-                                        <Circle className="h-3 w-3 fill-blue-500 text-blue-500 mt-0.5 flex-shrink-0" />
-                                      ) : (
-                                        <Diamond className="h-3 w-3 fill-orange-500 text-orange-500 mt-0.5 flex-shrink-0" />
-                                      )}
-                                      <div className="min-w-0">
-                                        <p className="text-xs">
-                                          <span className="font-medium">{d.typ}</span>
-                                          {" – "}{d.titel}
-                                        </p>
-                                        {d.notiz && (
-                                          <p className="text-xs text-gray-500 truncate">{d.notiz}</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Warnung */}
-                          {hasWarning && (
-                            <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Leere State */}
-          {!loading && gefilterteEinheiten.length === 0 && (
-            <Card className="border-dashed mt-4">
-              <CardContent className="py-8 text-center">
-                <p className="text-gray-500 mb-4">
-                  Noch keine Einheiten in diesem Quartal geplant
-                </p>
-                <Link
-                  href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}`}
-                >
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Erste Einheit erstellen
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+              {/* Leere State */}
+              {gefilterteEinheiten.length === 0 && (
+                <Card className="border-dashed mt-4">
+                  <CardContent className="py-8 text-center">
+                    <p className="text-gray-500 mb-4">
+                      Noch keine Einheiten in diesem Quartal geplant
+                    </p>
+                    <Link
+                      href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}`}
+                    >
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Erste Einheit erstellen
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </div>
       </DashboardLayout>
