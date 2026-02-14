@@ -28,11 +28,13 @@ import {
 } from "@/lib/data/lp21-data";
 import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema, Beurteilung } from "@/types";
 
-// Import der berechneQuartal Funktion aus den Helper-Funktionen
-function calculateQuartal(kw: number): number {
+// Quartal berechnen (von Ferien zu Ferien)
+// Q2 erweitert: Herbst→Sport (inkl. Weihnachten→Sport)
+function calculateQuartal(kw: number, sportferienEndeKW: number = 7): number {
   if (kw >= 33 && kw <= 41) return 1;
   if (kw >= 42 && kw <= 52) return 2;
-  if (kw >= 1 && kw <= 14) return 3;
+  if (kw >= 1 && kw <= sportferienEndeKW) return 2;
+  if (kw >= sportferienEndeKW + 1 && kw <= 14) return 3;
   if (kw >= 15 && kw <= 32) return 4;
   return 1;
 }
@@ -546,6 +548,7 @@ export default function EinheitFormPage() {
                   setKompetenzenIds(ids);
                   setKompetenzenNamen(namen);
                 }}
+                defaultFachbereich={fachbereichId}
               />
             </CardContent>
           </Card>

@@ -26,15 +26,19 @@ const timestampToDate = (timestamp: unknown): Date => {
 
 /**
  * Berechnet das Quartal aus einer Kalenderwoche
- * Q1: KW 33-39 (Sommer bis Herbst)
- * Q2: KW 42-51 (Herbst bis Weihnachten)
- * Q3: KW 2-14 (Winter bis Frühling)
- * Q4: KW 17-27 (Frühling bis Sommer)
+ * Lehrpersonen planen "von Ferien zu Ferien":
+ * Q1: KW 33-41 (Sommer bis Herbst)
+ * Q2: KW 42-52 + KW 1-sportEndeKW (Herbst bis Sport, inkl. Weihnachten→Sport)
+ * Q3: KW sportEndeKW+1 bis 14 (Sport bis Frühling)
+ * Q4: KW 15-27 (Frühling bis Sommer)
+ *
+ * @param sportferienEndeKW - KW in der Sportferien enden (Default: 7)
  */
-export function berechneQuartal(kalenderwoche: number): number {
+export function berechneQuartal(kalenderwoche: number, sportferienEndeKW: number = 7): number {
   if (kalenderwoche >= 33 && kalenderwoche <= 41) return 1;
   if (kalenderwoche >= 42 && kalenderwoche <= 52) return 2;
-  if (kalenderwoche >= 1 && kalenderwoche <= 14) return 3;
+  if (kalenderwoche >= 1 && kalenderwoche <= sportferienEndeKW) return 2;
+  if (kalenderwoche >= sportferienEndeKW + 1 && kalenderwoche <= 14) return 3;
   if (kalenderwoche >= 15 && kalenderwoche <= 32) return 4;
   return 1; // Fallback
 }

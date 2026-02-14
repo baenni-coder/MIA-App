@@ -118,6 +118,63 @@ export function getQuartalSchema(): QuartalSchema[] {
 }
 
 /**
+ * Berechnet die ISO-Wochennummer eines Datums
+ */
+function getISOWeekNumber(date: Date): number {
+  const d = new Date(date.getTime());
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  return (
+    1 +
+    Math.round(
+      ((d.getTime() - week1.getTime()) / 86400000 -
+        3 +
+        ((week1.getDay() + 6) % 7)) /
+        7
+    )
+  );
+}
+
+/**
+ * Findet die KW in der die Sportferien enden.
+ * Wird verwendet um die Grenze zwischen Q2 und Q3 zu bestimmen.
+ * Lehrpersonen planen "von Ferien zu Ferien":
+ * Q2 = Herbst→Sport, Q3 = Sport→Frühling
+ */
+export function findSportferienEndeKW(
+  presetId: string,
+  schuljahr: string,
+  customFerien?: SchulferienCustom[]
+): number {
+  const DEFAULT_KW = 7; // Fallback: typisch für Kanton SO
+
+  if (customFerien && customFerien.length > 0) {
+    const sport = customFerien.find((f) =>
+      f.ferienName.toLowerCase().includes("sport")
+    );
+    if (sport) {
+      const ende = parseLocalDate(sport.ende);
+      return getISOWeekNumber(ende);
+    }
+    return DEFAULT_KW;
+  }
+
+  const ferien = getFerien(presetId, schuljahr);
+  if (ferien && "sportferien" in ferien) {
+    const sportferien = ferien["sportferien"] as {
+      start: string;
+      ende: string;
+      label: string;
+    };
+    const ende = parseLocalDate(sportferien.ende);
+    return getISOWeekNumber(ende);
+  }
+
+  return DEFAULT_KW;
+}
+
+/**
  * Parst ein "YYYY-MM-DD" Datum als Lokalzeit (nicht UTC).
  * new Date("2026-02-02") wird als UTC geparst, was in CET/CEST
  * zu Fehlern bei Datums-Vergleichen führt.
@@ -280,7 +337,12 @@ export function getSchulwochenFuerSchuljahr(
   const [startYear] = schuljahr.split("/").map(Number);
   const endYear = startYear + 1;
 
-  // Q1: August - September (KW 33-39)
+  // Sportferien-Grenze bestimmen (Q2/Q3-Boundary)
+  // Lehrpersonen planen "von Ferien zu Ferien":
+  // Q2 = Herbst→Sport (inkl. Weihnachten→Sport), Q3 = Sport→Frühling
+  const sportEndeKW = findSportferienEndeKW(presetId, schuljahr, customFerien);
+
+  // Q1: Sommer→Herbst, Q2: Herbst→Weihnachten (KW 33-52)
   for (let kw = 33; kw <= 52; kw++) {
     const ferien = useCustom
       ? istFerienWocheCustom(customFerien, kw, startYear)
@@ -293,7 +355,10 @@ export function getSchulwochenFuerSchuljahr(
     });
   }
 
-  // Q3-Q4: Januar - Juli (KW 1-27)
+  // Q2b + Q3 + Q4: Januar - Juli (KW 1-27)
+  // KW 1 bis sportEndeKW → Q2 (Weihnachten→Sport)
+  // KW sportEndeKW+1 bis 14 → Q3 (Sport→Frühling)
+  // KW 15+ → Q4 (Frühling→Sommer)
   for (let kw = 1; kw <= 27; kw++) {
     const ferien = useCustom
       ? istFerienWocheCustom(customFerien, kw, endYear)
@@ -301,7 +366,7 @@ export function getSchulwochenFuerSchuljahr(
     wochen.push({
       kw,
       jahr: endYear,
-      quartal: kw <= 14 ? 3 : 4,
+      quartal: kw <= sportEndeKW ? 2 : kw <= 14 ? 3 : 4,
       ...ferien,
     });
   }

@@ -66,8 +66,8 @@
     "schuljahresEnde": "Anfang Juli",
     "quartalEinteilung": [
       { "quartal": 1, "label": "Q1 – Sommer bis Herbst", "typischeWochen": "KW 33–39", "beschreibung": "Schuljahresstart bis Herbstferien" },
-      { "quartal": 2, "label": "Q2 – Herbst bis Weihnachten", "typischeWochen": "KW 42–51", "beschreibung": "Nach Herbstferien bis Weihnachtsferien" },
-      { "quartal": 3, "label": "Q3 – Winter bis Frühling", "typischeWochen": "KW 2–14", "beschreibung": "Nach Weihnachtsferien bis Frühlingsferien (inkl. Sportferien)" },
+      { "quartal": 2, "label": "Q2 – Herbst bis Sport", "typischeWochen": "KW 42–7", "beschreibung": "Nach Herbstferien bis Sportferien (inkl. Weihnachtsferien)" },
+      { "quartal": 3, "label": "Q3 – Sport bis Frühling", "typischeWochen": "KW 8–14", "beschreibung": "Nach Sportferien bis Frühlingsferien" },
       { "quartal": 4, "label": "Q4 – Frühling bis Sommer", "typischeWochen": "KW 17–27", "beschreibung": "Nach Frühlingsferien bis Sommerferien" }
     ],
     "totalSchulwochen": 38,
