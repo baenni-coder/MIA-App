@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -24,16 +24,26 @@ interface KompetenzPickerProps {
   selectedKompetenzen: string[]; // Array von Kompetenz-IDs
   onKompetenzenChange: (kompetenzenIds: string[], kompetenzenNamen: string[]) => void;
   disabled?: boolean;
+  defaultFachbereich?: string; // Fachbereich aus dem Einheit-Formular
 }
 
 export default function KompetenzPicker({
   selectedKompetenzen,
   onKompetenzenChange,
   disabled = false,
+  defaultFachbereich,
 }: KompetenzPickerProps) {
-  const [selectedFachbereich, setSelectedFachbereich] = useState<string>("");
+  const [selectedFachbereich, setSelectedFachbereich] = useState<string>(defaultFachbereich || "");
   const [selectedKompetenzbereich, setSelectedKompetenzbereich] = useState<string>("");
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Fachbereich aus Formular synchronisieren
+  useEffect(() => {
+    if (defaultFachbereich && defaultFachbereich !== selectedFachbereich) {
+      setSelectedFachbereich(defaultFachbereich);
+      setSelectedKompetenzbereich("");
+    }
+  }, [defaultFachbereich]);
 
   // Alle Fachbereiche laden
   const fachbereiche = useMemo(() => getAlleFachbereiche(), []);

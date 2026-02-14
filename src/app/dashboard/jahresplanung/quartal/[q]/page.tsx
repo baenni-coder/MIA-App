@@ -27,6 +27,12 @@ import {
   getMondayOfWeek,
   getFridayOfWeek,
 } from "@/lib/data/lp21-data";
+
+// Labels für Q2-Abschnitte
+const Q2_ABSCHNITT_LABELS: Record<string, { label: string; beschreibung: string }> = {
+  a: { label: "Herbst → Weihnachten", beschreibung: "Herbstferien bis Weihnachtsferien" },
+  b: { label: "Weihnachten → Sport", beschreibung: "Weihnachtsferien bis Sportferien" },
+};
 import type { JahresplanEinheit, JahresplanStatus, SchulferienCustom } from "@/types";
 
 // Status-Farben
@@ -43,6 +49,7 @@ export default function QuartalsansichtPage() {
 
   const quartal = parseInt(params.q as string) || 1;
   const schuljahr = searchParams.get("schuljahr") || getAktuellesSchuljahr();
+  const abschnitt = searchParams.get("abschnitt") as "a" | "b" | null;
 
   const [einheiten, setEinheiten] = useState<JahresplanEinheit[]>([]);
   const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
@@ -52,15 +59,46 @@ export default function QuartalsansichtPage() {
   const quartalSchema = useMemo(() => getQuartalSchema(), []);
   const quartalInfo = quartalSchema.find((q) => q.quartal === quartal);
 
+  // Schuljahr-Jahre berechnen (für Q2-Abschnitt-Filterung)
+  const [startYear, endYear] = useMemo(() => {
+    const [s] = schuljahr.split("/").map(Number);
+    return [s, s + 1];
+  }, [schuljahr]);
+
+  // Header-Titel: Bei Q2 mit Abschnitt speziellen Titel zeigen
+  const headerTitle = useMemo(() => {
+    if (quartal === 2 && abschnitt && Q2_ABSCHNITT_LABELS[abschnitt]) {
+      return Q2_ABSCHNITT_LABELS[abschnitt].label;
+    }
+    return quartalInfo?.label || `Quartal ${quartal}`;
+  }, [quartal, abschnitt, quartalInfo]);
+
+  const headerSubtitle = useMemo(() => {
+    if (quartal === 2 && abschnitt && Q2_ABSCHNITT_LABELS[abschnitt]) {
+      return `${schuljahr} · ${Q2_ABSCHNITT_LABELS[abschnitt].beschreibung}`;
+    }
+    return `${schuljahr} · ${quartalInfo?.typischeWochen || ""}`;
+  }, [quartal, abschnitt, quartalInfo, schuljahr]);
+
   // Wochen für dieses Quartal (mit Custom-Ferien wenn vorhanden)
+  // Bei Q2 mit abschnitt: nur Wochen aus dem jeweiligen Halbjahr anzeigen
   const quartalWochen = useMemo(() => {
     const alleWochen = getSchulwochenFuerSchuljahr(
       "SO_BeLoSe",
       schuljahr,
       customFerien.length > 0 ? customFerien : undefined
     );
-    return alleWochen.filter((w) => w.quartal === quartal);
-  }, [schuljahr, quartal, customFerien]);
+    let wochen = alleWochen.filter((w) => w.quartal === quartal);
+
+    // Q2 mit Abschnitt: nach Jahr filtern
+    if (quartal === 2 && abschnitt === "a") {
+      wochen = wochen.filter((w) => w.jahr === startYear);
+    } else if (quartal === 2 && abschnitt === "b") {
+      wochen = wochen.filter((w) => w.jahr === endYear);
+    }
+
+    return wochen;
+  }, [schuljahr, quartal, customFerien, abschnitt, startYear, endYear]);
 
   // Einheiten und Custom-Ferien laden
   useEffect(() => {
@@ -101,11 +139,22 @@ export default function QuartalsansichtPage() {
     fetchData();
   }, [user, schuljahr, quartal]);
 
+  // Einheiten filtern (bei Q2-Abschnitt)
+  const gefilterteEinheiten = useMemo(() => {
+    if (quartal !== 2 || !abschnitt) return einheiten;
+    if (abschnitt === "a") {
+      // Herbst→Weihnachten: Einheiten die in KW 42-52 starten
+      return einheiten.filter((e) => e.zeitraumStart >= 42);
+    }
+    // Weihnachten→Sport: Einheiten die in KW 1-7 starten (Neujahrwochen)
+    return einheiten.filter((e) => e.zeitraumStart < 42);
+  }, [einheiten, quartal, abschnitt]);
+
   // Einheiten pro Woche gruppieren
   const einheitenProWoche = useMemo(() => {
     const map = new Map<number, JahresplanEinheit[]>();
 
-    einheiten.forEach((einheit) => {
+    gefilterteEinheiten.forEach((einheit) => {
       for (let kw = einheit.zeitraumStart; kw <= einheit.zeitraumEnde; kw++) {
         const current = map.get(kw) || [];
         current.push(einheit);
@@ -114,7 +163,7 @@ export default function QuartalsansichtPage() {
     });
 
     return map;
-  }, [einheiten]);
+  }, [gefilterteEinheiten]);
 
   // Beurteilungen pro Woche mit Details (für Tooltips)
   const beurteilungenProWoche = useMemo(() => {
@@ -124,7 +173,7 @@ export default function QuartalsansichtPage() {
       details: Array<{ typ: string; titel: string; notiz?: string }>;
     }>();
 
-    einheiten.forEach((einheit) => {
+    gefilterteEinheiten.forEach((einheit) => {
       // Neue beurteilungen-Array nutzen
       if (einheit.beurteilungen && einheit.beurteilungen.length > 0) {
         for (const b of einheit.beurteilungen) {
@@ -155,7 +204,7 @@ export default function QuartalsansichtPage() {
     });
 
     return map;
-  }, [einheiten]);
+  }, [gefilterteEinheiten]);
 
   const exportPDF = async () => {
     setExporting(true);
@@ -168,16 +217,17 @@ export default function QuartalsansichtPage() {
           schuljahr={schuljahr}
           quartal={quartal}
           wochen={quartalWochen}
-          einheiten={einheiten}
+          einheiten={gefilterteEinheiten}
           lehrerName={userProfile && "name" in userProfile ? userProfile.name : undefined}
           klasse={userProfile && "stufe" in userProfile ? userProfile.stufe : undefined}
         />
       ).toBlob();
 
+      const abschnittSuffix = abschnitt ? abschnitt : "";
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Quartalsplanung-Q${quartal}-${schuljahr.replace("/", "-")}.pdf`;
+      link.download = `Quartalsplanung-Q${quartal}${abschnittSuffix}-${schuljahr.replace("/", "-")}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -204,10 +254,10 @@ export default function QuartalsansichtPage() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold">
-                  {quartalInfo?.label || `Quartal ${quartal}`}
+                  {headerTitle}
                 </h1>
                 <p className="text-gray-600">
-                  {schuljahr} · {quartalInfo?.typischeWochen}
+                  {headerSubtitle}
                 </p>
               </div>
             </div>
@@ -405,7 +455,7 @@ export default function QuartalsansichtPage() {
           )}
 
           {/* Leere State */}
-          {!loading && einheiten.length === 0 && (
+          {!loading && gefilterteEinheiten.length === 0 && (
             <Card className="border-dashed mt-4">
               <CardContent className="py-8 text-center">
                 <p className="text-gray-500 mb-4">

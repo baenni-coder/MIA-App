@@ -241,7 +241,7 @@ export default function WochenansichtPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
-                href={`/dashboard/jahresplanung/quartal/${kw >= 33 && kw <= 41 ? 1 : kw >= 42 ? 2 : kw <= 14 ? 3 : 4}?schuljahr=${schuljahr}`}
+                href={`/dashboard/jahresplanung/quartal/${kw >= 33 && kw <= 41 ? 1 : kw >= 42 || kw <= 7 ? 2 : kw <= 14 ? 3 : 4}?schuljahr=${schuljahr}`}
               >
                 <Button variant="ghost" size="icon">
                   <ArrowLeft className="h-5 w-5" />

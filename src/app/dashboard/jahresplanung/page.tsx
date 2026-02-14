@@ -34,16 +34,17 @@ import Link from "next/link";
 import {
   getAktuellesSchuljahr,
   getSchuljahrListe,
-  getQuartalSchema,
   getSchulwochenFuerSchuljahr,
   getAlleFachbereiche,
 } from "@/lib/data/lp21-data";
 import type { JahresplanEinheit, SchulferienCustom } from "@/types";
 
-// Typ für Quartal-Daten
-interface QuartalData {
-  quartal: number;
+// Typ für Planungsperioden (5 Perioden statt 4 Quartale)
+interface PlanungsPeriode {
+  id: string; // z.B. "q1", "q2a", "q2b", "q3", "q4"
+  quartal: number; // Quartal-Nummer (1-4) für API-Filter
   label: string;
+  abschnitt?: "a" | "b"; // Für Q2-Teilung
   einheiten: JahresplanEinheit[];
   wochenCount: number;
   ferienWochenCount: number;
@@ -63,7 +64,6 @@ export default function JahresplanungPage() {
 
   const schuljahrListe = useMemo(() => getSchuljahrListe(4, 1), []);
   const copySchuljahrListe = useMemo(() => getSchuljahrListe(1, 6), []);
-  const quartalSchema = useMemo(() => getQuartalSchema(), []);
   const fachbereiche = useMemo(() => getAlleFachbereiche(), []);
 
   // Wochen für das Schuljahr berechnen (mit Custom-Ferien wenn vorhanden)
@@ -115,21 +115,69 @@ export default function JahresplanungPage() {
     fetchData();
   }, [user, schuljahr]);
 
-  // Quartale mit Einheiten gruppieren
-  const quartaleData: QuartalData[] = useMemo(() => {
-    return quartalSchema.map((qs) => {
-      const quartalEinheiten = einheiten.filter((e) => e.quartal === qs.quartal);
-      const quartalWochen = schulwochen.filter((w) => w.quartal === qs.quartal);
+  // Schuljahr-Start- und Endjahr
+  const [startYear, endYear] = useMemo(() => {
+    const [s] = schuljahr.split("/").map(Number);
+    return [s, s + 1];
+  }, [schuljahr]);
 
-      return {
-        quartal: qs.quartal,
-        label: qs.label,
-        einheiten: quartalEinheiten,
-        wochenCount: quartalWochen.filter((w) => !w.istFerien).length,
-        ferienWochenCount: quartalWochen.filter((w) => w.istFerien).length,
-      };
-    });
-  }, [quartalSchema, einheiten, schulwochen]);
+  // 5 Planungsperioden (von Ferien zu Ferien)
+  const periodenData: PlanungsPeriode[] = useMemo(() => {
+    // Q2-Wochen aufteilen: startYear-Wochen = Q2a, endYear-Wochen = Q2b
+    const q2Wochen = schulwochen.filter((w) => w.quartal === 2);
+    const q2aWochen = q2Wochen.filter((w) => w.jahr === startYear);
+    const q2bWochen = q2Wochen.filter((w) => w.jahr === endYear);
+
+    // Einheiten für Q2 aufteilen nach zeitraumStart
+    const q2Einheiten = einheiten.filter((e) => e.quartal === 2);
+    const q2aEinheiten = q2Einheiten.filter((e) => e.zeitraumStart >= 42);
+    const q2bEinheiten = q2Einheiten.filter((e) => e.zeitraumStart < 42);
+
+    return [
+      {
+        id: "q1",
+        quartal: 1,
+        label: "Sommer → Herbst",
+        einheiten: einheiten.filter((e) => e.quartal === 1),
+        wochenCount: schulwochen.filter((w) => w.quartal === 1 && !w.istFerien).length,
+        ferienWochenCount: schulwochen.filter((w) => w.quartal === 1 && w.istFerien).length,
+      },
+      {
+        id: "q2a",
+        quartal: 2,
+        abschnitt: "a" as const,
+        label: "Herbst → Weihnachten",
+        einheiten: q2aEinheiten,
+        wochenCount: q2aWochen.filter((w) => !w.istFerien).length,
+        ferienWochenCount: q2aWochen.filter((w) => w.istFerien).length,
+      },
+      {
+        id: "q2b",
+        quartal: 2,
+        abschnitt: "b" as const,
+        label: "Weihnachten → Sport",
+        einheiten: q2bEinheiten,
+        wochenCount: q2bWochen.filter((w) => !w.istFerien).length,
+        ferienWochenCount: q2bWochen.filter((w) => w.istFerien).length,
+      },
+      {
+        id: "q3",
+        quartal: 3,
+        label: "Sport → Frühling",
+        einheiten: einheiten.filter((e) => e.quartal === 3),
+        wochenCount: schulwochen.filter((w) => w.quartal === 3 && !w.istFerien).length,
+        ferienWochenCount: schulwochen.filter((w) => w.quartal === 3 && w.istFerien).length,
+      },
+      {
+        id: "q4",
+        quartal: 4,
+        label: "Frühling → Sommer",
+        einheiten: einheiten.filter((e) => e.quartal === 4),
+        wochenCount: schulwochen.filter((w) => w.quartal === 4 && !w.istFerien).length,
+        ferienWochenCount: schulwochen.filter((w) => w.quartal === 4 && w.istFerien).length,
+      },
+    ];
+  }, [einheiten, schulwochen, startYear, endYear]);
 
   // Fachbereich-Verteilung berechnen
   const fachbereichVerteilung = useMemo(() => {
@@ -338,67 +386,70 @@ export default function JahresplanungPage() {
             </Card>
           )}
 
-          {/* Quartale */}
+          {/* Planungsperioden (5 Kacheln: von Ferien zu Ferien) */}
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {quartaleData.map((quartal) => (
-                <Link
-                  key={quartal.quartal}
-                  href={`/dashboard/jahresplanung/quartal/${quartal.quartal}?schuljahr=${schuljahr}`}
-                >
-                  <Card className="hover:border-blue-500 hover:shadow-md transition-all cursor-pointer h-full">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg flex items-center justify-between">
-                        <span>{quartal.label}</span>
-                        <ChevronRight className="h-5 w-5 text-gray-400" />
-                      </CardTitle>
-                      <p className="text-sm text-gray-500">
-                        {quartal.wochenCount} Schulwochen
-                        {quartal.ferienWochenCount > 0 && (
-                          <span className="text-gray-400">
-                            {" "}
-                            · {quartal.ferienWochenCount} Ferienwochen
-                          </span>
-                        )}
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      {quartal.einheiten.length === 0 ? (
-                        <p className="text-sm text-gray-400 italic">
-                          Noch keine Einheiten geplant
-                        </p>
-                      ) : (
-                        <div className="space-y-2">
-                          {quartal.einheiten.slice(0, 4).map((einheit) => (
-                            <div
-                              key={einheit.id}
-                              className="flex items-center gap-2 text-sm"
-                            >
-                              <div
-                                className="w-2 h-2 rounded-full flex-shrink-0"
-                                style={{
-                                  backgroundColor:
-                                    einheit.fachbereichFarbe || "#6b7280",
-                                }}
-                              />
-                              <span className="truncate">{einheit.titel}</span>
-                            </div>
-                          ))}
-                          {quartal.einheiten.length > 4 && (
-                            <p className="text-xs text-gray-400">
-                              +{quartal.einheiten.length - 4} weitere
-                            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {periodenData.map((periode) => {
+                const href = periode.abschnitt
+                  ? `/dashboard/jahresplanung/quartal/${periode.quartal}?schuljahr=${schuljahr}&abschnitt=${periode.abschnitt}`
+                  : `/dashboard/jahresplanung/quartal/${periode.quartal}?schuljahr=${schuljahr}`;
+
+                return (
+                  <Link key={periode.id} href={href}>
+                    <Card className="hover:border-blue-500 hover:shadow-md transition-all cursor-pointer h-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center justify-between">
+                          <span>{periode.label}</span>
+                          <ChevronRight className="h-5 w-5 text-gray-400" />
+                        </CardTitle>
+                        <p className="text-sm text-gray-500">
+                          {periode.wochenCount} Schulwochen
+                          {periode.ferienWochenCount > 0 && (
+                            <span className="text-gray-400">
+                              {" "}
+                              · {periode.ferienWochenCount} Ferien
+                            </span>
                           )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        {periode.einheiten.length === 0 ? (
+                          <p className="text-sm text-gray-400 italic">
+                            Keine Einheiten
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {periode.einheiten.slice(0, 3).map((einheit) => (
+                              <div
+                                key={einheit.id}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <div
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{
+                                    backgroundColor:
+                                      einheit.fachbereichFarbe || "#6b7280",
+                                  }}
+                                />
+                                <span className="truncate">{einheit.titel}</span>
+                              </div>
+                            ))}
+                            {periode.einheiten.length > 3 && (
+                              <p className="text-xs text-gray-400">
+                                +{periode.einheiten.length - 3} weitere
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
           )}
 
