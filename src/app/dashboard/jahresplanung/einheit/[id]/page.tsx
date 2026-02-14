@@ -68,6 +68,7 @@ export default function EinheitFormPage() {
   const initialQuartal = searchParams.get("quartal")
     ? parseInt(searchParams.get("quartal")!)
     : undefined;
+  const initialFachbereichId = searchParams.get("fachbereichId") || "";
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -75,7 +76,7 @@ export default function EinheitFormPage() {
 
   // Formular-State
   const [titel, setTitel] = useState("");
-  const [fachbereichId, setFachbereichId] = useState("");
+  const [fachbereichId, setFachbereichId] = useState(initialFachbereichId);
   const [lernziele, setLernziele] = useState("");
   const [kompetenzenIds, setKompetenzenIds] = useState<string[]>([]);
   const [kompetenzenNamen, setKompetenzenNamen] = useState<string[]>([]);
