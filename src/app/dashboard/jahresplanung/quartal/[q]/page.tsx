@@ -116,25 +116,39 @@ export default function QuartalsansichtPage() {
     return map;
   }, [einheiten]);
 
-  // Beurteilungen pro Woche zählen (nur in zugewiesener KW)
+  // Beurteilungen pro Woche mit Details (für Tooltips)
   const beurteilungenProWoche = useMemo(() => {
-    const map = new Map<number, { formativ: number; summativ: number }>();
+    const map = new Map<number, {
+      formativ: number;
+      summativ: number;
+      details: Array<{ typ: string; titel: string; notiz?: string }>;
+    }>();
 
     einheiten.forEach((einheit) => {
       // Neue beurteilungen-Array nutzen
       if (einheit.beurteilungen && einheit.beurteilungen.length > 0) {
         for (const b of einheit.beurteilungen) {
-          const current = map.get(b.kalenderwoche) || { formativ: 0, summativ: 0 };
+          const current = map.get(b.kalenderwoche) || { formativ: 0, summativ: 0, details: [] };
           if (b.typ === "formativ") current.formativ++;
           else if (b.typ === "summativ") current.summativ++;
+          current.details.push({
+            typ: b.typ === "formativ" ? "Formativ" : "Summativ",
+            titel: einheit.titel,
+            notiz: b.notiz,
+          });
           map.set(b.kalenderwoche, current);
         }
       } else if (einheit.beurteilungstyp && einheit.beurteilungstyp !== "keine") {
         // Legacy-Fallback
         for (let kw = einheit.zeitraumStart; kw <= einheit.zeitraumEnde; kw++) {
-          const current = map.get(kw) || { formativ: 0, summativ: 0 };
+          const current = map.get(kw) || { formativ: 0, summativ: 0, details: [] };
           if (einheit.beurteilungstyp === "formativ") current.formativ++;
           else if (einheit.beurteilungstyp === "summativ") current.summativ++;
+          current.details.push({
+            typ: einheit.beurteilungstyp === "formativ" ? "Formativ" : "Summativ",
+            titel: einheit.titel,
+            notiz: einheit.beurteilungsNotiz,
+          });
           map.set(kw, current);
         }
       }
@@ -327,9 +341,9 @@ export default function QuartalsansichtPage() {
                             )}
                           </div>
 
-                          {/* Beurteilungs-Marker */}
+                          {/* Beurteilungs-Marker mit Tooltip */}
                           {beurteilungen && !woche.istFerien && (
-                            <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="relative group/marker flex items-center gap-2 flex-shrink-0">
                               {beurteilungen.formativ > 0 && (
                                 <div className="flex items-center gap-1">
                                   <Circle className="h-4 w-4 fill-blue-500 text-blue-500" />
@@ -350,6 +364,30 @@ export default function QuartalsansichtPage() {
                                   )}
                                 </div>
                               )}
+                              {/* Tooltip */}
+                              <div className="hidden group-hover/marker:block absolute right-0 top-full mt-1 z-50 w-64 bg-white border rounded-lg shadow-lg p-3 text-sm">
+                                <p className="font-medium mb-1.5">Beurteilungen KW {woche.kw}</p>
+                                <div className="space-y-1.5">
+                                  {beurteilungen.details.map((d, i) => (
+                                    <div key={i} className="flex items-start gap-2">
+                                      {d.typ === "Formativ" ? (
+                                        <Circle className="h-3 w-3 fill-blue-500 text-blue-500 mt-0.5 flex-shrink-0" />
+                                      ) : (
+                                        <Diamond className="h-3 w-3 fill-orange-500 text-orange-500 mt-0.5 flex-shrink-0" />
+                                      )}
+                                      <div className="min-w-0">
+                                        <p className="text-xs">
+                                          <span className="font-medium">{d.typ}</span>
+                                          {" – "}{d.titel}
+                                        </p>
+                                        {d.notiz && (
+                                          <p className="text-xs text-gray-500 truncate">{d.notiz}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
                           )}
 
