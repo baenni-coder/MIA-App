@@ -980,6 +980,9 @@ export interface JahresplanEinheit {
   // MIA-Thema Verknüpfung
   linkedMiaThemeId?: string; // Verknüpftes MIA-Thema (Airtable oder Custom Theme ID)
   linkedMiaThemeName?: string; // Name des verknüpften Themas
+  // Schul-Dateien Verknüpfung
+  linkedFileIds?: string[]; // Verknüpfte Schul-Dateien (Firestore IDs)
+  linkedFileNames?: string[]; // Dateinamen für Anzeige
   createdAt: Date;
   updatedAt: Date;
 }

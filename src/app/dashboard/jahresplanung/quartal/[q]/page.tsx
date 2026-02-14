@@ -53,6 +53,7 @@ export default function QuartalsansichtPage() {
 
   const [einheiten, setEinheiten] = useState<JahresplanEinheit[]>([]);
   const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
+  const [klassenBezeichnung, setKlassenBezeichnung] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
@@ -109,7 +110,7 @@ export default function QuartalsansichtPage() {
         setLoading(true);
         const token = await user.getIdToken();
 
-        const [einheitenRes, ferienRes] = await Promise.all([
+        const [einheitenRes, ferienRes, klassenRes] = await Promise.all([
           fetch(
             `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}&quartal=${quartal}`,
             { headers: { Authorization: `Bearer ${token}` } }
@@ -118,6 +119,9 @@ export default function QuartalsansichtPage() {
             `/api/jahresplanung/ferien?schuljahr=${encodeURIComponent(schuljahr)}`,
             { headers: { Authorization: `Bearer ${token}` } }
           ),
+          fetch(`/api/classes`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
         if (einheitenRes.ok) {
@@ -128,6 +132,14 @@ export default function QuartalsansichtPage() {
         if (ferienRes.ok) {
           const data = await ferienRes.json();
           setCustomFerien(data.ferien || []);
+        }
+
+        if (klassenRes.ok) {
+          const data = await klassenRes.json();
+          const klassen = data.classes || [];
+          if (klassen.length > 0) {
+            setKlassenBezeichnung(klassen[0].displayName || klassen[0].name || "");
+          }
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -219,7 +231,7 @@ export default function QuartalsansichtPage() {
           wochen={quartalWochen}
           einheiten={gefilterteEinheiten}
           lehrerName={userProfile && "name" in userProfile ? userProfile.name : undefined}
-          klasse={userProfile && "stufe" in userProfile ? userProfile.stufe : undefined}
+          klasse={klassenBezeichnung || (userProfile && "stufe" in userProfile ? userProfile.stufe : undefined)}
         />
       ).toBlob();
 

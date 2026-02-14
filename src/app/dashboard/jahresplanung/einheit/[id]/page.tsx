@@ -18,9 +18,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save, Trash2, Plus, X, BookOpen, LinkIcon, Circle, Diamond } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Save, Trash2, Plus, X, BookOpen, LinkIcon, Circle, Diamond, Paperclip, FileText, Upload, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import KompetenzPicker from "@/components/jahresplanung/KompetenzPicker";
+import SchoolFileUpload from "@/components/SchoolFileUpload";
+import type { SchoolFile } from "@/types";
 import {
   getAktuellesSchuljahr,
   getAlleFachbereiche,
@@ -37,6 +45,12 @@ function calculateQuartal(kw: number, sportferienEndeKW: number = 7): number {
   if (kw >= sportferienEndeKW + 1 && kw <= 14) return 3;
   if (kw >= 15 && kw <= 32) return 4;
   return 1;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function EinheitFormPage() {
@@ -78,6 +92,14 @@ export default function EinheitFormPage() {
   const [linkedMiaThemeName, setLinkedMiaThemeName] = useState<string>("");
   const [miaThemen, setMiaThemen] = useState<Thema[]>([]);
   const [loadingMiaThemen, setLoadingMiaThemen] = useState(false);
+
+  // Schul-Dateien Verknüpfung
+  const [linkedFileIds, setLinkedFileIds] = useState<string[]>([]);
+  const [linkedFileNames, setLinkedFileNames] = useState<string[]>([]);
+  const [showFilePicker, setShowFilePicker] = useState(false);
+  const [availableFiles, setAvailableFiles] = useState<Array<{ id: string; name: string; contentType: string; size: number; uploadedByName: string; storageUrl: string }>>([]);
+  const [filePickerTab, setFilePickerTab] = useState<"browse" | "upload">("browse");
+  const [loadingFiles, setLoadingFiles] = useState(false);
 
   const fachbereiche = useMemo(() => getAlleFachbereiche(), []);
 
@@ -156,6 +178,72 @@ export default function EinheitFormPage() {
     }
   };
 
+  // Schul-Dateien laden
+  const fetchAvailableFiles = async () => {
+    if (!user) return;
+    try {
+      setLoadingFiles(true);
+      const token = await user.getIdToken();
+      const response = await fetch("/api/school-files", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableFiles(
+          (data.files || []).map((f: SchoolFile) => ({
+            id: f.id,
+            name: f.name,
+            contentType: f.contentType,
+            size: f.size,
+            uploadedByName: f.uploadedByName,
+            storageUrl: f.storageUrl,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching school files:", error);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  // Datei verknüpfen / entfernen
+  const toggleFileLink = (fileId: string, fileName: string) => {
+    if (linkedFileIds.includes(fileId)) {
+      const idx = linkedFileIds.indexOf(fileId);
+      setLinkedFileIds(linkedFileIds.filter((_, i) => i !== idx));
+      setLinkedFileNames(linkedFileNames.filter((_, i) => i !== idx));
+    } else {
+      setLinkedFileIds([...linkedFileIds, fileId]);
+      setLinkedFileNames([...linkedFileNames, fileName]);
+    }
+  };
+
+  const removeLinkedFile = (index: number) => {
+    setLinkedFileIds(linkedFileIds.filter((_, i) => i !== index));
+    setLinkedFileNames(linkedFileNames.filter((_, i) => i !== index));
+  };
+
+  // Datei-Upload abgeschlossen
+  const handleFileUploadComplete = (file: SchoolFile) => {
+    // Datei direkt verknüpfen
+    setLinkedFileIds([...linkedFileIds, file.id]);
+    setLinkedFileNames([...linkedFileNames, file.name]);
+    // Auch zur Liste verfügbarer Dateien hinzufügen
+    setAvailableFiles([
+      ...availableFiles,
+      {
+        id: file.id,
+        name: file.name,
+        contentType: file.contentType,
+        size: file.size,
+        uploadedByName: file.uploadedByName,
+        storageUrl: file.storageUrl,
+      },
+    ]);
+    setShowFilePicker(false);
+  };
+
   // Bestehende Einheit laden
   useEffect(() => {
     async function fetchEinheit() {
@@ -188,6 +276,10 @@ export default function EinheitFormPage() {
           if (einheit.linkedMiaThemeId) {
             setLinkedMiaThemeId(einheit.linkedMiaThemeId);
             setLinkedMiaThemeName(einheit.linkedMiaThemeName || "");
+          }
+          if (einheit.linkedFileIds) {
+            setLinkedFileIds(einheit.linkedFileIds);
+            setLinkedFileNames(einheit.linkedFileNames || []);
           }
         } else if (response.status === 404) {
           alert("Einheit nicht gefunden");
@@ -249,6 +341,10 @@ export default function EinheitFormPage() {
         body.linkedMiaThemeId = null;
         body.linkedMiaThemeName = null;
       }
+
+      // Schul-Dateien Verknüpfung
+      body.linkedFileIds = linkedFileIds;
+      body.linkedFileNames = linkedFileNames;
 
       const url = isNew
         ? "/api/jahresplanung"
@@ -735,6 +831,168 @@ export default function EinheitFormPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Schul-Dateien */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Paperclip className="h-5 w-5" />
+                  Schul-Dateien
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFilePickerTab("browse");
+                    fetchAvailableFiles();
+                    setShowFilePicker(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Datei verknüpfen
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {linkedFileIds.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">
+                  Keine Dateien verknüpft
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {linkedFileNames.map((name, i) => (
+                    <Badge
+                      key={linkedFileIds[i]}
+                      variant="secondary"
+                      className="flex items-center gap-1 px-2 py-1"
+                    >
+                      <FileText className="h-3 w-3 flex-shrink-0" />
+                      <span className="max-w-[200px] truncate">{name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeLinkedFile(i)}
+                        className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Schul-Dateien Dialog */}
+          <Dialog open={showFilePicker} onOpenChange={setShowFilePicker}>
+            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Schul-Dateien verknüpfen</DialogTitle>
+              </DialogHeader>
+
+              {/* Tab-Buttons */}
+              <div className="flex gap-2 border-b pb-2">
+                <Button
+                  type="button"
+                  variant={filePickerTab === "browse" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilePickerTab("browse")}
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Vorhandene Dateien
+                </Button>
+                <Button
+                  type="button"
+                  variant={filePickerTab === "upload" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilePickerTab("upload")}
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  Neue Datei hochladen
+                </Button>
+              </div>
+
+              {filePickerTab === "browse" ? (
+                <div className="space-y-2">
+                  {loadingFiles ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+                    </div>
+                  ) : availableFiles.length === 0 ? (
+                    <div className="text-center py-8 text-sm text-gray-500">
+                      <FileText className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <p>Keine Schul-Dateien vorhanden.</p>
+                      <p className="mt-1">
+                        Laden Sie zuerst eine Datei hoch oder erstellen Sie eine unter{" "}
+                        <Link href="/dashboard/dateien" className="text-blue-600 underline">
+                          Schul-Dateien
+                        </Link>.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-500">
+                        Wählen Sie Dateien aus, die mit dieser Einheit verknüpft werden sollen.
+                      </p>
+                      {availableFiles.map((file) => {
+                        const isLinked = linkedFileIds.includes(file.id);
+                        return (
+                          <div
+                            key={file.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                              isLinked
+                                ? "bg-blue-50 border-blue-200"
+                                : "hover:bg-gray-50 border-gray-200"
+                            }`}
+                            onClick={() => toggleFileLink(file.id, file.name)}
+                          >
+                            <Checkbox
+                              checked={isLinked}
+                              onCheckedChange={() => toggleFileLink(file.id, file.name)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {file.uploadedByName} · {formatFileSize(file.size)}
+                              </p>
+                            </div>
+                            {file.storageUrl && (
+                              <a
+                                href={file.storageUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-gray-400 hover:text-blue-600"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+
+                  <div className="flex justify-end pt-2">
+                    <Button
+                      type="button"
+                      onClick={() => setShowFilePicker(false)}
+                    >
+                      Fertig
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <SchoolFileUpload
+                  onUploadComplete={handleFileUploadComplete}
+                  onCancel={() => setFilePickerTab("browse")}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Weitere Optionen */}
           <Card>

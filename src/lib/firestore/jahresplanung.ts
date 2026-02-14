@@ -98,6 +98,8 @@ function docToEinheit(
     isShared: data.isShared || false,
     linkedMiaThemeId: data.linkedMiaThemeId || undefined,
     linkedMiaThemeName: data.linkedMiaThemeName || undefined,
+    linkedFileIds: data.linkedFileIds || undefined,
+    linkedFileNames: data.linkedFileNames || undefined,
     createdAt: timestampToDate(data.createdAt),
     updatedAt: timestampToDate(data.updatedAt),
   };
@@ -131,6 +133,8 @@ export async function createJahresplanEinheit(data: {
   farbe?: string;
   linkedMiaThemeId?: string | null;
   linkedMiaThemeName?: string | null;
+  linkedFileIds?: string[];
+  linkedFileNames?: string[];
 }): Promise<string> {
   try {
     const adminDb = getAdminDb();
@@ -164,6 +168,8 @@ export async function createJahresplanEinheit(data: {
       isShared: false,
       ...(data.linkedMiaThemeId ? { linkedMiaThemeId: data.linkedMiaThemeId } : {}),
       ...(data.linkedMiaThemeName ? { linkedMiaThemeName: data.linkedMiaThemeName } : {}),
+      ...(data.linkedFileIds && data.linkedFileIds.length > 0 ? { linkedFileIds: data.linkedFileIds } : {}),
+      ...(data.linkedFileNames && data.linkedFileNames.length > 0 ? { linkedFileNames: data.linkedFileNames } : {}),
       createdAt: now,
       updatedAt: now,
     };
