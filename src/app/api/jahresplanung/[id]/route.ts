@@ -121,6 +121,8 @@ export async function PUT(
     if (body.isShared !== undefined) updateData.isShared = body.isShared;
     if (body.linkedMiaThemeId !== undefined) updateData.linkedMiaThemeId = body.linkedMiaThemeId;
     if (body.linkedMiaThemeName !== undefined) updateData.linkedMiaThemeName = body.linkedMiaThemeName;
+    if (body.linkedFileIds !== undefined) updateData.linkedFileIds = body.linkedFileIds;
+    if (body.linkedFileNames !== undefined) updateData.linkedFileNames = body.linkedFileNames;
 
     await updateJahresplanEinheit(id, updateData);
 

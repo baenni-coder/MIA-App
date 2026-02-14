@@ -134,6 +134,8 @@ export async function POST(request: NextRequest) {
       farbe: body.farbe,
       linkedMiaThemeId: body.linkedMiaThemeId,
       linkedMiaThemeName: body.linkedMiaThemeName,
+      linkedFileIds: body.linkedFileIds,
+      linkedFileNames: body.linkedFileNames,
     });
 
     return NextResponse.json({ id }, { status: 201 });

@@ -25,6 +25,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Paperclip,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -477,6 +478,24 @@ export default function WochenansichtPage() {
                                 </>
                               )}
                             </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Verknüpfte Schul-Dateien */}
+                    {einheit.linkedFileNames && einheit.linkedFileNames.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                          <Paperclip className="h-3.5 w-3.5" />
+                          Verknüpfte Dateien
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {einheit.linkedFileNames.map((name, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">
+                              <FileText className="h-3 w-3 mr-1" />
+                              {name}
+                            </Badge>
                           ))}
                         </div>
                       </div>
