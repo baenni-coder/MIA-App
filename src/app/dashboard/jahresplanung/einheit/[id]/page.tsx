@@ -33,6 +33,7 @@ import {
   getAktuellesSchuljahr,
   getAlleFachbereiche,
   getFachbereichById,
+  getQuartalSchema,
 } from "@/lib/data/lp21-data";
 import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema, Beurteilung } from "@/types";
 
@@ -70,6 +71,17 @@ export default function EinheitFormPage() {
     : undefined;
   const initialFachbereichId = searchParams.get("fachbereichId") || "";
 
+  // Erste KW des Quartals als Default ermitteln
+  const quartalStartKw = useMemo(() => {
+    if (initialKw) return initialKw;
+    if (!initialQuartal) return 33;
+    const schema = getQuartalSchema();
+    const q = schema.find((s) => s.quartal === initialQuartal);
+    if (!q?.typischeWochen) return 33;
+    const match = q.typischeWochen.match(/KW\s*(\d+)/);
+    return match ? parseInt(match[1]) : 33;
+  }, [initialKw, initialQuartal]);
+
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -80,8 +92,8 @@ export default function EinheitFormPage() {
   const [lernziele, setLernziele] = useState("");
   const [kompetenzenIds, setKompetenzenIds] = useState<string[]>([]);
   const [kompetenzenNamen, setKompetenzenNamen] = useState<string[]>([]);
-  const [zeitraumStart, setZeitraumStart] = useState<number>(initialKw || 33);
-  const [zeitraumEnde, setZeitraumEnde] = useState<number>(initialKw || 35);
+  const [zeitraumStart, setZeitraumStart] = useState<number>(quartalStartKw);
+  const [zeitraumEnde, setZeitraumEnde] = useState<number>(quartalStartKw + 2);
   const [beurteilungen, setBeurteilungen] = useState<Beurteilung[]>([]);
   const [materialien, setMaterialien] = useState<string[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
