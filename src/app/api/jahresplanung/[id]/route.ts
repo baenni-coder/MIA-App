@@ -37,8 +37,10 @@ export async function GET(
       );
     }
 
-    // Nur eigene oder geteilte Einheiten dürfen gelesen werden
-    if (einheit.teacherId !== userId && !einheit.isShared) {
+    // Nur eigene, geteilte oder sharedWith-Einheiten dürfen gelesen werden
+    const isOwner = einheit.teacherId === userId;
+    const isSharedWithUser = einheit.sharedWith?.includes(userId) || false;
+    if (!isOwner && !einheit.isShared && !isSharedWithUser) {
       return NextResponse.json(
         { error: "Keine Berechtigung" },
         { status: 403 }
@@ -87,8 +89,11 @@ export async function PUT(
       );
     }
 
-    // Nur eigene Einheiten dürfen bearbeitet werden
-    if (einheit.teacherId !== userId) {
+    const isOwner = einheit.teacherId === userId;
+    const isSharedWithUser = einheit.sharedWith?.includes(userId) || false;
+
+    // Owner oder sharedWith-User dürfen bearbeiten
+    if (!isOwner && !isSharedWithUser) {
       return NextResponse.json(
         { error: "Keine Berechtigung zum Bearbeiten" },
         { status: 403 }
@@ -118,11 +123,16 @@ export async function PUT(
     if (body.istPufferwoche !== undefined) updateData.istPufferwoche = body.istPufferwoche;
     if (body.farbe !== undefined) updateData.farbe = body.farbe;
     if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
-    if (body.isShared !== undefined) updateData.isShared = body.isShared;
     if (body.linkedMiaThemeId !== undefined) updateData.linkedMiaThemeId = body.linkedMiaThemeId;
     if (body.linkedMiaThemeName !== undefined) updateData.linkedMiaThemeName = body.linkedMiaThemeName;
     if (body.linkedFileIds !== undefined) updateData.linkedFileIds = body.linkedFileIds;
     if (body.linkedFileNames !== undefined) updateData.linkedFileNames = body.linkedFileNames;
+
+    // Sharing-Felder nur vom Owner änderbar
+    if (isOwner) {
+      if (body.isShared !== undefined) updateData.isShared = body.isShared;
+      if (body.sharedWith !== undefined) updateData.sharedWith = body.sharedWith;
+    }
 
     await updateJahresplanEinheit(id, updateData);
 

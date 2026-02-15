@@ -96,6 +96,8 @@ function docToEinheit(
     farbe: data.farbe || "#6b7280",
     sortOrder: data.sortOrder || 0,
     isShared: data.isShared || false,
+    sharedWith: data.sharedWith || undefined,
+    schuleId: data.schuleId || undefined,
     linkedMiaThemeId: data.linkedMiaThemeId || undefined,
     linkedMiaThemeName: data.linkedMiaThemeName || undefined,
     linkedFileIds: data.linkedFileIds || undefined,
@@ -131,6 +133,7 @@ export async function createJahresplanEinheit(data: {
   materialien?: string[];
   istPufferwoche?: boolean;
   farbe?: string;
+  schuleId?: string;
   linkedMiaThemeId?: string | null;
   linkedMiaThemeName?: string | null;
   linkedFileIds?: string[];
@@ -166,6 +169,8 @@ export async function createJahresplanEinheit(data: {
       farbe: data.farbe || data.fachbereichFarbe || "#6b7280",
       sortOrder: 0,
       isShared: false,
+      sharedWith: [],
+      ...(data.schuleId ? { schuleId: data.schuleId } : {}),
       ...(data.linkedMiaThemeId ? { linkedMiaThemeId: data.linkedMiaThemeId } : {}),
       ...(data.linkedMiaThemeName ? { linkedMiaThemeName: data.linkedMiaThemeName } : {}),
       ...(data.linkedFileIds && data.linkedFileIds.length > 0 ? { linkedFileIds: data.linkedFileIds } : {}),
@@ -279,6 +284,7 @@ export async function getEinheitenFuerWoche(
 
 /**
  * Lädt geteilte Einheiten von Kolleg:innen derselben Schule
+ * Enthält: isShared=true (Lesen) + sharedWith-Array (Schreibzugriff)
  */
 export async function getSharedEinheiten(
   schuleId: string,
@@ -288,14 +294,36 @@ export async function getSharedEinheiten(
   try {
     const adminDb = getAdminDb();
 
-    // Hinweis: Dies erfordert einen zusammengesetzten Index
-    const snapshot = await adminDb
+    // 1. isShared=true Einheiten (ganze Schule, nur Lesen)
+    const sharedSnapshot = await adminDb
       .collection(JAHRESPLANUNG_COLLECTION)
       .where("isShared", "==", true)
       .where("schuljahr", "==", schuljahr)
       .get();
 
-    let einheiten = snapshot.docs.map((doc) => docToEinheit(doc));
+    let einheiten = sharedSnapshot.docs.map((doc) => docToEinheit(doc));
+
+    // 2. Einheiten wo der User in sharedWith steht (Schreibzugriff)
+    if (excludeTeacherId) {
+      const sharedWithSnapshot = await adminDb
+        .collection(JAHRESPLANUNG_COLLECTION)
+        .where("sharedWith", "array-contains", excludeTeacherId)
+        .where("schuljahr", "==", schuljahr)
+        .get();
+
+      const sharedWithEinheiten = sharedWithSnapshot.docs.map((doc) =>
+        docToEinheit(doc)
+      );
+
+      // Zusammenführen und Duplikate entfernen
+      const existingIds = new Set(einheiten.map((e) => e.id));
+      for (const e of sharedWithEinheiten) {
+        if (!existingIds.has(e.id)) {
+          einheiten.push(e);
+          existingIds.add(e.id);
+        }
+      }
+    }
 
     if (excludeTeacherId) {
       einheiten = einheiten.filter((e) => e.teacherId !== excludeTeacherId);
@@ -305,6 +333,27 @@ export async function getSharedEinheiten(
   } catch (error) {
     console.error("Error getting shared einheiten:", error);
     throw new Error("Failed to get shared einheiten");
+  }
+}
+
+/**
+ * Aktualisiert die Sharing-Einstellungen einer Einheit
+ */
+export async function updateEinheitSharing(
+  id: string,
+  sharedWith: string[],
+  isShared: boolean
+): Promise<void> {
+  try {
+    const adminDb = getAdminDb();
+    await adminDb.collection(JAHRESPLANUNG_COLLECTION).doc(id).update({
+      sharedWith,
+      isShared,
+      updatedAt: new Date(),
+    });
+  } catch (error) {
+    console.error("Error updating einheit sharing:", error);
+    throw new Error("Failed to update einheit sharing");
   }
 }
 

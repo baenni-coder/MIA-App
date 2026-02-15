@@ -113,6 +113,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SchuleId des Lehrers laden
+    const adminDb = getAdminDb();
+    const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
+    const teacher = teacherDoc.exists ? teacherDoc.data() : null;
+
     const id = await createJahresplanEinheit({
       teacherId: userId,
       schuljahr: body.schuljahr,
@@ -132,6 +137,7 @@ export async function POST(request: NextRequest) {
       materialien: body.materialien,
       istPufferwoche: body.istPufferwoche,
       farbe: body.farbe,
+      schuleId: teacher?.schuleId,
       linkedMiaThemeId: body.linkedMiaThemeId,
       linkedMiaThemeName: body.linkedMiaThemeName,
       linkedFileIds: body.linkedFileIds,
