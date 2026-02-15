@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -29,6 +31,10 @@ import {
   Users,
   BarChart3,
   Settings2,
+  UserPlus,
+  Trash2,
+  Check,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -37,7 +43,7 @@ import {
   getSchulwochenFuerSchuljahr,
   getAlleFachbereiche,
 } from "@/lib/data/lp21-data";
-import type { JahresplanEinheit, SchulferienCustom } from "@/types";
+import type { JahresplanEinheit, SchulferienCustom, PlanungsTeam } from "@/types";
 
 // Typ für Planungsperioden (5 Perioden statt 4 Quartale)
 interface PlanungsPeriode {
@@ -62,6 +68,20 @@ export default function JahresplanungPage() {
   const [showShared, setShowShared] = useState(false);
   const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
 
+  // Team-State
+  const [teams, setTeams] = useState<PlanungsTeam[]>([]);
+  const [activeTeamId, setActiveTeamId] = useState<string>(""); // "" = eigene Planung
+  const [showTeamDialog, setShowTeamDialog] = useState(false);
+  const [showMembersDialog, setShowMembersDialog] = useState(false);
+  const [managingTeam, setManagingTeam] = useState<PlanungsTeam | null>(null);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [deletingTeam, setDeletingTeam] = useState(false);
+  const [colleagues, setColleagues] = useState<Array<{ id: string; name: string; email: string; stufe?: string }>>([]);
+  const [loadingColleagues, setLoadingColleagues] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [savingMembers, setSavingMembers] = useState(false);
+
   const schuljahrListe = useMemo(() => getSchuljahrListe(4, 1), []);
   const copySchuljahrListe = useMemo(() => getSchuljahrListe(1, 6), []);
   const fachbereiche = useMemo(() => getAlleFachbereiche(), []);
@@ -75,6 +95,24 @@ export default function JahresplanungPage() {
     );
   }, [schuljahr, customFerien]);
 
+  // Teams laden
+  const fetchTeams = useCallback(async () => {
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(
+        `/api/planungsteams?schuljahr=${encodeURIComponent(schuljahr)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setTeams(data.teams || []);
+      }
+    } catch (error) {
+      console.error("Error fetching teams:", error);
+    }
+  }, [user, schuljahr]);
+
   // Einheiten und Custom-Ferien laden
   useEffect(() => {
     async function fetchData() {
@@ -84,11 +122,15 @@ export default function JahresplanungPage() {
         setLoading(true);
         const token = await user.getIdToken();
 
+        // URL mit optionalem teamId-Parameter
+        const einheitenUrl = activeTeamId
+          ? `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}&teamId=${activeTeamId}`
+          : `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}&includeShared=true`;
+
         const [einheitenRes, ferienRes] = await Promise.all([
-          fetch(
-            `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}&includeShared=true`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          ),
+          fetch(einheitenUrl, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
           fetch(
             `/api/jahresplanung/ferien?schuljahr=${encodeURIComponent(schuljahr)}`,
             { headers: { Authorization: `Bearer ${token}` } }
@@ -113,7 +155,12 @@ export default function JahresplanungPage() {
     }
 
     fetchData();
-  }, [user, schuljahr]);
+  }, [user, schuljahr, activeTeamId]);
+
+  // Teams laden beim Seitenladen und Schuljahr-Wechsel
+  useEffect(() => {
+    fetchTeams();
+  }, [fetchTeams]);
 
   // Schuljahr-Start- und Endjahr
   const [startYear, endYear] = useMemo(() => {
@@ -200,6 +247,167 @@ export default function JahresplanungPage() {
       .sort((a, b) => b.count - a.count);
   }, [einheiten, fachbereiche]);
 
+  // Aktives Team-Objekt
+  const activeTeam = useMemo(
+    () => teams.find((t) => t.id === activeTeamId) || null,
+    [teams, activeTeamId]
+  );
+
+  // Team erstellen
+  const handleCreateTeam = async () => {
+    if (!user || !newTeamName.trim()) return;
+
+    try {
+      setCreatingTeam(true);
+      const token = await user.getIdToken();
+      const res = await fetch("/api/planungsteams", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newTeamName.trim(),
+          schuljahr,
+        }),
+      });
+
+      if (res.ok) {
+        setNewTeamName("");
+        setShowTeamDialog(false);
+        await fetchTeams();
+      } else {
+        const error = await res.json();
+        alert(`Fehler: ${error.error}`);
+      }
+    } catch (error) {
+      console.error("Error creating team:", error);
+    } finally {
+      setCreatingTeam(false);
+    }
+  };
+
+  // Team löschen
+  const handleDeleteTeam = async (teamId: string) => {
+    if (!user) return;
+    if (!confirm("Möchten Sie dieses Planungsteam und alle zugehörigen Einheiten wirklich löschen?")) return;
+
+    try {
+      setDeletingTeam(true);
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/planungsteams/${teamId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        if (activeTeamId === teamId) {
+          setActiveTeamId("");
+        }
+        await fetchTeams();
+      } else {
+        const error = await res.json();
+        alert(`Fehler: ${error.error}`);
+      }
+    } catch (error) {
+      console.error("Error deleting team:", error);
+    } finally {
+      setDeletingTeam(false);
+    }
+  };
+
+  // Kolleg:innen laden
+  const loadColleagues = async () => {
+    if (!user || colleagues.length > 0) return;
+    try {
+      setLoadingColleagues(true);
+      const token = await user.getIdToken();
+
+      const teacherRes = await fetch(`/api/teachers?userId=${user.uid}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!teacherRes.ok) return;
+      const teacherData = await teacherRes.json();
+      const schuleId = teacherData.schuleId;
+      if (!schuleId) return;
+
+      const colleaguesRes = await fetch(`/api/teachers?schuleId=${schuleId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (colleaguesRes.ok) {
+        const data = await colleaguesRes.json();
+        setColleagues(
+          (data.teachers || []).filter(
+            (t: { id: string }) => t.id !== user.uid
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Error loading colleagues:", error);
+    } finally {
+      setLoadingColleagues(false);
+    }
+  };
+
+  // Mitglieder-Dialog öffnen
+  const handleOpenMembersDialog = (team: PlanungsTeam) => {
+    setManagingTeam(team);
+    setSelectedMembers(
+      team.members
+        .filter((m) => m.userId !== user?.uid)
+        .map((m) => m.userId)
+    );
+    setShowMembersDialog(true);
+    loadColleagues();
+  };
+
+  // Mitglieder speichern
+  const handleSaveMembers = async () => {
+    if (!user || !managingTeam) return;
+
+    try {
+      setSavingMembers(true);
+      const token = await user.getIdToken();
+
+      // Owner + selected colleagues
+      const ownerMember = managingTeam.members.find(
+        (m) => m.userId === user.uid
+      );
+      const members = [
+        ownerMember || { userId: user.uid, name: user.displayName || "Ich", role: "owner" },
+        ...selectedMembers.map((uid) => {
+          const colleague = colleagues.find((c) => c.id === uid);
+          return {
+            userId: uid,
+            name: colleague?.name || uid,
+            role: "editor" as const,
+          };
+        }),
+      ];
+
+      const res = await fetch(`/api/planungsteams/${managingTeam.id}/members`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ members }),
+      });
+
+      if (res.ok) {
+        setShowMembersDialog(false);
+        await fetchTeams();
+      } else {
+        const error = await res.json();
+        alert(`Fehler: ${error.error}`);
+      }
+    } catch (error) {
+      console.error("Error saving members:", error);
+    } finally {
+      setSavingMembers(false);
+    }
+  };
+
   // Jahresplan kopieren
   const handleCopyJahresplan = async () => {
     if (!user || !copyFromYear) return;
@@ -249,11 +457,13 @@ export default function JahresplanungPage() {
                 Jahresplanung
               </h1>
               <p className="text-gray-600 mt-1">
-                Planen Sie Ihren Unterricht über alle Fachbereiche
+                {activeTeam
+                  ? `Team: ${activeTeam.name}`
+                  : "Planen Sie Ihren Unterricht über alle Fachbereiche"}
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               {/* Schuljahr-Auswahl */}
               <Select value={schuljahr} onValueChange={setSchuljahr}>
                 <SelectTrigger className="w-[140px]">
@@ -286,7 +496,7 @@ export default function JahresplanungPage() {
               </Button>
 
               {/* Neue Einheit */}
-              <Link href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}`}>
+              <Link href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}${activeTeamId ? `&teamId=${activeTeamId}` : ""}`}>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
                   Neue Einheit
@@ -294,6 +504,63 @@ export default function JahresplanungPage() {
               </Link>
             </div>
           </div>
+
+          {/* Team-Selector */}
+          <Card>
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm font-medium text-gray-500">Planung:</span>
+
+                {/* Eigene Planung */}
+                <Button
+                  variant={activeTeamId === "" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setActiveTeamId("")}
+                >
+                  Meine Planung
+                </Button>
+
+                {/* Team-Buttons */}
+                {teams.map((team) => (
+                  <div key={team.id} className="flex items-center gap-1">
+                    <Button
+                      variant={activeTeamId === team.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setActiveTeamId(team.id)}
+                    >
+                      <Users className="h-3.5 w-3.5 mr-1.5" />
+                      {team.name}
+                      <Badge variant="secondary" className="ml-1.5 text-xs px-1.5 py-0">
+                        {team.members.length}
+                      </Badge>
+                    </Button>
+                    {team.createdBy === user?.uid && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => handleOpenMembersDialog(team)}
+                        title="Mitglieder verwalten"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+
+                {/* Team erstellen */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTeamDialog(true)}
+                  className="border-dashed"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Neues Team
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Statistik-Karten */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -394,9 +661,10 @@ export default function JahresplanungPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {periodenData.map((periode) => {
+                const teamParam = activeTeamId ? `&teamId=${activeTeamId}` : "";
                 const href = periode.abschnitt
-                  ? `/dashboard/jahresplanung/quartal/${periode.quartal}?schuljahr=${schuljahr}&abschnitt=${periode.abschnitt}`
-                  : `/dashboard/jahresplanung/quartal/${periode.quartal}?schuljahr=${schuljahr}`;
+                  ? `/dashboard/jahresplanung/quartal/${periode.quartal}?schuljahr=${schuljahr}&abschnitt=${periode.abschnitt}${teamParam}`
+                  : `/dashboard/jahresplanung/quartal/${periode.quartal}?schuljahr=${schuljahr}${teamParam}`;
 
                 return (
                   <Link key={periode.id} href={href}>
@@ -465,7 +733,7 @@ export default function JahresplanungPage() {
                   Beginnen Sie mit Ihrer Jahresplanung für {schuljahr}
                 </p>
                 <div className="flex justify-center gap-3">
-                  <Link href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}`}>
+                  <Link href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}${activeTeamId ? `&teamId=${activeTeamId}` : ""}`}>
                     <Button>
                       <Plus className="h-4 w-4 mr-2" />
                       Erste Einheit erstellen
@@ -517,6 +785,162 @@ export default function JahresplanungPage() {
             </Card>
           )}
         </div>
+
+        {/* Team erstellen Dialog */}
+        <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Neues Planungsteam erstellen</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-gray-600">
+                Erstellen Sie ein Team, um mit Kolleg:innen eine gemeinsame
+                Jahresplanung zu führen. Sie können danach Mitglieder hinzufügen.
+              </p>
+
+              <div>
+                <label className="text-sm font-medium">Teamname *</label>
+                <Input
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  placeholder="z.B. 5a – Deutsch/NMG"
+                  className="mt-1"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateTeam();
+                    }
+                  }}
+                />
+              </div>
+
+              <p className="text-xs text-gray-400">
+                Schuljahr: {schuljahr}
+              </p>
+
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTeamDialog(false)}
+                >
+                  Abbrechen
+                </Button>
+                <Button
+                  onClick={handleCreateTeam}
+                  disabled={!newTeamName.trim() || creatingTeam}
+                >
+                  {creatingTeam ? "Erstelle..." : "Team erstellen"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Mitglieder verwalten Dialog */}
+        <Dialog open={showMembersDialog} onOpenChange={setShowMembersDialog}>
+          <DialogContent className="max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Mitglieder – {managingTeam?.name}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Wählen Sie Kolleg:innen aus, die in diesem Team mitarbeiten sollen.
+                Alle Mitglieder können Einheiten erstellen, bearbeiten und löschen.
+              </p>
+
+              {loadingColleagues ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+                </div>
+              ) : colleagues.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4 text-center">
+                  Keine Kolleg:innen an Ihrer Schule gefunden
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {colleagues.map((colleague) => {
+                    const isSelected = selectedMembers.includes(colleague.id);
+                    return (
+                      <button
+                        key={colleague.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMembers((prev) =>
+                            prev.includes(colleague.id)
+                              ? prev.filter((id) => id !== colleague.id)
+                              : [...prev, colleague.id]
+                          );
+                        }}
+                        className={`w-full flex items-center gap-3 p-2.5 rounded-md text-left transition-colors ${
+                          isSelected
+                            ? "bg-blue-50 border border-blue-200"
+                            : "hover:bg-gray-50 border border-transparent"
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${
+                            isSelected
+                              ? "bg-blue-600 border-blue-600"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {isSelected && (
+                            <Check className="h-3 w-3 text-white" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {colleague.name}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {colleague.stufe || colleague.email}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex justify-between gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700"
+                  onClick={() => {
+                    setShowMembersDialog(false);
+                    if (managingTeam) {
+                      handleDeleteTeam(managingTeam.id);
+                    }
+                  }}
+                  disabled={deletingTeam}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Team löschen
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowMembersDialog(false)}
+                  >
+                    Abbrechen
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveMembers}
+                    disabled={savingMembers}
+                  >
+                    {savingMembers ? "Speichere..." : "Speichern"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Kopieren-Dialog */}
         <Dialog open={showCopyDialog} onOpenChange={setShowCopyDialog}>

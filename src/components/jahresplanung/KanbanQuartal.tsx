@@ -42,6 +42,7 @@ interface KanbanQuartalProps {
   einheiten: JahresplanEinheit[];
   schuljahr: string;
   quartal: number;
+  teamId?: string;
   onEinheitUpdate?: (id: string, data: Record<string, unknown>) => Promise<void>;
 }
 
@@ -177,8 +178,10 @@ export default function KanbanQuartal({
   einheiten,
   schuljahr,
   quartal,
+  teamId,
   onEinheitUpdate,
 }: KanbanQuartalProps) {
+  const teamParam = teamId ? `&teamId=${teamId}` : "";
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -333,7 +336,7 @@ export default function KanbanQuartal({
 
               {/* Add Einheit Button */}
               <Link
-                href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}&fachbereichId=${col.id}`}
+                href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}&fachbereichId=${col.id}${teamParam}`}
               >
                 <div className="border border-dashed rounded-lg p-2 text-center hover:bg-gray-50 cursor-pointer mt-2 transition-colors">
                   <Plus className="h-4 w-4 mx-auto text-gray-400" />
@@ -350,7 +353,7 @@ export default function KanbanQuartal({
               </span>
             </div>
             <Link
-              href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}`}
+              href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}${teamParam}`}
             >
               <div className="border border-dashed rounded-lg p-6 text-center hover:bg-gray-50 cursor-pointer transition-colors">
                 <Plus className="h-6 w-6 mx-auto text-gray-300" />

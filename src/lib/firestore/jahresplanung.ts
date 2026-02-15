@@ -98,6 +98,7 @@ function docToEinheit(
     isShared: data.isShared || false,
     sharedWith: data.sharedWith || undefined,
     schuleId: data.schuleId || undefined,
+    teamId: data.teamId || undefined,
     linkedMiaThemeId: data.linkedMiaThemeId || undefined,
     linkedMiaThemeName: data.linkedMiaThemeName || undefined,
     linkedFileIds: data.linkedFileIds || undefined,
@@ -134,6 +135,7 @@ export async function createJahresplanEinheit(data: {
   istPufferwoche?: boolean;
   farbe?: string;
   schuleId?: string;
+  teamId?: string;
   linkedMiaThemeId?: string | null;
   linkedMiaThemeName?: string | null;
   linkedFileIds?: string[];
@@ -171,6 +173,7 @@ export async function createJahresplanEinheit(data: {
       isShared: false,
       sharedWith: [],
       ...(data.schuleId ? { schuleId: data.schuleId } : {}),
+      ...(data.teamId ? { teamId: data.teamId } : {}),
       ...(data.linkedMiaThemeId ? { linkedMiaThemeId: data.linkedMiaThemeId } : {}),
       ...(data.linkedMiaThemeName ? { linkedMiaThemeName: data.linkedMiaThemeName } : {}),
       ...(data.linkedFileIds && data.linkedFileIds.length > 0 ? { linkedFileIds: data.linkedFileIds } : {}),
@@ -279,6 +282,34 @@ export async function getEinheitenFuerWoche(
   } catch (error) {
     console.error("Error getting einheiten for week:", error);
     throw new Error("Failed to get einheiten for week");
+  }
+}
+
+/**
+ * Lädt alle Einheiten eines Planungsteams
+ */
+export async function getTeamEinheiten(
+  teamId: string,
+  filter?: JahresplanFilter
+): Promise<JahresplanEinheit[]> {
+  try {
+    const adminDb = getAdminDb();
+    let query: FirebaseFirestore.Query = adminDb
+      .collection(JAHRESPLANUNG_COLLECTION)
+      .where("teamId", "==", teamId);
+
+    if (filter?.schuljahr) {
+      query = query.where("schuljahr", "==", filter.schuljahr);
+    }
+    if (filter?.quartal) {
+      query = query.where("quartal", "==", filter.quartal);
+    }
+
+    const snapshot = await query.get();
+    return snapshot.docs.map((doc) => docToEinheit(doc));
+  } catch (error) {
+    console.error("Error getting team einheiten:", error);
+    throw new Error("Failed to get team einheiten");
   }
 }
 
