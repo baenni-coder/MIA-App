@@ -5,6 +5,7 @@ import {
   updateJahresplanEinheit,
   deleteJahresplanEinheit,
 } from "@/lib/firestore/jahresplanung";
+import { getPlanungsTeamById } from "@/lib/firestore/planungsteams";
 
 /**
  * GET /api/jahresplanung/[id]
@@ -37,10 +38,17 @@ export async function GET(
       );
     }
 
-    // Nur eigene, geteilte oder sharedWith-Einheiten dürfen gelesen werden
+    // Berechtigung prüfen: Owner, Team-Mitglied, sharedWith oder isShared
     const isOwner = einheit.teacherId === userId;
     const isSharedWithUser = einheit.sharedWith?.includes(userId) || false;
-    if (!isOwner && !einheit.isShared && !isSharedWithUser) {
+
+    let isTeamMember = false;
+    if (einheit.teamId) {
+      const team = await getPlanungsTeamById(einheit.teamId);
+      isTeamMember = team?.members.some((m) => m.userId === userId) || false;
+    }
+
+    if (!isOwner && !einheit.isShared && !isSharedWithUser && !isTeamMember) {
       return NextResponse.json(
         { error: "Keine Berechtigung" },
         { status: 403 }
@@ -92,8 +100,14 @@ export async function PUT(
     const isOwner = einheit.teacherId === userId;
     const isSharedWithUser = einheit.sharedWith?.includes(userId) || false;
 
-    // Owner oder sharedWith-User dürfen bearbeiten
-    if (!isOwner && !isSharedWithUser) {
+    let isTeamMember = false;
+    if (einheit.teamId) {
+      const team = await getPlanungsTeamById(einheit.teamId);
+      isTeamMember = team?.members.some((m) => m.userId === userId) || false;
+    }
+
+    // Owner, Team-Mitglied oder sharedWith-User dürfen bearbeiten
+    if (!isOwner && !isSharedWithUser && !isTeamMember) {
       return NextResponse.json(
         { error: "Keine Berechtigung zum Bearbeiten" },
         { status: 403 }
@@ -178,8 +192,15 @@ export async function DELETE(
       );
     }
 
-    // Nur eigene Einheiten dürfen gelöscht werden
-    if (einheit.teacherId !== userId) {
+    // Owner oder Team-Mitglied darf löschen
+    const canDelete = einheit.teacherId === userId;
+    let isTeamMemberForDelete = false;
+    if (!canDelete && einheit.teamId) {
+      const team = await getPlanungsTeamById(einheit.teamId);
+      isTeamMemberForDelete = team?.members.some((m) => m.userId === userId) || false;
+    }
+
+    if (!canDelete && !isTeamMemberForDelete) {
       return NextResponse.json(
         { error: "Keine Berechtigung zum Löschen" },
         { status: 403 }

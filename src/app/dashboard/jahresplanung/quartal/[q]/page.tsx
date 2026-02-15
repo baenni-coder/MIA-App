@@ -53,6 +53,7 @@ export default function QuartalsansichtPage() {
   const quartal = parseInt(params.q as string) || 1;
   const schuljahr = searchParams.get("schuljahr") || getAktuellesSchuljahr();
   const abschnitt = searchParams.get("abschnitt") as "a" | "b" | null;
+  const teamId = searchParams.get("teamId") || "";
 
   const [einheiten, setEinheiten] = useState<JahresplanEinheit[]>([]);
   const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
@@ -119,9 +120,10 @@ export default function QuartalsansichtPage() {
         setLoading(true);
         const token = await user.getIdToken();
 
+        const teamParam = teamId ? `&teamId=${teamId}` : "";
         const [einheitenRes, ferienRes, klassenRes] = await Promise.all([
           fetch(
-            `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}&quartal=${quartal}`,
+            `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}&quartal=${quartal}${teamParam}`,
             { headers: { Authorization: `Bearer ${token}` } }
           ),
           fetch(
@@ -158,7 +160,7 @@ export default function QuartalsansichtPage() {
     }
 
     fetchData();
-  }, [user, schuljahr, quartal]);
+  }, [user, schuljahr, quartal, teamId]);
 
   // Einheiten filtern (bei Q2-Abschnitt)
   const gefilterteEinheiten = useMemo(() => {
@@ -343,7 +345,7 @@ export default function QuartalsansichtPage() {
                 PDF
               </Button>
               <Link
-                href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}`}
+                href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}${teamId ? `&teamId=${teamId}` : ""}`}
               >
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -389,7 +391,7 @@ export default function QuartalsansichtPage() {
                     Noch keine Einheiten in diesem Quartal geplant
                   </p>
                   <Link
-                    href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}`}
+                    href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}${teamId ? `&teamId=${teamId}` : ""}`}
                   >
                     <Button>
                       <Plus className="h-4 w-4 mr-2" />
@@ -403,6 +405,7 @@ export default function QuartalsansichtPage() {
                 einheiten={gefilterteEinheiten}
                 schuljahr={schuljahr}
                 quartal={quartal}
+                teamId={teamId || undefined}
                 onEinheitUpdate={handleEinheitUpdate}
               />
             )
@@ -421,7 +424,7 @@ export default function QuartalsansichtPage() {
                   return (
                     <Link
                       key={`${woche.kw}-${woche.jahr}`}
-                      href={`/dashboard/jahresplanung/woche/${woche.kw}?schuljahr=${schuljahr}&jahr=${woche.jahr}`}
+                      href={`/dashboard/jahresplanung/woche/${woche.kw}?schuljahr=${schuljahr}&jahr=${woche.jahr}${teamId ? `&teamId=${teamId}` : ""}`}
                     >
                       <Card
                         className={`hover:border-blue-500 transition-colors cursor-pointer ${
@@ -558,7 +561,7 @@ export default function QuartalsansichtPage() {
                       Noch keine Einheiten in diesem Quartal geplant
                     </p>
                     <Link
-                      href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}`}
+                      href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}${teamId ? `&teamId=${teamId}` : ""}`}
                     >
                       <Button>
                         <Plus className="h-4 w-4 mr-2" />

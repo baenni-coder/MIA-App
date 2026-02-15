@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Save, Trash2, Plus, X, BookOpen, LinkIcon, Circle, Diamond, Paperclip, FileText, Upload, ExternalLink, Users, Check } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, X, BookOpen, LinkIcon, Circle, Diamond, Paperclip, FileText, Upload, ExternalLink, Users } from "lucide-react";
 import Link from "next/link";
 import KompetenzPicker from "@/components/jahresplanung/KompetenzPicker";
 import SchoolFileUpload from "@/components/SchoolFileUpload";
@@ -70,6 +70,7 @@ export default function EinheitFormPage() {
     ? parseInt(searchParams.get("quartal")!)
     : undefined;
   const initialFachbereichId = searchParams.get("fachbereichId") || "";
+  const teamId = searchParams.get("teamId") || "";
 
   // Erste KW des Quartals als Default ermitteln
   const quartalStartKw = useMemo(() => {
@@ -98,14 +99,7 @@ export default function EinheitFormPage() {
   const [materialien, setMaterialien] = useState<string[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
   const [istPufferwoche, setIstPufferwoche] = useState(false);
-  const [isShared, setIsShared] = useState(false);
-  const [sharedWith, setSharedWith] = useState<string[]>([]);
-
-  // Sharing-Dialog
-  const [showSharingDialog, setShowSharingDialog] = useState(false);
-  const [colleagues, setColleagues] = useState<Array<{ id: string; name: string; email: string; stufe?: string }>>([]);
-  const [loadingColleagues, setLoadingColleagues] = useState(false);
-  const [isOwner, setIsOwner] = useState(true);
+  const [einheitTeamId, setEinheitTeamId] = useState<string>("");
 
   // MIA-Thema Verknüpfung
   const [linkedMiaThemeId, setLinkedMiaThemeId] = useState<string>("");
@@ -292,9 +286,7 @@ export default function EinheitFormPage() {
           setBeurteilungen(einheit.beurteilungen || []);
           setMaterialien(einheit.materialien || []);
           setIstPufferwoche(einheit.istPufferwoche);
-          setIsShared(einheit.isShared);
-          setSharedWith(einheit.sharedWith || []);
-          setIsOwner(einheit.teacherId === user.uid);
+          setEinheitTeamId(einheit.teamId || "");
           if (einheit.linkedMiaThemeId) {
             setLinkedMiaThemeId(einheit.linkedMiaThemeId);
             setLinkedMiaThemeName(einheit.linkedMiaThemeName || "");
@@ -351,10 +343,13 @@ export default function EinheitFormPage() {
         beurteilungsNotiz: beurteilungen.length > 0 ? beurteilungen[0].notiz : "",
         materialien,
         istPufferwoche,
-        isShared,
-        sharedWith,
         farbe: fb?.farbe,
       };
+
+      // TeamId nur bei neuen Einheiten setzen
+      if (isNew && teamId) {
+        body.teamId = teamId;
+      }
 
       // MIA-Thema Verknüpfung hinzufügen (auch leerer String zum Entfernen)
       if (fachbereichId === "MI") {
@@ -398,60 +393,6 @@ export default function EinheitFormPage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  // Kolleg:innen laden für Sharing-Dialog
-  const loadColleagues = async () => {
-    if (!user) return;
-    try {
-      setLoadingColleagues(true);
-      const token = await user.getIdToken();
-
-      // Lehrer-Profil laden um SchuleId zu bekommen
-      const teacherRes = await fetch(`/api/teachers?userId=${user.uid}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!teacherRes.ok) return;
-      const teacherData = await teacherRes.json();
-      const schuleId = teacherData.schuleId;
-
-      if (!schuleId) return;
-
-      // Kolleg:innen der gleichen Schule laden
-      const colleaguesRes = await fetch(`/api/teachers?schuleId=${schuleId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (colleaguesRes.ok) {
-        const data = await colleaguesRes.json();
-        // Eigenen User ausschliessen
-        setColleagues(
-          (data.teachers || []).filter(
-            (t: { id: string }) => t.id !== user.uid
-          )
-        );
-      }
-    } catch (error) {
-      console.error("Error loading colleagues:", error);
-    } finally {
-      setLoadingColleagues(false);
-    }
-  };
-
-  const handleOpenSharingDialog = () => {
-    setShowSharingDialog(true);
-    if (colleagues.length === 0) {
-      loadColleagues();
-    }
-  };
-
-  const toggleSharedWith = (userId: string) => {
-    setSharedWith((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
-    );
   };
 
   // Löschen
@@ -1090,143 +1031,16 @@ export default function EinheitFormPage() {
                 </label>
               </div>
 
-              {/* Sharing */}
-              {isOwner && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="shared"
-                      checked={isShared}
-                      onCheckedChange={(checked) => setIsShared(checked as boolean)}
-                    />
-                    <label htmlFor="shared" className="text-sm">
-                      Für ganze Schule freigeben (nur Lesezugriff)
-                    </label>
-                  </div>
-
-                  {/* Sharing mit bestimmten Kolleg:innen */}
-                  <div className="pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleOpenSharingDialog}
-                    >
-                      <Users className="h-4 w-4 mr-2" />
-                      Mit Kolleg:innen teilen
-                      {sharedWith.length > 0 && (
-                        <Badge variant="secondary" className="ml-2">
-                          {sharedWith.length}
-                        </Badge>
-                      )}
-                    </Button>
-
-                    {sharedWith.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {sharedWith.map((uid) => {
-                          const c = colleagues.find((col) => col.id === uid);
-                          return (
-                            <Badge
-                              key={uid}
-                              variant="outline"
-                              className="text-xs"
-                            >
-                              {c?.name || uid}
-                              <button
-                                type="button"
-                                className="ml-1 hover:text-red-500"
-                                onClick={() => toggleSharedWith(uid)}
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </Badge>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {!isOwner && (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+              {/* Team-Info */}
+              {(teamId || einheitTeamId) && (
+                <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
                   <Users className="h-4 w-4" />
-                  <span>Diese Einheit wurde mit Ihnen geteilt (Schreibzugriff)</span>
+                  <span>Diese Einheit gehört zu einem Planungsteam</span>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
-
-        {/* Sharing Dialog */}
-        <Dialog open={showSharingDialog} onOpenChange={setShowSharingDialog}>
-          <DialogContent className="max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Mit Kolleg:innen teilen</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-gray-600 mb-4">
-              Ausgewählte Kolleg:innen erhalten Schreibzugriff auf diese Einheit.
-            </p>
-
-            {loadingColleagues ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
-              </div>
-            ) : colleagues.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4 text-center">
-                Keine Kolleg:innen an Ihrer Schule gefunden
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {colleagues.map((colleague) => {
-                  const isSelected = sharedWith.includes(colleague.id);
-                  return (
-                    <button
-                      key={colleague.id}
-                      type="button"
-                      onClick={() => toggleSharedWith(colleague.id)}
-                      className={`w-full flex items-center gap-3 p-2.5 rounded-md text-left transition-colors ${
-                        isSelected
-                          ? "bg-blue-50 border border-blue-200"
-                          : "hover:bg-gray-50 border border-transparent"
-                      }`}
-                    >
-                      <div
-                        className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${
-                          isSelected
-                            ? "bg-blue-600 border-blue-600"
-                            : "border-gray-300"
-                        }`}
-                      >
-                        {isSelected && (
-                          <Check className="h-3 w-3 text-white" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {colleague.name}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {colleague.stufe || colleague.email}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-4 border-t mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSharingDialog(false)}
-              >
-                Schliessen
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </DashboardLayout>
     </ProtectedRoute>
   );

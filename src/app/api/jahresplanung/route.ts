@@ -3,19 +3,22 @@ import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import {
   createJahresplanEinheit,
   getJahresplanEinheiten,
+  getTeamEinheiten,
   getSharedEinheiten,
 } from "@/lib/firestore/jahresplanung";
+import { getPlanungsTeamById } from "@/lib/firestore/planungsteams";
 import { JahresplanFilter } from "@/types";
 
 /**
  * GET /api/jahresplanung
- * Lädt alle Jahresplan-Einheiten eines Lehrers
+ * Lädt alle Jahresplan-Einheiten eines Lehrers oder eines Teams
  *
  * Query Parameters:
  * - schuljahr: Schuljahr filter (z.B. "2025/2026")
  * - quartal: Quartal filter (1-4)
  * - fachbereichId: Fachbereich filter
  * - status: Status filter
+ * - teamId: Team-ID (wenn gesetzt, werden Team-Einheiten geladen)
  * - includeShared: "true" um geteilte Planungen einzuschließen
  */
 export async function GET(request: NextRequest) {
@@ -44,6 +47,7 @@ export async function GET(request: NextRequest) {
       : undefined;
     const fachbereichId = searchParams.get("fachbereichId") || undefined;
     const status = searchParams.get("status") as JahresplanFilter["status"] | undefined;
+    const teamId = searchParams.get("teamId") || undefined;
     const includeShared = searchParams.get("includeShared") === "true";
 
     const filter: JahresplanFilter = {
@@ -53,7 +57,23 @@ export async function GET(request: NextRequest) {
       status,
     };
 
-    // Eigene Einheiten laden
+    // Team-Einheiten oder eigene Einheiten laden
+    if (teamId) {
+      // Team-Mitgliedschaft prüfen
+      const team = await getPlanungsTeamById(teamId);
+      if (!team) {
+        return NextResponse.json({ error: "Team nicht gefunden" }, { status: 404 });
+      }
+      const isMember = team.members.some((m) => m.userId === userId);
+      if (!isMember) {
+        return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
+      }
+
+      const einheiten = await getTeamEinheiten(teamId, filter);
+      return NextResponse.json({ einheiten, sharedEinheiten: [] });
+    }
+
+    // Eigene Einheiten laden (ohne Team-Einheiten)
     const einheiten = await getJahresplanEinheiten(userId, filter);
 
     // Optionale geteilte Einheiten laden
@@ -118,6 +138,18 @@ export async function POST(request: NextRequest) {
     const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
     const teacher = teacherDoc.exists ? teacherDoc.data() : null;
 
+    // Wenn teamId angegeben, Team-Mitgliedschaft prüfen
+    if (body.teamId) {
+      const team = await getPlanungsTeamById(body.teamId);
+      if (!team) {
+        return NextResponse.json({ error: "Team nicht gefunden" }, { status: 404 });
+      }
+      const isMember = team.members.some((m) => m.userId === userId);
+      if (!isMember) {
+        return NextResponse.json({ error: "Keine Berechtigung für dieses Team" }, { status: 403 });
+      }
+    }
+
     const id = await createJahresplanEinheit({
       teacherId: userId,
       schuljahr: body.schuljahr,
@@ -138,6 +170,7 @@ export async function POST(request: NextRequest) {
       istPufferwoche: body.istPufferwoche,
       farbe: body.farbe,
       schuleId: teacher?.schuleId,
+      teamId: body.teamId,
       linkedMiaThemeId: body.linkedMiaThemeId,
       linkedMiaThemeName: body.linkedMiaThemeName,
       linkedFileIds: body.linkedFileIds,

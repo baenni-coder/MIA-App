@@ -977,8 +977,9 @@ export interface JahresplanEinheit {
   sortOrder: number; // Reihenfolge innerhalb einer Woche
   // Sharing
   isShared: boolean; // Für ganze Schule sichtbar (nur Lesen)
-  sharedWith?: string[]; // User-IDs mit Schreibzugriff
+  sharedWith?: string[]; // User-IDs mit Schreibzugriff (Legacy)
   schuleId?: string; // Schule der Einheit (für Zugriffskontrolle)
+  teamId?: string; // Planungsteam-ID (wenn Team-Einheit)
   // MIA-Thema Verknüpfung
   linkedMiaThemeId?: string; // Verknüpftes MIA-Thema (Airtable oder Custom Theme ID)
   linkedMiaThemeName?: string; // Name des verknüpften Themas
@@ -987,6 +988,24 @@ export interface JahresplanEinheit {
   linkedFileNames?: string[]; // Dateinamen für Anzeige
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Planungsteam für kollaborative Jahresplanung
+export interface PlanungsTeam {
+  id: string;
+  name: string; // z.B. "Klasse 3a"
+  schuleId: string; // Schul-ID
+  schuljahr: string; // z.B. "2025/2026"
+  members: TeamMember[]; // Alle Mitglieder
+  createdBy: string; // Firebase UID des Erstellers
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TeamMember {
+  userId: string;
+  name: string;
+  role: "owner" | "editor";
 }
 
 // Benutzerdefinierte Schulferien
