@@ -976,7 +976,9 @@ export interface JahresplanEinheit {
   farbe: string; // Wird vom Fachbereich übernommen
   sortOrder: number; // Reihenfolge innerhalb einer Woche
   // Sharing
-  isShared: boolean; // Für Kolleg:innen freigegeben
+  isShared: boolean; // Für ganze Schule sichtbar (nur Lesen)
+  sharedWith?: string[]; // User-IDs mit Schreibzugriff
+  schuleId?: string; // Schule der Einheit (für Zugriffskontrolle)
   // MIA-Thema Verknüpfung
   linkedMiaThemeId?: string; // Verknüpftes MIA-Thema (Airtable oder Custom Theme ID)
   linkedMiaThemeName?: string; // Name des verknüpften Themas
