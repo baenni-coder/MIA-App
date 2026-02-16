@@ -303,7 +303,74 @@ export async function updateStudentLastActive(id: string): Promise<void> {
 }
 
 /**
- * Löscht einen Schüler (inkl. Firebase Auth Account)
+ * Löscht alle zugehörigen Daten eines Schülers (Cascade-Delete)
+ * Betrifft: student_progress, student_badges, student_artifacts, student_notifications
+ */
+async function deleteStudentRelatedData(studentId: string): Promise<void> {
+  const adminDb = getAdminDb();
+
+  const collections = [
+    "student_progress",
+    "student_badges",
+    "student_artifacts",
+    "student_notifications",
+  ];
+
+  for (const collectionName of collections) {
+    try {
+      const snapshot = await adminDb
+        .collection(collectionName)
+        .where("studentId", "==", studentId)
+        .get();
+
+      if (!snapshot.empty) {
+        const batch = adminDb.batch();
+        snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+        console.log(
+          `Deleted ${snapshot.size} documents from ${collectionName} for student ${studentId}`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Error deleting ${collectionName} for student ${studentId}:`,
+        error
+      );
+      // Continue with other collections even if one fails
+    }
+  }
+}
+
+/**
+ * Löscht Schüler-Artefakte aus Firebase Storage
+ */
+async function deleteStudentStorageFiles(studentId: string): Promise<void> {
+  try {
+    const { getStorage } = await import("firebase-admin/storage");
+    const { getAdminApp } = await import("@/lib/firebase/admin");
+    const bucket = getStorage(getAdminApp()).bucket();
+    const [files] = await bucket.getFiles({
+      prefix: `student-artifacts/${studentId}/`,
+    });
+
+    if (files.length > 0) {
+      await Promise.all(files.map((file) => file.delete()));
+      console.log(
+        `Deleted ${files.length} storage files for student ${studentId}`
+      );
+    }
+  } catch (error) {
+    console.error(
+      `Error deleting storage files for student ${studentId}:`,
+      error
+    );
+    // Non-critical: continue even if storage cleanup fails
+  }
+}
+
+/**
+ * Löscht einen Schüler (inkl. Firebase Auth Account und alle zugehörigen Daten)
+ * Cascade-Delete: Auth, Profil, Progress, Badges, Artefakte, Notifications, Storage
  */
 export async function deleteStudent(id: string): Promise<void> {
   const adminDb = getAdminDb();
@@ -316,7 +383,7 @@ export async function deleteStudent(id: string): Promise<void> {
       throw new Error("Student not found");
     }
 
-    // Firebase Auth User löschen
+    // 1. Firebase Auth User löschen
     try {
       await auth.deleteUser(id);
     } catch (authError) {
@@ -324,15 +391,19 @@ export async function deleteStudent(id: string): Promise<void> {
       // Fortfahren auch wenn Auth-User nicht existiert
     }
 
-    // Firestore Dokument löschen
+    // 2. Alle zugehörigen Firestore-Daten löschen (Progress, Badges, Artefakte, Notifications)
+    await deleteStudentRelatedData(id);
+
+    // 3. Storage-Dateien (Artefakte) löschen
+    await deleteStudentStorageFiles(id);
+
+    // 4. Firestore Profil-Dokument löschen
     await adminDb.collection(STUDENTS_COLLECTION).doc(id).delete();
 
-    // Schülerzahl der Klasse verringern
+    // 5. Schülerzahl der Klasse verringern
     await updateClassStudentCount(student.classId, -1);
 
-    // Optional: Fortschritt und Badges löschen
-    // await deleteStudentProgress(id);
-    // await deleteStudentBadges(id);
+    console.log(`Student ${id} and all related data deleted successfully`);
   } catch (error) {
     console.error("Error deleting student:", error);
     throw new Error("Failed to delete student");

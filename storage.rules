@@ -45,8 +45,9 @@ service firebase.storage {
 
     // Pfad: student-artifacts/{studentId}/{filename}
     match /student-artifacts/{studentId}/{filename} {
-      // Lesen: Nur eigener Schüler oder authentifizierte Lehrer
-      // (Lehrer-Zugriff wird serverseitig geprüft)
+      // Lesen: Authentifizierte User (Zugriffskontrolle über API-Layer)
+      // Hinweis: Download-URLs mit Token umgehen Storage Rules.
+      // Effektiver Schutz erfolgt über Firestore Rules + API-Permissions.
       allow read: if isAuthenticated();
 
       // Schreiben: Nur der eigene Schüler, max 20MB

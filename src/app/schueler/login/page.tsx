@@ -112,6 +112,11 @@ export default function StudentLoginPage() {
                     Bist du eine Lehrperson?
                   </Link>
                 </p>
+                <p>
+                  <Link href="/datenschutz" className="text-muted-foreground hover:text-primary hover:underline text-xs">
+                    Datenschutzerklärung
+                  </Link>
+                </p>
               </div>
             </CardFooter>
           </form>

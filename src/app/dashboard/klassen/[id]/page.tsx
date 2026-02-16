@@ -1133,6 +1133,14 @@ export default function ClassDetailPage({
                     Ein sicheres Passwort wird automatisch generiert und nach dem
                     Erstellen angezeigt.
                   </p>
+
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-xs text-blue-800">
+                      Bitte stellen Sie sicher, dass die Einwilligung der Erziehungsberechtigten zur Datenverarbeitung vorliegt, bevor Sie Schüler-Accounts erstellen.
+                      Weitere Informationen finden Sie in unserer{" "}
+                      <a href="/datenschutz" target="_blank" className="underline">Datenschutzerklärung</a>.
+                    </p>
+                  </div>
                 </div>
 
                 <DialogFooter>
@@ -1516,6 +1524,13 @@ Tom Test, tom@schule.ch`}
                   <p className="text-xs text-muted-foreground">
                     Format: Name, E-Mail (kommagetrennt) oder Name[Tab]E-Mail
                     (Tab-getrennt, z.B. aus Excel)
+                  </p>
+                </div>
+
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-xs text-blue-800">
+                    Bitte stellen Sie sicher, dass die Einwilligung der Erziehungsberechtigten zur Datenverarbeitung vorliegt.{" "}
+                    <a href="/datenschutz" target="_blank" className="underline">Datenschutzerklärung</a>
                   </p>
                 </div>
 
