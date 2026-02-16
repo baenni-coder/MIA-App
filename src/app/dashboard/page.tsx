@@ -27,6 +27,8 @@ import {
   Lightbulb,
   BarChart3,
   HelpCircle,
+  Download,
+  Shield,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Teacher, Stufe, Schule, Kanton, KANTONE, SchoolChangeRequest } from "@/types";
@@ -182,6 +184,11 @@ export default function DashboardPage() {
   const [showTileSettings, setShowTileSettings] = useState(false);
   const [selectedTiles, setSelectedTiles] = useState<string[]>(DEFAULT_TILES);
   const [savingTiles, setSavingTiles] = useState(false);
+
+  // Privacy actions
+  const [exportingData, setExportingData] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     const loadTeacherData = async () => {
@@ -448,6 +455,65 @@ export default function DashboardPage() {
       console.error("Error saving tile settings:", error);
     } finally {
       setSavingTiles(false);
+    }
+  };
+
+  // Privacy: Data export
+  const handleDataExport = async () => {
+    if (!user) return;
+    setExportingData(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) return;
+
+      const response = await fetch("/api/user/data-export", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `mia-app-datenexport-${new Date().toISOString().split("T")[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error("Error exporting data:", error);
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  // Privacy: Account deletion
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setDeletingAccount(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) return;
+
+      const response = await fetch("/api/user/delete-account", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        // Redirect to home after deletion
+        window.location.href = "/";
+      } else {
+        const data = await response.json();
+        console.error("Error deleting account:", data.error);
+        setDeletingAccount(false);
+        setShowDeleteConfirm(false);
+      }
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      setDeletingAccount(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -738,10 +804,82 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
+                {/* Datenschutz-Aktionen */}
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">Datenschutz</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDataExport}
+                      disabled={exportingData}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {exportingData ? "Wird exportiert..." : "Meine Daten exportieren"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                      onClick={() => setShowDeleteConfirm(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Konto löschen
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Gemäss Art. 25 und 28 des Schweizer Datenschutzgesetzes (DSG) haben Sie das Recht auf Auskunft und Datenherausgabe.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}
         </div>
+
+        {/* Konto-Löschung Bestätigung */}
+        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Konto endgültig löschen?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-sm text-destructive font-medium mb-2">
+                  Diese Aktion kann nicht rückgängig gemacht werden.
+                </p>
+                <p className="text-sm text-gray-700">
+                  Folgende Daten werden unwiderruflich gelöscht:
+                </p>
+                <ul className="list-disc list-inside text-sm text-gray-700 mt-2 space-y-1">
+                  <li>Ihr Benutzerprofil und Login-Daten</li>
+                  <li>Alle erstellten Themen und Lektionen</li>
+                  <li>Hochgeladene Dateien und Bilder</li>
+                  <li>Jahresplanung und Ferien-Einstellungen</li>
+                  <li>Benachrichtigungen</li>
+                </ul>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deletingAccount}
+                >
+                  Abbrechen
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount}
+                >
+                  {deletingAccount ? "Wird gelöscht..." : "Konto endgültig löschen"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Kacheln-Einstellungen Dialog */}
         <TileSettingsDialog

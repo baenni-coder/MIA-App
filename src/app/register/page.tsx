@@ -3,10 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Card,
@@ -42,6 +44,7 @@ export default function RegisterPage() {
   const [kanton, setKanton] = useState<Kanton | "">("");
   const [stufe, setStufe] = useState<Stufe>("1. Klasse");
   const [schulen, setSchulen] = useState<Array<{ id: string; name: string }>>([]);
+  const [datenschutzAccepted, setDatenschutzAccepted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -64,6 +67,11 @@ export default function RegisterPage() {
 
     if (!schuleId) {
       setError("Bitte wählen Sie eine Schule aus");
+      return;
+    }
+
+    if (!datenschutzAccepted) {
+      setError("Bitte akzeptieren Sie die Datenschutzerklärung");
       return;
     }
 
@@ -242,9 +250,23 @@ export default function RegisterPage() {
                 minLength={6}
               />
             </div>
+            <div className="flex items-start gap-3 pt-2">
+              <Checkbox
+                id="datenschutz"
+                checked={datenschutzAccepted}
+                onCheckedChange={(checked) => setDatenschutzAccepted(checked as boolean)}
+              />
+              <label htmlFor="datenschutz" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
+                Ich habe die{" "}
+                <Link href="/datenschutz" target="_blank" className="text-primary underline hover:no-underline">
+                  Datenschutzerklärung
+                </Link>{" "}
+                gelesen und akzeptiere die Bearbeitung meiner Daten gemäss den dort beschriebenen Grundsätzen.
+              </label>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || !datenschutzAccepted}>
               {loading ? "Wird registriert..." : "Registrieren"}
             </Button>
             <p className="text-sm text-muted-foreground text-center">

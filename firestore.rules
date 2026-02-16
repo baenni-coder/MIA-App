@@ -388,10 +388,12 @@ service cloud.firestore {
     // ============================================
 
     match /jahresplanung/{einheitId} {
-      // Lesen: Eigene Einheiten oder geteilte Einheiten
+      // Lesen: Eigene Einheiten oder geteilte Einheiten derselben Schule
       allow read: if isAuthenticated() && (
         resource.data.teacherId == request.auth.uid ||
-        resource.data.isShared == true
+        (resource.data.isShared == true &&
+         exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+         getTeacher(request.auth.uid).data.schuleId == resource.data.schuleId)
       );
 
       // Erstellen: Jeder authentifizierte Lehrer
