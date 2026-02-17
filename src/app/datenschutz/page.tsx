@@ -135,7 +135,8 @@ export default function DatenschutzPage() {
                 <strong>Konto-Erstellung durch Lehrpersonen:</strong> Schüler-Accounts werden ausschliesslich durch Lehrpersonen erstellt. Schüler können sich nicht selbst registrieren.
               </li>
               <li>
-                <strong>Einwilligung der Erziehungsberechtigten:</strong> Die Lehrperson ist dafür verantwortlich, vor der Erfassung von Schülerdaten die Einwilligung der Erziehungsberechtigten einzuholen. Die App stellt hierzu eine Vorlage bereit.
+                <strong>Einwilligung der Erziehungsberechtigten:</strong> Die Lehrperson ist dafür verantwortlich, vor der Erfassung von Schülerdaten die Einwilligung der Erziehungsberechtigten einzuholen. Die App stellt hierzu eine{" "}
+                <a href="/documents/elterneinwilligung-mia-app.pdf" target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">Vorlage für die Elterneinwilligung (PDF)</a> bereit.
               </li>
               <li>
                 <strong>Datenminimierung:</strong> Es werden nur die für den Bildungszweck notwendigen Daten erhoben (Name, E-Mail, Kompetenzbewertungen).
