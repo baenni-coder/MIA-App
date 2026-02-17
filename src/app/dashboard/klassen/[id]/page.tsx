@@ -1136,9 +1136,10 @@ export default function ClassDetailPage({
 
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                     <p className="text-xs text-blue-800">
-                      Bitte stellen Sie sicher, dass die Einwilligung der Erziehungsberechtigten zur Datenverarbeitung vorliegt, bevor Sie Schüler-Accounts erstellen.
-                      Weitere Informationen finden Sie in unserer{" "}
-                      <a href="/datenschutz" target="_blank" className="underline">Datenschutzerklärung</a>.
+                      Bitte stellen Sie sicher, dass die Einwilligung der Erziehungsberechtigten zur Datenverarbeitung vorliegt, bevor Sie Schüler-Accounts erstellen.{" "}
+                      <a href="/documents/elterneinwilligung-mia-app.pdf" target="_blank" className="underline font-medium">Vorlage Elterneinwilligung (PDF)</a>
+                      {" "}|{" "}
+                      <a href="/datenschutz" target="_blank" className="underline">Datenschutzerklärung</a>
                     </p>
                   </div>
                 </div>
@@ -1530,6 +1531,8 @@ Tom Test, tom@schule.ch`}
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                   <p className="text-xs text-blue-800">
                     Bitte stellen Sie sicher, dass die Einwilligung der Erziehungsberechtigten zur Datenverarbeitung vorliegt.{" "}
+                    <a href="/documents/elterneinwilligung-mia-app.pdf" target="_blank" className="underline font-medium">Vorlage Elterneinwilligung (PDF)</a>
+                    {" "}|{" "}
                     <a href="/datenschutz" target="_blank" className="underline">Datenschutzerklärung</a>
                   </p>
                 </div>
