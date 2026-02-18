@@ -143,14 +143,6 @@ export interface Teacher {
   createdAt: Date;
 }
 
-// Admin (deprecated - verwende Teacher mit role)
-export interface Admin {
-  id: string;
-  email: string;
-  name: string;
-  createdAt: Date;
-}
-
 // Website/Tool für Lektionsplanung
 export interface WebsiteTool {
   id: string;
@@ -866,30 +858,6 @@ export interface StudentBadge {
 }
 
 // ============================================
-// Kompetenz-Review (Schüler beantragt Höherstufung)
-// ============================================
-
-export type CompetencyReviewStatus = "pending" | "approved" | "rejected";
-
-export interface CompetencyReview {
-  id: string;
-  studentId: string;
-  studentName: string;
-  classId: string;
-  competencyId: string;
-  competencyName: string;
-  competencyLpCode?: string;
-  oldRating: number;
-  requestedRating: number;
-  status: CompetencyReviewStatus;
-  reviewedBy?: string;
-  reviewedByName?: string;
-  reviewedAt?: Date;
-  feedback?: string;
-  createdAt: Date;
-}
-
-// ============================================
 // Notification-Erweiterungen für Schüler
 // ============================================
 
@@ -1120,43 +1088,4 @@ export interface JahresplanFilter {
   quartal?: number;
   fachbereichId?: string;
   status?: JahresplanStatus;
-}
-
-// Kompetenz-Abdeckung (für Übersicht)
-export interface KompetenzAbdeckung {
-  kompetenzId: string;
-  kompetenzCode: string;
-  kompetenzName: string;
-  fachbereichId: string;
-  status: "nicht_zugeordnet" | "geplant" | "durchgefuehrt";
-  einheitenIds: string[]; // Verknüpfte Einheiten
-}
-
-// Wochenübersicht
-export interface WochenUebersicht {
-  kalenderwoche: number;
-  jahr: number;
-  startDatum: string; // Montag
-  endDatum: string; // Freitag
-  istFerienWoche: boolean;
-  ferienName?: string;
-  einheiten: JahresplanEinheit[];
-  beurteilungenCount: {
-    formativ: number;
-    summativ: number;
-  };
-}
-
-// Quartal-Zusammenfassung
-export interface QuartalZusammenfassung {
-  quartal: number;
-  label: string;
-  wochen: WochenUebersicht[];
-  fachbereicheAnteil: Array<{
-    fachbereichId: string;
-    fachbereichName: string;
-    farbe: string;
-    einheitenCount: number;
-    prozent: number;
-  }>;
 }
