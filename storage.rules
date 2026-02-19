@@ -13,7 +13,7 @@ service firebase.storage {
     }
 
     function isValidImage() {
-      return request.resource.contentType.matches('image/(jpeg|png|webp)');
+      return request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
 
     function isSizeValid(maxSizeMB) {
@@ -99,6 +99,25 @@ service firebase.storage {
                    && isSizeValid(50);
 
       // Löschen: Nur der Besitzer
+      allow delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // ============================================
+    // FAQ Media (Screenshots/GIFs für FAQ-Einträge)
+    // ============================================
+
+    // Pfad: faq-media/{userId}/{filename}
+    match /faq-media/{userId}/{filename} {
+      // Lesen: Jeder (öffentlich, da FAQ für alle sichtbar)
+      allow read: if true;
+
+      // Schreiben: Nur eigener User, max 10MB, nur Bilder/GIFs
+      allow write: if isAuthenticated()
+                   && isOwner(userId)
+                   && isValidImage()
+                   && isSizeValid(10);
+
+      // Löschen: Nur eigener User
       allow delete: if isAuthenticated() && isOwner(userId);
     }
 
