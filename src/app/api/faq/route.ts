@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     // Parse Request Body
     const body = await request.json();
-    const { question, answer, category, order, isActive } = body;
+    const { question, answer, category, order, isActive, media } = body;
 
     // Validierung der Pflichtfelder
     if (!question || !answer || !category) {
@@ -147,6 +147,7 @@ export async function POST(request: NextRequest) {
         category,
         order: order ?? 0,
         isActive: isActive ?? true,
+        ...(media && Array.isArray(media) ? { media } : {}),
       },
       userId,
       teacher.name || teacher.email

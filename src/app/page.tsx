@@ -14,6 +14,11 @@ import {
   GraduationCap,
   Star,
   Trophy,
+  FileText,
+  Calendar,
+  FolderOpen,
+  BarChart3,
+  Award,
 } from "lucide-react";
 
 export default function Home() {
@@ -40,7 +45,7 @@ export default function Home() {
       <section className="py-16 px-4 bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto max-w-6xl text-center">
           <Badge variant="secondary" className="mb-4">
-            Neu: Digitaler Kompetenzenpass für Schüler
+            Neu: Fächerübergreifende Jahresplanung & Kompetenzenpass
           </Badge>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 pb-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent leading-tight">
             MIA-App
@@ -51,7 +56,7 @@ export default function Home() {
             <span className="font-semibold text-foreground">Medien, Informatik und Anwendungskompetenzen</span>
           </p>
           <p className="text-lg text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Jahresplanung für Lehrpersonen & Kompetenzenpass für Schüler - alles unter einer Haube
+            MIA-Jahresplan, fächerübergreifende Jahresplanung, Kompetenzenpass für Schüler - alles unter einer Haube
           </p>
 
           {/* Rollen-Auswahl Karten */}
@@ -65,14 +70,18 @@ export default function Home() {
                 </div>
                 <CardTitle className="text-2xl">Lehrperson</CardTitle>
                 <CardDescription className="text-base">
-                  Jahresplanung, Themen erstellen und Schülerfortschritt verfolgen
+                  MIA-Jahresplan, Jahresplanung, Themen erstellen und Schülerfortschritt verfolgen
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="space-y-2 text-sm text-muted-foreground text-left">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                    Kanban-Jahresplan nach Stufe
+                    Kanban-Jahresplan nach Stufe (MIA)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                    Fächerübergreifende Jahresplanung mit PDF-Export
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
@@ -84,7 +93,7 @@ export default function Home() {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                    Themen als bearbeitet markieren
+                    Dateien schulintern teilen
                   </li>
                 </ul>
                 <div className="flex gap-3 pt-4">
@@ -118,7 +127,7 @@ export default function Home() {
                 <ul className="space-y-2 text-sm text-muted-foreground text-left">
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                    Kompetenzen selbst einschätzen
+                    Kompetenzen selbst einschätzen (Sterne)
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
@@ -126,11 +135,15 @@ export default function Home() {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                    Bearbeitete Themen der Klasse sehen
+                    Belege (Bilder, PDFs, Links) hochladen
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
-                    Fortschritt als PDF exportieren
+                    Kompetenzenpass als PDF exportieren
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                    Persönlichen Avatar erstellen
                   </li>
                 </ul>
                 <div className="flex gap-3 pt-4">
@@ -174,43 +187,73 @@ export default function Home() {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
             <Badge variant="outline" className="mb-4">Für Lehrpersonen</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Jahresplanung & mehr</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Planung & Unterricht</h2>
             <p className="text-lg text-muted-foreground">
-              Alles was du für deine MIA-Jahresplanung brauchst
+              Alles was du für deinen Unterricht brauchst
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Feature 1: Jahresplan */}
+            {/* Feature 1: Jahresplan MIA */}
             <Card>
               <CardHeader>
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                   <CalendarRange className="h-6 w-6 text-primary" />
                 </div>
-                <CardTitle>Kanban-Jahresplan</CardTitle>
+                <CardTitle>Jahresplan MIA</CardTitle>
                 <CardDescription>
-                  Visueller Jahresplan mit 6 Zeiträumen und Roboter-Illustrationen
+                  Visueller Kanban-Jahresplan mit 6 Zeiträumen und Roboter-Illustrationen
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Stufenspezifische Themen
+                    Stufenspezifische MIA-Themen
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Lektionsplanung mit Export
+                    Lektionsplanung mit PDF-Export
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Als bearbeitet markieren
+                    LP21-Kompetenzen mit Details
                   </li>
                 </ul>
               </CardContent>
             </Card>
 
-            {/* Feature 2: Custom Themes */}
+            {/* Feature 2: Jahresplanung */}
+            <Card className="border-primary/30">
+              <CardHeader>
+                <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <Calendar className="h-6 w-6 text-orange-600" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Jahresplanung</CardTitle>
+                  <Badge variant="secondary" className="text-xs">Neu</Badge>
+                </div>
+                <CardDescription>Fächerübergreifende Planung über alle LP21-Fachbereiche</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    Quartals- und Wochenansicht
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    Beurteilungen mit KW-Zuordnung
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    PDF-Export & Schuljahr kopieren
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Feature 3: Custom Themes */}
             <Card>
               <CardHeader>
                 <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center mb-4">
@@ -231,13 +274,13 @@ export default function Home() {
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Systemweite Freigabe
+                    PICTS-Freigabe & systemweite Teilung
                   </li>
                 </ul>
               </CardContent>
             </Card>
 
-            {/* Feature 3: Klassen */}
+            {/* Feature 4: Klassen */}
             <Card>
               <CardHeader>
                 <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center mb-4">
@@ -254,11 +297,65 @@ export default function Home() {
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Fortschritt einsehen
+                    Bewertungen bestätigen & Feedback
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Kommentare & Feedback
+                    Badges vergeben
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Feature 5: Schul-Dateien */}
+            <Card>
+              <CardHeader>
+                <div className="w-12 h-12 bg-teal-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <FolderOpen className="h-6 w-6 text-teal-600" />
+                </div>
+                <CardTitle>Schul-Dateien</CardTitle>
+                <CardDescription>Dateien schulintern teilen und mit Themen verknüpfen</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    PDF, Word, Excel, Bilder (max. 50MB)
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    Privat oder schulweit teilen
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    Themen-Verknüpfungen
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Feature 6: Lehrmittel & Lehrplan */}
+            <Card>
+              <CardHeader>
+                <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <BookOpen className="h-6 w-6 text-green-600" />
+                </div>
+                <CardTitle>Lehrmittel & Lehrplan</CardTitle>
+                <CardDescription>LP21-Kompetenzen und Lehrmittel-Übersicht</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    Kompetenzen mit Unterrichtsideen
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    Lehrmittel-Akkordeon nach Themen
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    Klickbare Kompetenzen-Badges
                   </li>
                 </ul>
               </CardContent>
@@ -292,15 +389,15 @@ export default function Home() {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    5-Sterne Bewertungssystem
+                    Sterne-Bewertung mit Indikatoren
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Nur relevante Kompetenzen
+                    Lehrer-Bestätigung & Feedback
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Lehrer-Feedback sichtbar
+                    Belege hochladen (Artefakte)
                   </li>
                 </ul>
               </CardContent>
@@ -319,7 +416,7 @@ export default function Home() {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    16 verschiedene Badges
+                    System- und Lehrer-Badges
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
@@ -327,34 +424,34 @@ export default function Home() {
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Automatisch & manuell
+                    Automatisch & manuell vergeben
                   </li>
                 </ul>
               </CardContent>
             </Card>
 
-            {/* Feature 3: Themen */}
+            {/* Feature 3: Export & Avatar */}
             <Card>
               <CardHeader>
                 <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center mb-4">
-                  <BookOpen className="h-6 w-6 text-green-600" />
+                  <FileText className="h-6 w-6 text-green-600" />
                 </div>
-                <CardTitle>Klassenthemen</CardTitle>
-                <CardDescription>Sieh welche Themen deine Klasse bearbeitet hat</CardDescription>
+                <CardTitle>Export & Profil</CardTitle>
+                <CardDescription>Kompetenzenpass als PDF und persönlicher Avatar</CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Bearbeitete Themen sehen
+                    PDF-Export mit Sterne-Bewertung
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    Verknüpfte Kompetenzen
+                    DiceBear-Avatar personalisieren
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                    PDF-Export
+                    Bearbeitete Themen einsehen
                   </li>
                 </ul>
               </CardContent>
@@ -367,37 +464,47 @@ export default function Home() {
       <section className="py-16 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Weitere Features</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Weitere Highlights</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center mb-4">
                   <Zap className="h-6 w-6 text-green-600" />
                 </div>
-                <CardTitle>Blitzschnell</CardTitle>
-                <CardDescription>5-7x schnellere Ladezeiten dank Firestore Cache</CardDescription>
+                <CardTitle className="text-base">Blitzschnell</CardTitle>
+                <CardDescription className="text-sm">5-7x schnellere Ladezeiten dank Firestore Cache</CardDescription>
               </CardHeader>
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center mb-4">
                   <Shield className="h-6 w-6 text-blue-600" />
                 </div>
-                <CardTitle>Admin-Freigabe</CardTitle>
-                <CardDescription>PICTS-Admins prüfen und geben Themen frei</CardDescription>
+                <CardTitle className="text-base">Rollen & Rechte</CardTitle>
+                <CardDescription className="text-sm">Lehrer, PICTS-Admin und Super-Admin mit abgestuften Rechten</CardDescription>
               </CardHeader>
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center mb-4">
-                  <Users className="h-6 w-6 text-purple-600" />
+                  <BarChart3 className="h-6 w-6 text-purple-600" />
                 </div>
-                <CardTitle>Schulübergreifend</CardTitle>
-                <CardDescription>Genehmigte Themen für alle Schulen sichtbar</CardDescription>
+                <CardTitle className="text-base">Dashboard</CardTitle>
+                <CardDescription className="text-sm">Konfigurierbares Dashboard mit wählbaren Kacheln</CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center mb-4">
+                  <Award className="h-6 w-6 text-orange-600" />
+                </div>
+                <CardTitle className="text-base">Schulübergreifend</CardTitle>
+                <CardDescription className="text-sm">Genehmigte Themen werden für alle Schulen sichtbar</CardDescription>
               </CardHeader>
             </Card>
           </div>
