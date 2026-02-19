@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
+import { storage } from "@/lib/firebase/config";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import {
   Accordion,
   AccordionContent,
@@ -46,8 +49,10 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  ImagePlus,
+  X,
 } from "lucide-react";
-import { FAQItem, FAQCategory } from "@/types";
+import { FAQItem, FAQCategory, FAQMedia } from "@/types";
 
 const CATEGORY_LABELS: Record<FAQCategory, string> = {
   allgemein: "Allgemein",
@@ -84,12 +89,87 @@ export default function FAQPage() {
     question: "",
     answer: "",
     category: "allgemein" as FAQCategory,
+    media: [] as FAQMedia[],
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Media Upload States
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const ALLOWED_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  const MAX_MEDIA_SIZE_MB = 10;
+
+  const handleMediaUpload = async (file: File) => {
+    if (!user) return;
+
+    if (!ALLOWED_MEDIA_TYPES.includes(file.type)) {
+      alert("Nur JPEG, PNG, WEBP und GIF Dateien sind erlaubt.");
+      return;
+    }
+
+    if (file.size > MAX_MEDIA_SIZE_MB * 1024 * 1024) {
+      alert(`Datei ist zu gross. Maximum: ${MAX_MEDIA_SIZE_MB}MB`);
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      const timestamp = Date.now();
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").substring(0, 100);
+      const storagePath = `faq-media/${user.uid}/${timestamp}_${safeName}`;
+      const storageRef = ref(storage, storagePath);
+
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      await new Promise<void>((resolve, reject) => {
+        uploadTask.on(
+          "state_changed",
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+          },
+          (error) => reject(error),
+          async () => {
+            const url = await getDownloadURL(uploadTask.snapshot.ref);
+            const mediaType = file.type === "image/gif" ? "gif" : "image";
+
+            setFormData((prev) => ({
+              ...prev,
+              media: [
+                ...prev.media,
+                { url, storagePath, type: mediaType as "image" | "gif", altText: "" },
+              ],
+            }));
+            resolve();
+          }
+        );
+      });
+    } catch (err) {
+      console.error("Error uploading media:", err);
+      alert("Fehler beim Hochladen der Datei.");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleRemoveMedia = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      media: prev.media.filter((_, i) => i !== index),
+    }));
+  };
 
   // Admin-Status prüfen
   useEffect(() => {
@@ -201,6 +281,7 @@ export default function FAQPage() {
       question: "",
       answer: "",
       category: "allgemein",
+      media: [],
     });
     setIsDialogOpen(true);
   };
@@ -212,6 +293,7 @@ export default function FAQPage() {
       question: item.question,
       answer: item.answer,
       category: item.category,
+      media: item.media || [],
     });
     setIsDialogOpen(true);
   };
@@ -224,6 +306,13 @@ export default function FAQPage() {
       setIsSaving(true);
       const token = await user.getIdToken();
 
+      const payload = {
+        question: formData.question,
+        answer: formData.answer,
+        category: formData.category,
+        media: formData.media.length > 0 ? formData.media : undefined,
+      };
+
       if (editingItem) {
         // Update
         const response = await fetch(`/api/faq/${editingItem.id}`, {
@@ -232,7 +321,7 @@ export default function FAQPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
@@ -246,7 +335,7 @@ export default function FAQPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
@@ -597,6 +686,26 @@ export default function FAQPage() {
                                 <div className="text-muted-foreground whitespace-pre-wrap">
                                   {item.answer}
                                 </div>
+                                {item.media && item.media.length > 0 && (
+                                  <div className="mt-4 space-y-3">
+                                    {item.media.map((media, idx) => (
+                                      <div key={idx} className="rounded-lg overflow-hidden border bg-muted/30">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={media.url}
+                                          alt={media.altText || `Screenshot ${idx + 1}`}
+                                          className="max-w-full h-auto rounded-lg"
+                                          loading="lazy"
+                                        />
+                                        {media.altText && (
+                                          <p className="text-xs text-muted-foreground px-3 py-1.5 italic">
+                                            {media.altText}
+                                          </p>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                                 {showAdminView && isAdmin && (
                                   <div className="flex gap-2 mt-4 pt-4 border-t">
                                     <Button
@@ -797,6 +906,96 @@ export default function FAQPage() {
                   rows={6}
                 />
               </div>
+
+              {/* Medien-Upload */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Bilder / GIFs (optional)</label>
+                <p className="text-xs text-muted-foreground">
+                  Screenshots oder GIFs zur Veranschaulichung. JPEG, PNG, WEBP, GIF (max. {MAX_MEDIA_SIZE_MB}MB).
+                </p>
+
+                {/* Vorhandene Medien */}
+                {formData.media.length > 0 && (
+                  <div className="space-y-3">
+                    {formData.media.map((media, index) => (
+                      <div
+                        key={index}
+                        className="relative border rounded-lg p-2 group"
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={media.url}
+                            alt={media.altText || `Bild ${index + 1}`}
+                            className="w-24 h-24 object-cover rounded border"
+                          />
+                          <div className="flex-1 space-y-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {media.type === "gif" ? "GIF" : "Bild"}
+                            </Badge>
+                            <Input
+                              value={media.altText || ""}
+                              onChange={(e) => {
+                                const updated = [...formData.media];
+                                updated[index] = { ...updated[index], altText: e.target.value };
+                                setFormData({ ...formData, media: updated });
+                              }}
+                              placeholder="Alt-Text (Beschreibung)..."
+                              className="text-xs h-8"
+                            />
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-destructive"
+                            onClick={() => handleRemoveMedia(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload Progress */}
+                {isUploading && (
+                  <div className="space-y-2">
+                    <Progress value={uploadProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground text-center">
+                      Wird hochgeladen... {Math.round(uploadProgress)}%
+                    </p>
+                  </div>
+                )}
+
+                {/* Upload Button */}
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleMediaUpload(file);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <ImagePlus className="h-4 w-4 mr-2" />
+                    )}
+                    Bild / GIF hinzufügen
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <DialogFooter>
@@ -809,7 +1008,7 @@ export default function FAQPage() {
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={isSaving || !formData.question || !formData.answer}
+                disabled={isSaving || isUploading || !formData.question || !formData.answer}
               >
                 {isSaving ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

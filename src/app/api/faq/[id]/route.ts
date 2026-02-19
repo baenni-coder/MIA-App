@@ -89,7 +89,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Parse Request Body
     const body = await request.json();
-    const { question, answer, category, order, isActive } = body;
+    const { question, answer, category, order, isActive, media } = body;
 
     // Validierung (wenn Kategorie angegeben)
     if (category) {
@@ -115,6 +115,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (category !== undefined) updates.category = category;
     if (order !== undefined) updates.order = order;
     if (isActive !== undefined) updates.isActive = isActive;
+    if (media !== undefined) updates.media = media;
 
     // Update durchführen
     await updateFAQItem(id, updates);

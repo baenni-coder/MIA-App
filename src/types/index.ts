@@ -542,6 +542,13 @@ export type FAQCategory =
   | "admin";
 
 // FAQ Eintrag (in Firestore gespeichert)
+export interface FAQMedia {
+  url: string;         // Firebase Storage URL
+  storagePath: string; // Pfad in Firebase Storage
+  type: "image" | "gif"; // Medientyp
+  altText?: string;    // Alt-Text für Barrierefreiheit
+}
+
 export interface FAQItem {
   id: string;
   question: string;
@@ -549,6 +556,7 @@ export interface FAQItem {
   category: FAQCategory;
   order: number; // Für Sortierung innerhalb der Kategorie
   isActive: boolean; // Zum Ausblenden ohne Löschen
+  media?: FAQMedia[]; // Optionale Bilder/GIFs
   createdBy: string; // Admin User ID
   createdByName: string;
   createdAt: Date;
@@ -562,6 +570,7 @@ export interface FAQItemRequest {
   category: FAQCategory;
   order?: number;
   isActive?: boolean;
+  media?: FAQMedia[];
 }
 
 // ============================================
