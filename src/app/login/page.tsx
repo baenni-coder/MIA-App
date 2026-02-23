@@ -36,17 +36,24 @@ export default function LoginPage() {
 
   // Rollenbasierte Weiterleitung nach Login
   useEffect(() => {
-    if (waitingForProfile && user && !profileLoading && userRole) {
-      setWaitingForProfile(false);
-      if (isStudent) {
-        // Schüler zur Schüler-Oberfläche weiterleiten
-        router.push("/schueler/dashboard");
-      } else if (isTeacher) {
-        // Lehrer zum Lehrer-Dashboard weiterleiten
-        router.push("/dashboard");
+    if (waitingForProfile && user && !profileLoading) {
+      if (userRole) {
+        setWaitingForProfile(false);
+        if (isStudent) {
+          // Schüler zur Schüler-Oberfläche weiterleiten
+          router.push("/schueler/dashboard");
+        } else if (isTeacher) {
+          // Lehrer zum Lehrer-Dashboard weiterleiten
+          router.push("/dashboard");
+        } else {
+          // Unbekannte Rolle - Fehlermeldung
+          setError("Ihr Konto konnte keiner Benutzergruppe zugeordnet werden. Bitte kontaktieren Sie den Support.");
+          setLoading(false);
+        }
       } else {
-        // Unbekannte Rolle - Fehlermeldung
-        setError("Ihr Konto konnte keiner Benutzergruppe zugeordnet werden. Bitte kontaktieren Sie den Support.");
+        // Profil konnte nicht geladen werden (z.B. API-Limit erreicht)
+        setWaitingForProfile(false);
+        setError("Ihr Profil konnte nicht geladen werden. Bitte versuchen Sie es in einigen Minuten erneut.");
         setLoading(false);
       }
     }

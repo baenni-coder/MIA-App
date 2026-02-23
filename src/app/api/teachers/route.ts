@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminDb, getAdminAuth } from "@/lib/firebase/admin";
-import { getSchuleById } from "@/lib/airtable/schulen";
+import { getSchuleById } from "@/lib/data-sources/schulen-adapter";
 import { isSuperAdmin } from "@/lib/firestore/permissions";
 import {
   createSchoolChangeRequest,
@@ -228,10 +228,15 @@ export async function GET(request: Request) {
 
     const teacherData = teacherDoc.data();
 
-    // Fetch school data from Airtable if schuleId exists
+    // Fetch school data (Firestore cache or Airtable) if schuleId exists
     let schuleData = null;
     if (teacherData?.schuleId) {
-      schuleData = await getSchuleById(teacherData.schuleId);
+      try {
+        schuleData = await getSchuleById(teacherData.schuleId);
+      } catch (schuleError) {
+        console.error("Error fetching school data, continuing without it:", schuleError);
+        // Login should not be blocked by school data fetch failure
+      }
     }
 
     return NextResponse.json({
