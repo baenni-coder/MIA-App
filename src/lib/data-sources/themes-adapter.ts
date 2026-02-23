@@ -1,33 +1,11 @@
 import { Thema, Stufe, Zeitraum, Kompetenz } from "@/types";
-import { getAllThemen, getThemenByStufe, getThemenGroupedByZeitraum, getThemenImageUrls } from "@/lib/airtable/themen";
+import { getAllThemen, getThemenByStufe, getThemenGroupedByZeitraum } from "@/lib/airtable/themen";
 import { getSystemThemes, getSystemKompetenzenByIds } from "@/lib/firestore/system-cache";
 
 /**
  * Feature Flag: Firestore Cache aktivieren
  */
 const USE_FIRESTORE_CACHE = process.env.ENABLE_FIRESTORE_CACHE === "true";
-
-/**
- * Timeout-Wrapper: Gibt ein Fallback-Ergebnis zurück wenn das Promise zu lange dauert.
- * Verhindert, dass hängende Airtable-Aufrufe (z.B. bei API-Limits) das Laden blockieren.
- */
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), timeoutMs)),
-  ]);
-}
-
-/**
- * Prüft ob eine URL eine Airtable Attachment URL ist (die ablaufen kann)
- */
-function isAirtableUrl(url: string | undefined): boolean {
-  if (!url) return false;
-  // Airtable URLs enthalten "dl.airtable.com" oder haben bestimmte Muster
-  return url.includes("dl.airtable.com") ||
-         url.includes(".airtable.com/") ||
-         url.includes("v1/attachments/");
-}
 
 /**
  * Konvertiert SystemTheme zu Thema (mit aufgelösten Kompetenzen)
@@ -100,26 +78,15 @@ async function convertSystemThemeToThema(systemTheme: any, kompetenzenMap?: Map<
 
 /**
  * Alle Themen laden (Firestore Cache oder Airtable Fallback)
- * WICHTIG: Bild-URLs werden immer frisch von Airtable geholt, da sie temporär sind
+ * Bild-URLs werden beim Sync permanent in Firebase Storage gespeichert
+ * und laufen nicht mehr ab.
  */
 export async function getThemes(): Promise<Thema[]> {
   if (USE_FIRESTORE_CACHE) {
     try {
       console.log("📦 Loading themes from Firestore cache...");
 
-      // Lade Themen aus Cache. Bild-URLs optional von Airtable auffrischen (mit Timeout).
-      const emptyImageMap = new Map<string, string>();
-      const [systemThemes, freshImageUrls] = await Promise.all([
-        getSystemThemes(),
-        withTimeout(
-          getThemenImageUrls().catch((err) => {
-            console.warn("⚠️ Could not load fresh image URLs:", err);
-            return emptyImageMap;
-          }),
-          5000,
-          emptyImageMap
-        ),
-      ]);
+      const systemThemes = await getSystemThemes();
 
       // Sammle alle Kompetenzen-IDs
       const allKompetenzIds = new Set<string>();
@@ -130,20 +97,12 @@ export async function getThemes(): Promise<Thema[]> {
       // Lade alle Kompetenzen auf einmal
       const kompetenzenMap = await getSystemKompetenzenByIds(Array.from(allKompetenzIds));
 
-      // Konvertiere zu Thema-Format und ersetze Bild-URLs mit frischen
+      // Konvertiere zu Thema-Format
       const themes = await Promise.all(
-        systemThemes.map(async (st) => {
-          const theme = await convertSystemThemeToThema(st, kompetenzenMap);
-          // Ersetze die gecachte Bild-URL mit der frischen Airtable-URL
-          const freshImageUrl = freshImageUrls.get(st.airtableId);
-          if (freshImageUrl) {
-            theme.bildLehrmittel = freshImageUrl;
-          }
-          return theme;
-        })
+        systemThemes.map((st) => convertSystemThemeToThema(st, kompetenzenMap))
       );
 
-      console.log(`✅ Loaded ${themes.length} themes from Firestore (with fresh images)`);
+      console.log(`✅ Loaded ${themes.length} themes from Firestore`);
       return themes;
     } catch (error) {
       console.error("❌ Error loading from Firestore, falling back to Airtable:", error);
@@ -159,26 +118,14 @@ export async function getThemes(): Promise<Thema[]> {
 
 /**
  * Themen nach Stufe filtern
- * WICHTIG: Bild-URLs werden immer frisch von Airtable geholt, da sie temporär sind
+ * Bild-URLs werden beim Sync permanent in Firebase Storage gespeichert.
  */
 export async function getThemesByStufe(stufe: Stufe): Promise<Thema[]> {
   if (USE_FIRESTORE_CACHE) {
     try {
       console.log(`📦 Loading themes for ${stufe} from Firestore cache...`);
 
-      // Lade Themen aus Cache. Bild-URLs optional von Airtable auffrischen (mit Timeout).
-      const emptyImageMap = new Map<string, string>();
-      const [systemThemes, freshImageUrls] = await Promise.all([
-        getSystemThemes(stufe),
-        withTimeout(
-          getThemenImageUrls().catch((err) => {
-            console.warn("⚠️ Could not load fresh image URLs:", err);
-            return emptyImageMap;
-          }),
-          5000,
-          emptyImageMap
-        ),
-      ]);
+      const systemThemes = await getSystemThemes(stufe);
 
       // Sammle alle Kompetenzen-IDs
       const allKompetenzIds = new Set<string>();
@@ -189,20 +136,12 @@ export async function getThemesByStufe(stufe: Stufe): Promise<Thema[]> {
       // Lade alle Kompetenzen auf einmal
       const kompetenzenMap = await getSystemKompetenzenByIds(Array.from(allKompetenzIds));
 
-      // Konvertiere zu Thema-Format und ersetze Bild-URLs mit frischen
+      // Konvertiere zu Thema-Format
       const themes = await Promise.all(
-        systemThemes.map(async (st) => {
-          const theme = await convertSystemThemeToThema(st, kompetenzenMap);
-          // Ersetze die gecachte Bild-URL mit der frischen Airtable-URL
-          const freshImageUrl = freshImageUrls.get(st.airtableId);
-          if (freshImageUrl) {
-            theme.bildLehrmittel = freshImageUrl;
-          }
-          return theme;
-        })
+        systemThemes.map((st) => convertSystemThemeToThema(st, kompetenzenMap))
       );
 
-      console.log(`✅ Loaded ${themes.length} themes for ${stufe} from Firestore (with fresh images)`);
+      console.log(`✅ Loaded ${themes.length} themes for ${stufe} from Firestore`);
       return themes;
     } catch (error) {
       console.error("❌ Error loading from Firestore, falling back to Airtable:", error);

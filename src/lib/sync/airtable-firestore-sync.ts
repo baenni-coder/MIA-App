@@ -18,6 +18,7 @@ import {
   updateSyncMetadata,
   createSyncLog,
 } from "@/lib/firestore/system-cache";
+import { downloadAndUploadImage, generateSystemImagePath } from "@/lib/storage/upload";
 import { SystemTheme, SystemSchule, SystemKompetenz, SystemLektion } from "@/types";
 
 /**
@@ -135,6 +136,22 @@ export async function syncAirtableToFirestore(triggeredBy?: string): Promise<Syn
     }
 
     console.log("✅ Phase 2 (lektionen) completed");
+
+    // Phase 3: Sync Bilder zu Firebase Storage (damit URLs nicht ablaufen)
+    console.log("🖼️ Syncing theme images to Firebase Storage...");
+    const imageResult = await withTimeout(
+      syncThemenImages(),
+      60000, // 60 Sekunden Timeout
+      "Sync Phase 3 (Images) timeout after 60 seconds"
+    ).catch((error) => {
+      console.error("Error syncing images:", error);
+      return { synced: 0, skipped: 0, failed: 0, errors: [error instanceof Error ? error.message : String(error)] };
+    });
+
+    if (imageResult.errors && imageResult.errors.length > 0) {
+      result.errors.push(...imageResult.errors);
+    }
+    console.log(`✅ Phase 3 (images) completed: ${imageResult.synced} synced, ${imageResult.skipped} skipped, ${imageResult.failed} failed`);
 
     // Berechne Gesamtdauer
     result.duration = Date.now() - startTime;
@@ -500,5 +517,85 @@ async function syncLektionen(): Promise<{ added: number; updated: number; delete
     errors.push(errorMessage);
     console.error("Error syncing Lektionen:", error);
     return { added, updated, deleted, errors };
+  }
+}
+
+/**
+ * Sync Themen-Bilder zu Firebase Storage
+ * Airtable Attachment-URLs laufen nach ~2 Stunden ab.
+ * Diese Funktion lädt die Bilder herunter und speichert sie permanent in Firebase Storage.
+ */
+async function syncThemenImages(): Promise<{ synced: number; skipped: number; failed: number; errors?: string[] }> {
+  const errors: string[] = [];
+  let synced = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  try {
+    // Lade alle Themen aus Firestore Cache
+    const themes = await getSystemThemes();
+
+    // Filtere Themen die ein Bild haben, das noch nicht in Firebase Storage liegt
+    const themesNeedingImageSync = themes.filter((theme) => {
+      if (!theme.bildLehrmittel) return false;
+      // Bereits in Firebase Storage → überspringen
+      if (theme.bildLehrmittel.includes("storage.googleapis.com")) return false;
+      return true;
+    });
+
+    if (themesNeedingImageSync.length === 0) {
+      console.log("   All images already in Firebase Storage, nothing to sync");
+      return { synced: 0, skipped: themes.length, failed: 0 };
+    }
+
+    skipped = themes.length - themesNeedingImageSync.length;
+    console.log(`   ${themesNeedingImageSync.length} images to download, ${skipped} already synced`);
+
+    // Verarbeite in kleinen Batches (3 parallel) um Airtable nicht zu überlasten
+    const BATCH_SIZE = 3;
+    for (let i = 0; i < themesNeedingImageSync.length; i += BATCH_SIZE) {
+      const batch = themesNeedingImageSync.slice(i, i + BATCH_SIZE);
+
+      const results = await Promise.allSettled(
+        batch.map(async (theme) => {
+          const storagePath = generateSystemImagePath(theme.airtableId, theme.bildLehrmittel);
+          const storageUrl = await downloadAndUploadImage(theme.bildLehrmittel!, storagePath);
+
+          if (storageUrl) {
+            // Update Firestore mit permanenter Firebase Storage URL
+            await upsertSystemThemes([{
+              ...theme,
+              bildLehrmittel: storageUrl,
+              lastSyncedAt: new Date(),
+            }]);
+            return true;
+          }
+          return false;
+        })
+      );
+
+      for (const result of results) {
+        if (result.status === "fulfilled" && result.value) {
+          synced++;
+        } else {
+          failed++;
+          if (result.status === "rejected") {
+            errors.push(String(result.reason));
+          }
+        }
+      }
+
+      // Kurze Pause zwischen Batches um Rate-Limits zu respektieren
+      if (i + BATCH_SIZE < themesNeedingImageSync.length) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
+
+    return { synced, skipped, failed, errors: errors.length > 0 ? errors : undefined };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error in syncThemenImages";
+    errors.push(errorMessage);
+    console.error("Error syncing theme images:", error);
+    return { synced, skipped, failed, errors };
   }
 }
