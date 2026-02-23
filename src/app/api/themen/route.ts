@@ -1,20 +1,42 @@
 import { NextResponse } from "next/server";
 import { getThemes, getThemesByStufe, getThemesGroupedByZeitraum } from "@/lib/data-sources/themes-adapter";
 import { getCustomThemesByStufe } from "@/lib/firestore/custom-themes";
-import { getKompetenzenByIds } from "@/lib/airtable/kompetenzen";
-import { Stufe, Thema, Zeitraum, CustomTheme } from "@/types";
+import { getSystemKompetenzenByIds } from "@/lib/firestore/system-cache";
+import { Stufe, Thema, Zeitraum, CustomTheme, Kompetenz } from "@/types";
 
 /**
  * Konvertiert CustomTheme zu Thema-Format
+ * Nutzt Firestore-Cache für Kompetenzen statt direkte Airtable-Aufrufe
  */
 async function convertCustomThemeToThema(customTheme: CustomTheme): Promise<Thema> {
   // Kompetenzen auflösen falls noch nicht geschehen
   let kompetenzen = customTheme.kompetenzen;
   if (!kompetenzen && customTheme.kompetenzenIds.length > 0) {
-    const kompetenzenMap = await getKompetenzenByIds(customTheme.kompetenzenIds);
-    kompetenzen = customTheme.kompetenzenIds
-      .map((id) => kompetenzenMap.get(id))
-      .filter((k) => k !== undefined);
+    try {
+      const systemKompetenzenMap = await getSystemKompetenzenByIds(customTheme.kompetenzenIds);
+      kompetenzen = customTheme.kompetenzenIds
+        .map((id) => {
+          const sk = systemKompetenzenMap.get(id);
+          if (!sk) return undefined;
+          return {
+            id: sk.airtableId,
+            name: sk.name,
+            lpCode: sk.lpCode,
+            kompetenzbereich: sk.kompetenzbereich,
+            kompetenz: sk.kompetenz,
+            kompetenzstufe: sk.kompetenzstufe,
+            zyklus: sk.zyklus,
+            klassenstufe: sk.klassenstufe,
+            grundanspruch: sk.grundanspruch,
+            querverweisLP: sk.querverweisLP,
+            unterrichtsideen: [],
+          } as Kompetenz;
+        })
+        .filter((k): k is Kompetenz => k !== undefined);
+    } catch (error) {
+      console.error("Error resolving competencies for custom theme:", error);
+      kompetenzen = [];
+    }
   }
 
   // String-Repräsentation für Anzeige
