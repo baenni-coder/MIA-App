@@ -8,6 +8,17 @@ import { getSystemThemes, getSystemKompetenzenByIds } from "@/lib/firestore/syst
 const USE_FIRESTORE_CACHE = process.env.ENABLE_FIRESTORE_CACHE === "true";
 
 /**
+ * Timeout-Wrapper: Gibt ein Fallback-Ergebnis zurück wenn das Promise zu lange dauert.
+ * Verhindert, dass hängende Airtable-Aufrufe (z.B. bei API-Limits) das Laden blockieren.
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), timeoutMs)),
+  ]);
+}
+
+/**
  * Prüft ob eine URL eine Airtable Attachment URL ist (die ablaufen kann)
  */
 function isAirtableUrl(url: string | undefined): boolean {
@@ -96,13 +107,18 @@ export async function getThemes(): Promise<Thema[]> {
     try {
       console.log("📦 Loading themes from Firestore cache...");
 
-      // Parallel: Lade Themen aus Cache UND frische Bild-URLs von Airtable
+      // Lade Themen aus Cache. Bild-URLs optional von Airtable auffrischen (mit Timeout).
+      const emptyImageMap = new Map<string, string>();
       const [systemThemes, freshImageUrls] = await Promise.all([
         getSystemThemes(),
-        getThemenImageUrls().catch((err) => {
-          console.warn("⚠️ Could not load fresh image URLs:", err);
-          return new Map<string, string>();
-        }),
+        withTimeout(
+          getThemenImageUrls().catch((err) => {
+            console.warn("⚠️ Could not load fresh image URLs:", err);
+            return emptyImageMap;
+          }),
+          5000,
+          emptyImageMap
+        ),
       ]);
 
       // Sammle alle Kompetenzen-IDs
@@ -150,13 +166,18 @@ export async function getThemesByStufe(stufe: Stufe): Promise<Thema[]> {
     try {
       console.log(`📦 Loading themes for ${stufe} from Firestore cache...`);
 
-      // Parallel: Lade Themen aus Cache UND frische Bild-URLs von Airtable
+      // Lade Themen aus Cache. Bild-URLs optional von Airtable auffrischen (mit Timeout).
+      const emptyImageMap = new Map<string, string>();
       const [systemThemes, freshImageUrls] = await Promise.all([
         getSystemThemes(stufe),
-        getThemenImageUrls().catch((err) => {
-          console.warn("⚠️ Could not load fresh image URLs:", err);
-          return new Map<string, string>();
-        }),
+        withTimeout(
+          getThemenImageUrls().catch((err) => {
+            console.warn("⚠️ Could not load fresh image URLs:", err);
+            return emptyImageMap;
+          }),
+          5000,
+          emptyImageMap
+        ),
       ]);
 
       // Sammle alle Kompetenzen-IDs
