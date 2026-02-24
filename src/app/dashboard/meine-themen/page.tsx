@@ -268,22 +268,20 @@ export default function MeineThemenPage() {
                         </Button>
                       )}
 
-                      {/* Löschen: nur bei draft */}
-                      {theme.status === "draft" && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(theme.id)}
-                          disabled={deletingId === theme.id}
-                        >
-                          {deletingId === theme.id ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="mr-2 h-4 w-4" />
-                          )}
-                          Löschen
-                        </Button>
-                      )}
+                      {/* Löschen */}
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(theme.id)}
+                        disabled={deletingId === theme.id}
+                      >
+                        {deletingId === theme.id ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Löschen
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

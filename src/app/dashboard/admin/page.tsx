@@ -11,13 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CustomTheme, ThemeStatus } from "@/types";
-import { Loader2, Eye } from "lucide-react";
+import { Loader2, Eye, Trash2 } from "lucide-react";
 
 type Tab = "pending_review" | "approved" | "rejected" | "all";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("pending_review");
   const [themes, setThemes] = useState<CustomTheme[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +25,8 @@ export default function AdminDashboardPage() {
   const [reviewingTheme, setReviewingTheme] = useState<CustomTheme | null>(
     null
   );
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const isSuperAdmin = userRole === "super_admin";
 
   useEffect(() => {
     checkAdminAccess();
@@ -101,6 +103,34 @@ export default function AdminDashboardPage() {
   const handleReviewComplete = () => {
     setReviewingTheme(null);
     loadThemes();
+  };
+
+  const handleDelete = async (themeId: string) => {
+    if (!confirm("Möchten Sie dieses Thema wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.")) return;
+
+    setDeletingId(themeId);
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch(`/api/custom-themes/${themeId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete");
+      }
+
+      setThemes((prev) => prev.filter((t) => t.id !== themeId));
+      alert("Thema wurde gelöscht");
+    } catch (error) {
+      console.error("Error deleting theme:", error);
+      alert("Fehler beim Löschen: " + (error as Error).message);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (!isAdmin) {
@@ -257,6 +287,21 @@ export default function AdminDashboardPage() {
                           ? "Prüfen"
                           : "Details"}
                       </Button>
+                      {isSuperAdmin && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(theme.id)}
+                          disabled={deletingId === theme.id}
+                        >
+                          {deletingId === theme.id ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="mr-2 h-4 w-4" />
+                          )}
+                          Löschen
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -272,6 +317,7 @@ export default function AdminDashboardPage() {
             open={!!reviewingTheme}
             onOpenChange={(open) => !open && setReviewingTheme(null)}
             onReviewComplete={handleReviewComplete}
+            isSuperAdmin={isSuperAdmin}
           />
         )}
       </DashboardLayout>
