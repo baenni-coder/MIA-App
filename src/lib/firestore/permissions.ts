@@ -136,7 +136,7 @@ export async function canEditCustomTheme(
 
 /**
  * Prüft ob ein User ein Custom Theme löschen darf
- * - Nur Ersteller kann draft Themen löschen
+ * - Ersteller kann eigene Themen in jedem Status löschen
  * - Super-Admin kann alle Themen löschen
  */
 export async function canDeleteCustomTheme(
@@ -149,8 +149,8 @@ export async function canDeleteCustomTheme(
   // Super-Admin kann alles löschen
   if (await isSuperAdmin(userId)) return true;
 
-  // Ersteller kann nur draft Themen löschen
-  return theme.createdBy === userId && theme.status === "draft";
+  // Ersteller kann eigene Themen löschen (unabhängig vom Status)
+  return theme.createdBy === userId;
 }
 
 /**

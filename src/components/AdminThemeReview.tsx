@@ -14,13 +14,14 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { CustomTheme } from "@/types";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Trash2 } from "lucide-react";
 
 interface AdminThemeReviewProps {
   theme: CustomTheme;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onReviewComplete?: () => void;
+  isSuperAdmin?: boolean;
 }
 
 export default function AdminThemeReview({
@@ -28,9 +29,10 @@ export default function AdminThemeReview({
   open,
   onOpenChange,
   onReviewComplete,
+  isSuperAdmin = false,
 }: AdminThemeReviewProps) {
   const { user } = useAuth();
-  const [action, setAction] = useState<"approve" | "reject" | null>(null);
+  const [action, setAction] = useState<"approve" | "reject" | "delete" | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -88,6 +90,41 @@ export default function AdminThemeReview({
     } catch (error) {
       console.error("Error reviewing theme:", error);
       alert("Fehler beim Review: " + (error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Möchten Sie dieses Thema wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.")) return;
+
+    setAction("delete");
+    setLoading(true);
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch(`/api/custom-themes/${theme.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete");
+      }
+
+      alert("Thema wurde gelöscht");
+      setReviewNotes("");
+      setAction(null);
+      onOpenChange(false);
+
+      if (onReviewComplete) {
+        onReviewComplete();
+      }
+    } catch (error) {
+      console.error("Error deleting theme:", error);
+      alert("Fehler beim Löschen: " + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -204,6 +241,21 @@ export default function AdminThemeReview({
         </div>
 
         <DialogFooter className="flex gap-2">
+          {isSuperAdmin && (
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={loading}
+              className="mr-auto"
+            >
+              {loading && action === "delete" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Löschen
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => {

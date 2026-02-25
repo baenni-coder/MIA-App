@@ -259,7 +259,7 @@ export async function DELETE(
       return NextResponse.json(
         {
           error:
-            "Forbidden - Only draft themes can be deleted by their creator",
+            "Forbidden - Only the creator or a super admin can delete themes",
         },
         { status: 403 }
       );
