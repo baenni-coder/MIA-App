@@ -97,6 +97,13 @@ export default function LehrmittelPage() {
                               src={bildUrl}
                               alt={lehrmittel}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback: BookOpen-Icon anzeigen statt kaputtes Bild
+                                const parent = e.currentTarget.parentElement as HTMLElement;
+                                parent.innerHTML = "";
+                                parent.className = "w-16 h-16 bg-muted rounded-lg flex items-center justify-center shrink-0";
+                                parent.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+                              }}
                             />
                           </div>
                         ) : (

@@ -141,8 +141,8 @@ export async function syncAirtableToFirestore(triggeredBy?: string): Promise<Syn
     console.log("🖼️ Syncing theme images to Firebase Storage...");
     const imageResult = await withTimeout(
       syncThemenImages(),
-      60000, // 60 Sekunden Timeout
-      "Sync Phase 3 (Images) timeout after 60 seconds"
+      120000, // 120 Sekunden Timeout (Bilder brauchen mehr Zeit)
+      "Sync Phase 3 (Images) timeout after 120 seconds"
     ).catch((error) => {
       console.error("Error syncing images:", error);
       return { synced: 0, skipped: 0, failed: 0, errors: [error instanceof Error ? error.message : String(error)] };
@@ -297,6 +297,9 @@ async function syncThemen(): Promise<{ added: number; updated: number; deleted: 
     const firestoreThemen = await getSystemThemes();
     const firestoreIds = new Set(firestoreThemen.map((t) => t.airtableId));
 
+    // Map für schnellen Zugriff auf existierende Firestore-Themen
+    const firestoreThemeMap = new Map(firestoreThemen.map((t) => [t.airtableId, t]));
+
     // 3. Identifiziere neue und zu aktualisierende Themen
     const toUpsert: Omit<SystemTheme, "id">[] = airtableThemen.map((thema) => {
       const isNew = !firestoreIds.has(thema.id);
@@ -306,12 +309,22 @@ async function syncThemen(): Promise<{ added: number; updated: number; deleted: 
         updated++;
       }
 
+      // WICHTIG: Wenn bereits eine permanente Firebase Storage URL existiert,
+      // diese beibehalten statt mit der temporären Airtable-URL zu überschreiben.
+      // Airtable Attachment-URLs laufen nach ~2 Stunden ab!
+      const existingTheme = firestoreThemeMap.get(thema.id);
+      const existingBild = existingTheme?.bildLehrmittel;
+      const existingHasStorageUrl = existingBild?.includes("storage.googleapis.com");
+      const bildLehrmittel = existingHasStorageUrl
+        ? existingBild
+        : thema.bildLehrmittel;
+
       return {
         airtableId: thema.id,
         thema: thema.thema,
         beschreibung: thema.beschreibung,
         lehrmittel: thema.lehrmittel,
-        bildLehrmittel: thema.bildLehrmittel,
+        bildLehrmittel,
         anzahlLektionen: thema.anzahlLektionen,
         schuljahr: thema.schuljahr,
         zeitraum: thema.zeitraum,
