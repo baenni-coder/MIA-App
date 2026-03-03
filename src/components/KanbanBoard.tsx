@@ -219,6 +219,10 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                         src={thema.bildLehrmittel}
                         alt={thema.lehrmittel || thema.thema}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Bild nicht verfügbar (z.B. abgelaufene Airtable-URL) → Container ausblenden
+                          (e.currentTarget.parentElement as HTMLElement).style.display = "none";
+                        }}
                       />
                     </div>
                   )}
@@ -282,6 +286,9 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                     src={selectedThema.bildLehrmittel}
                     alt={selectedThema.lehrmittel || selectedThema.thema}
                     className="w-full h-full object-contain"
+                    onError={(e) => {
+                      (e.currentTarget.parentElement as HTMLElement).style.display = "none";
+                    }}
                   />
                 </div>
               )}
