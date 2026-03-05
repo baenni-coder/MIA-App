@@ -11,6 +11,20 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **Erweitertes Profil**: Lehrpersonen können Schule und Kanton im Dashboard ändern
 - **Favicon**: Neues SVG-Icon im Code-Klammern-Design
 
+**🆕 NEU (Februar 2026):**
+- **Fächerübergreifende Jahresplanung**: Quartals- und Wochenansicht mit LP21-Fachbereichen
+- **Ferienverwaltung**: Manuelle Anpassung der Schulferien pro Schuljahr
+- **Beurteilungen**: Mehrere Beurteilungen pro Einheit mit KW-Zuordnung
+- **PDF-Export**: Quartals-, Wochen- und Jahresplanung als PDF
+- **Kollaborative Planung**: Einheiten teilen, Planungsteams erstellen
+- **Konfigurierbare Dashboard-Kacheln**: Lehrpersonen wählen ihre Kacheln selbst
+- **Datenschutz revDSG**: Compliance-Verbesserungen für Schweizer Datenschutzgesetz
+
+**🆕 NEU (März 2026):**
+- **Airtable API-Limit Fixes**: Login, Jahresplan und Kompetenzen nutzen Firestore-Cache
+- **Permanente Bilder**: Lehrmittel-Bilder in Firebase Storage statt ablaufende Airtable-URLs
+- **Bilder-Sync**: Dedizierter Endpoint und Admin-UI für Bilder-Synchronisation
+
 ## 🎯 Features
 
 ### Basis-Features
@@ -88,6 +102,25 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **PICTS-Links bearbeiten**
 - **Benutzerübersicht** pro Schule
 
+### 🆕 Fächerübergreifende Jahresplanung (Februar 2026)
+
+- **Quartalsansicht**: Wochen-Raster mit farbigen Balken pro Einheit und Fachbereich
+- **Wochenansicht**: Detailansicht aller Einheiten in einer Woche
+- **LP21-Fachbereiche**: Deutsch, Mathe, NMG, etc. mit Kompetenzbereichen
+- **Beurteilungen mit KW-Zuordnung**: Formative und summative Beurteilungen
+- **Ferienverwaltung**: Preset-Ferien nach Kanton, individuelle Anpassungen
+- **PDF-Export**: Quartals-, Wochen- und Jahresplanung mit Lehrperson im Header
+- **Schuljahr kopieren**: Einheiten aus vergangenen Schuljahren übernehmen
+- **Kollaborative Planung**: Einheiten teilen, Planungsteams erstellen
+- **Konfigurierbare Dashboard-Kacheln**: 12 verfügbare Kacheln frei wählbar
+
+### 🆕 Performance & Stabilität (März 2026)
+
+- **Firestore-Cache konsequent genutzt**: Login, Jahresplan, Kompetenzen ohne Airtable-Abhängigkeit
+- **Permanente Bilder**: Lehrmittel-Bilder in Firebase Storage (keine ablaufenden Airtable-URLs)
+- **Bilder-Sync**: Dedizierter Admin-Endpoint mit Status-Anzeige und separatem Sync-Button
+- **Reliable Sync**: maxDuration=300s auf Vercel, await statt fire-and-forget
+
 ## 🛠 Tech Stack
 
 - **Framework**: Next.js 15 mit App Router
@@ -97,14 +130,13 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **Datenbank**:
   - **Airtable**: System-Themen, Schulen, Kompetenzen, Lektionsplanung
   - **Firebase Firestore**: Lehrerprofile, Custom Themes, Custom Lektionen, Notifications
-- **Storage**: Firebase Storage (Bilder für Custom Themes)
+- **Storage**: Firebase Storage (Lehrmittel-Bilder, Schul-Dateien, Schüler-Artefakte)
 - **UI-Bibliothek**: shadcn/ui mit Radix UI Primitives, Lucide Icons
 - **UI-Komponenten**:
   - @radix-ui/react-select für Dropdown-Menüs
   - @radix-ui/react-accordion für Lektionsplanung
   - Native HTML Checkboxes (ohne Radix UI)
-- **Export**: jsPDF für PDF-Generierung
-- **Drag & Drop**: @dnd-kit (ready to implement)
+- **Export**: @react-pdf/renderer für PDF-Generierung (Kompetenzenpass, Jahresplanung)
 - **Permissions**: Rollen-basiertes System (teacher, picts_admin, super_admin)
 
 ## Voraussetzungen
@@ -240,26 +272,37 @@ MIA-App/
 │   ├── app/                    # Next.js App Router
 │   │   ├── api/               # API Routes
 │   │   │   ├── auth/          # Auth-Endpunkte (check-admin)
+│   │   │   ├── admin/         # Admin-Endpunkte
+│   │   │   │   ├── schools/   # Schulverwaltung
+│   │   │   │   ├── sync/      # Daten-Sync (Schulen, Themen, etc.)
+│   │   │   │   └── sync-images/ # Bilder-Sync zu Firebase Storage
 │   │   │   ├── custom-themes/ # Custom Theme CRUD + Review
 │   │   │   ├── custom-lektionen/ # Custom Lektionen CRUD
+│   │   │   ├── cron/sync/     # Vercel Cron Job für automatischen Sync
+│   │   │   ├── jahresplanung/ # Jahresplanung CRUD + Ferien
 │   │   │   ├── notifications/ # Notifications
+│   │   │   ├── school-files/  # Schul-Dateien
+│   │   │   ├── faq/           # FAQ-Endpunkte
 │   │   │   ├── upload-image/  # Firebase Storage Upload
-│   │   │   ├── schulen/       # Schulen CRUD
+│   │   │   ├── schulen/       # Schulen (öffentlich)
 │   │   │   ├── teachers/      # Lehrer-Profile (GET, POST, PUT)
-│   │   │   ├── themen/        # Themen (Airtable + Firestore)
-│   │   │   └── lektionsplanung/ # Lektionsplanung (Airtable)
+│   │   │   ├── themen/        # Themen (Firestore Cache + Airtable)
+│   │   │   └── lektionsplanung/ # Lektionsplanung
 │   │   ├── dashboard/         # Lehrer-Dashboard
-│   │   │   ├── admin/         # Admin Dashboard (Review)
-│   │   │   ├── jahresplan/    # Kanban-Board mit Stufe-Auswahl
+│   │   │   ├── admin/         # Admin Dashboard (Review, Sync, Schulen)
+│   │   │   ├── jahresplan/    # Jahresplan MIA (Kanban-Board)
+│   │   │   ├── jahresplanung/ # Fächerübergreifende Jahresplanung
 │   │   │   ├── lehrmittel/    # Lehrmittel-Übersicht
+│   │   │   ├── lehrplan/      # Lehrplan-Kompetenzen
+│   │   │   ├── dateien/       # Schul-Dateien
+│   │   │   ├── faq/           # FAQ-Seite
 │   │   │   ├── thema-erstellen/ # Custom Theme erstellen
 │   │   │   ├── thema-bearbeiten/[id]/ # Custom Theme bearbeiten
 │   │   │   ├── meine-themen/  # Übersicht Custom Themes
 │   │   │   ├── thema/[id]/lektionen/ # Lektionen-Verwaltung
 │   │   │   └── page.tsx       # Dashboard mit Profil-Bearbeitung
-│   │   ├── auth/              # Auth-Seiten
-│   │   │   ├── login/
-│   │   │   └── register/
+│   │   ├── login/             # Login-Seite
+│   │   ├── register/          # Registrierung
 │   │   └── page.tsx           # Landing Page
 │   ├── components/            # React Komponenten
 │   │   ├── ui/               # shadcn/ui Komponenten
@@ -333,39 +376,22 @@ MIA-App/
 
 ### Firestore Collections
 
-- **teachers**: Lehrer-Profile
-  - `userId` (Firebase UID)
-  - `email`
-  - `name`
-  - `schuleId` (Referenz zu Airtable)
-  - `stufe` (KiGa, 1.-9. Klasse)
-  - `role` (teacher | picts_admin | super_admin)
-  - `createdAt`
+- **teachers**: Lehrer-Profile (`userId`, `email`, `name`, `schuleId`, `stufe`, `kanton`, `role`, `dashboardTiles`)
+- **custom_themes**: Benutzerdefinierte Themen (Status-Workflow: draft → pending_review → approved/rejected)
+- **custom_lektionen**: Lektionen für Custom Themes (3-Phasen-Modell)
+- **notifications**: In-App Benachrichtigungen (theme_submitted, theme_approved, theme_rejected)
+- **school_files**: Schulinterne Dateien (Freigabe: private/school)
+- **faq_items**: FAQ-Einträge mit Kategorien
+- **jahresplan_einheiten**: Fächerübergreifende Planungseinheiten mit LP21-Fachbereichen
+- **schulferien_custom**: Benutzerdefinierte Schulferien pro Schuljahr
+- **student_artifacts**: Schüler-Artefakte für Kompetenzenpass
 
-- **custom_themes**: Benutzerdefinierte Themen
-  - `thema`, `beschreibung`, `lehrmittel`
-  - `bildLehrmittel` (Firebase Storage URL)
-  - `anzahlLektionen`, `schuljahr`, `zeitraum`
-  - `kompetenzenIds` (Airtable Record IDs)
-  - `status` (draft | pending_review | approved | rejected)
-  - `isSystemWide` (true wenn approved)
-  - `createdBy`, `createdByName`, `schuleId`
-  - `reviewedBy`, `reviewedByName`, `reviewedAt`, `reviewNotes`
-  - `createdAt`, `updatedAt`
-
-- **custom_lektionen**: Benutzerdefinierte Lektionen
-  - `customThemeId` (Referenz zu Custom Theme)
-  - `lektionNummer`, `aufgaben`, `vorwissen`
-  - `material` (Array), `websiteTools` (Array)
-  - `einstieg`, `hauptteil`, `abschluss`, `stolpersteine`
-  - `createdAt`, `updatedAt`
-
-- **notifications**: In-App Benachrichtigungen
-  - `recipientId`, `recipientName`
-  - `type` (theme_submitted | theme_approved | theme_rejected)
-  - `title`, `message`, `actionUrl`
-  - `relatedThemeId`, `relatedThemeName`
-  - `isRead`, `createdAt`
+### Firestore Cache (System-Daten)
+- **system_themes**: Airtable-Themen Cache (mit Firebase Storage Bild-URLs)
+- **system_schulen**: Airtable-Schulen Cache
+- **system_kompetenzen**: Airtable-Kompetenzen Cache
+- **system_lektionen**: Airtable-Lektionen Cache
+- **sync_metadata**: Sync-Status und Zeitstempel
 
 ### Airtable Tables
 
@@ -427,10 +453,28 @@ Die App verwendet **shadcn/ui** - eine moderne, accessible Komponenten-Bibliothe
 - [x] Erweitertes Lehrerprofil (Schule, Kanton)
 - [x] SVG-Favicon
 
+### Jahresplanung & Kollaboration (Februar 2026 ✨)
+- [x] Fächerübergreifende Jahresplanung mit Quartals-/Wochenansicht
+- [x] LP21-Fachbereiche und Kompetenzbereiche
+- [x] Manuelle Ferienverwaltung pro Schuljahr
+- [x] Beurteilungen mit KW-Zuordnung (formativ/summativ)
+- [x] PDF-Export Jahresplanung mit Lehrperson im Header
+- [x] Schuljahr kopieren (aus 6 vergangenen Jahren)
+- [x] Konfigurierbare Dashboard-Kacheln
+- [x] Kollaborative Jahresplanung mit Planungsteams
+- [x] Datenschutz-Audit revDSG
+- [x] Startseite überarbeitet
+
+### Performance & Stabilität (März 2026 ✨)
+- [x] Login, Jahresplan, Kompetenzen nutzen Firestore-Cache statt Airtable
+- [x] Lehrmittel-Bilder permanent in Firebase Storage
+- [x] Bilder-Sync Endpoint mit Admin-UI und Status-Anzeige
+- [x] Reliable Sync (maxDuration, await statt fire-and-forget)
+- [x] TypeScript gepinnt auf 5.9.3
+
 ## 🔜 Nächste Schritte
 
 ### UI/UX Verbesserungen
-- [ ] Hintergrund für Startseite erstellen
 - [ ] Custom Theme Badge im Kanban-Board
 - [ ] Dark Mode
 
@@ -439,13 +483,10 @@ Die App verwendet **shadcn/ui** - eine moderne, accessible Komponenten-Bibliothe
 - [ ] Export-Funktionen (PDF, Markdown) für Custom Lektionen
 - [ ] PICTS-Admin Ernennung direkt in der App
 - [ ] Airtable Export für genehmigte Custom Themes
-- [ ] Drag & Drop im Kanban-Board für Themen-Verschiebung
-- [ ] Kalenderansicht des Jahresplans
-- [ ] Persönliche Notizen zu Themen
 
 ### Performance & Qualität
 - [ ] React Query für API-Caching
-- [ ] Toast Notifications für Errors
+- [ ] Automatischer Daily Sync (Vercel Cron Job)
 - [ ] Skeleton Screens statt Spinner
 - [ ] Unit & E2E Tests
 - [ ] Monitoring & Analytics

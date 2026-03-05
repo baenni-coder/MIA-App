@@ -42,6 +42,16 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Jahresplan MIA**: Umbenennung für Klarheit (Menü, Dashboard)
 - **Konfigurierbare Dashboard-Kacheln**: Lehrpersonen wählen ihre Dashboard-Kacheln selbst
 
+**NEU (2026-03)**:
+- **Airtable API-Limit Fixes**: Login, Jahresplan, Kompetenzen nutzen Firestore-Cache statt Airtable
+- **Permanente Bilder**: Lehrmittel-Bilder in Firebase Storage (Airtable-URLs laufen nach ~2h ab)
+- **Bilder-Sync Endpoint**: Dedizierter `/api/admin/sync-images` für Bilder-Synchronisation
+- **Reliable Sync**: `maxDuration=300s`, `await` statt fire-and-forget auf Vercel
+- **Kollaborative Jahresplanung**: Planungsteams und geteilte Einheiten
+- **Datenschutz revDSG**: Compliance-Verbesserungen
+- **Startseite überarbeitet**: Neues Design mit Feature-Übersicht
+- **FAQ Bild/GIF-Upload**: FAQ-Antworten können Medien enthalten
+
 ## Tech Stack
 
 - **Framework**: Next.js 15 mit App Router
@@ -93,13 +103,16 @@ src/
 │   │   │   ├── kopieren/       # Schuljahr kopieren (POST)
 │   │   │   ├── ferien/         # Custom-Ferien (GET, POST, PUT, DELETE)
 │   │   │   └── route.ts         # List & Create Einheiten
+│   │   ├── cron/                # Vercel Cron Jobs
+│   │   │   └── sync/            # Automatischer Daily Sync (maxDuration=300s)
 │   │   ├── admin/               # Admin-Endpunkte
 │   │   │   ├── schools/         # Schulverwaltung
 │   │   │   │   ├── [id]/       # PUT, DELETE einzelne Schule
 │   │   │   │   └── route.ts     # GET, POST alle Schulen
 │   │   │   ├── users/           # Benutzerverwaltung
 │   │   │   │   └── [id]/       # PUT, GET einzelner User
-│   │   │   └── sync/            # Sync-Endpunkte
+│   │   │   ├── sync/            # Sync-Endpunkte (Schulen, Themen, etc.)
+│   │   │   └── sync-images/     # Bilder-Sync zu Firebase Storage (GET Status, POST Sync)
 │   │   ├── upload-image/        # Image Upload zu Firebase Storage
 │   │   ├── schulen/             # Schulen-Endpunkte (öffentlich)
 │   │   ├── teachers/            # Lehrer-Endpunkte (GET, POST, PUT)
@@ -223,13 +236,19 @@ ENABLE_FIRESTORE_CACHE=true
 **Datenfluss:**
 1. **Read:** API prüft `ENABLE_FIRESTORE_CACHE` → Firestore (schnell) oder Airtable (langsam)
 2. **Write:** Änderungen in Airtable → Manueller Sync triggern oder Cron abwarten
-3. **Sync:** `/api/admin/sync` lädt Airtable-Daten → schreibt in Firestore Cache
+3. **Sync (5 Schritte):**
+   - Schulen, Themen, Kompetenzen, Lektionen aus Airtable → Firestore Cache
+   - Bilder aus Airtable Attachments → Firebase Storage (permanent)
+4. **Bilder-Sync:** Airtable Attachment-URLs laufen nach ~2 Stunden ab. Der Sync kopiert Bilder permanent nach Firebase Storage. Bestehende Storage-URLs werden beim Sync nie überschrieben.
 
 **Wichtige Dateien:**
 - `src/lib/data-sources/themes-adapter.ts` - Intelligenter Daten-Adapter
-- `src/lib/sync/airtable-firestore-sync.ts` - Sync-Logik
+- `src/lib/sync/airtable-firestore-sync.ts` - Sync-Logik (mit Bilder-Phase)
 - `src/lib/firestore/system-cache.ts` - Firestore Cache CRUD
-- `src/app/dashboard/admin/sync/page.tsx` - Admin UI für Sync
+- `src/lib/storage/upload.ts` - Bilder-Download und Firebase Storage Upload
+- `src/app/api/admin/sync-images/route.ts` - Dedizierter Bilder-Sync Endpoint
+- `src/app/api/cron/sync/route.ts` - Vercel Cron Job (maxDuration=300s)
+- `src/app/dashboard/admin/sync/page.tsx` - Admin UI für Sync (inkl. Bilder-Status)
 
 **Performance-Vergleich:**
 | Metrik | Airtable direkt | Firestore Cache | Verbesserung |
@@ -945,6 +964,12 @@ AIRTABLE_SCHULEN_TABLE=Schulen
 AIRTABLE_KOMPETENZEN_TABLE=Kompetenzen Lehrplan
 AIRTABLE_UNTERRICHTSIDEEN_TABLE=Themen
 AIRTABLE_LEKTIONSPLANUNG_TABLE=Lektionsplanung
+
+# Firestore Cache (Performance)
+ENABLE_FIRESTORE_CACHE=true
+
+# Cron Job Secret (für automatischen Sync)
+CRON_SECRET=ein-sicheres-zufallspasswort
 ```
 
 ## Entwicklung
@@ -1033,6 +1058,24 @@ const getString = (value: unknown): string | undefined => {
 - Ersten Wert aus Array extrahieren wenn es ein String ist
 - Objekte in Arrays ignorieren (nicht zu "[object Object]" konvertieren)
 - Graceful Fallbacks mit `undefined` statt fehlerhaften Werten
+
+### Problem: Airtable Attachment-URLs laufen ab (410 Gone)
+**Ursache**: Airtable Attachment-URLs (Bilder) sind temporär und laufen nach ~2 Stunden ab.
+Wenn der Sync diese URLs in Firestore speichert, werden die Bilder nach kurzer Zeit nicht mehr angezeigt (HTTP 410).
+**Lösung**:
+- Bilder werden beim Sync von Airtable nach Firebase Storage kopiert (permanent)
+- Bestehende Firebase Storage URLs werden beim Sync NIE überschrieben
+- Dedizierter Bilder-Sync Endpoint: `/api/admin/sync-images`
+- Admin-UI zeigt Status: wie viele Bilder in Storage vs. noch in Airtable
+**Wichtig**: Sowohl `syncAirtableToFirestore()` als auch `/api/admin/sync/themen` prüfen bestehende URLs
+
+### Problem: Vercel beendet Serverless Function nach Response
+**Ursache**: Fire-and-forget Pattern (`sendResponse()` → `startSync()` ohne await) führt dazu,
+dass Vercel die Function beendet bevor der Sync (insb. Bilder-Download) abgeschlossen ist.
+**Lösung**:
+- Sync-Ergebnis mit `await` abwarten vor dem Response
+- `maxDuration = 300` (5 Minuten) auf allen Sync-Endpoints konfigurieren
+- Vercel Pro Plan unterstützt bis zu 300s, Free Plan nur 10s
 
 ## Deployment
 
@@ -1590,6 +1633,55 @@ Fügt Lehrer-Kommentar hinzu (nur Lehrer)
 ### DELETE `/api/student-artifacts/[id]/comment`
 Entfernt Lehrer-Kommentar (nur eigene Kommentare oder Admins)
 
+### GET `/api/admin/sync-images`
+Zeigt den Status der Bilder-Synchronisation (nur authentifizierte User)
+
+**Response:**
+```json
+{
+  "total": 45,
+  "inFirebaseStorage": 40,
+  "inAirtable": 3,
+  "noImage": 2,
+  "allSynced": false
+}
+```
+
+### POST `/api/admin/sync-images`
+Synchronisiert Themen-Bilder von Airtable nach Firebase Storage (nur Super-Admins, maxDuration=300s)
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "3 Bilder erfolgreich synchronisiert",
+  "stats": {
+    "total": 45,
+    "alreadySynced": 40,
+    "noImage": 2,
+    "needsSync": 3,
+    "synced": 3,
+    "failed": 0
+  }
+}
+```
+
+### GET `/api/cron/sync`
+Automatischer Sync-Endpunkt für Vercel Cron Jobs (CRON_SECRET erforderlich)
+
+**Headers:**
+- `Authorization: Bearer {CRON_SECRET}` (Pflicht)
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Sync completed successfully",
+  "duration": 45000,
+  "recordsProcessed": { "themes": 45, "schulen": 12, "kompetenzen": 85 }
+}
+```
+
 ## Tipps für weitere Entwicklung
 
 ### Neue Airtable-Tabelle hinzufügen
@@ -1769,38 +1861,53 @@ makeSuperAdmin("deine-email@schule.ch");
   - Einstellungen in Firestore-Profil gespeichert
   - Standard-Kacheln wiederherstellbar
 
+### ✅ Abgeschlossen (März 2026)
+
+- [x] **Airtable API-Limit Fixes** - Login, Jahresplan, Kompetenzen ohne Airtable-Abhängigkeit
+  - Schulen-Endpunkt nutzt Firestore-Cache statt Airtable
+  - Themen-/Kompetenzen-Endpunkte nutzen Firestore-Cache
+  - Lehrplan-Kompetenzen Seite nutzt Firestore-Cache
+- [x] **Permanente Lehrmittel-Bilder** - Firebase Storage statt Airtable Attachment-URLs
+  - Bilder-Download und Upload in Firebase Storage während Sync
+  - Bestehende Storage-URLs werden beim Sync nie überschrieben
+  - Neue Bilder aus Airtable werden automatisch kopiert
+- [x] **Bilder-Sync Endpoint** (`/api/admin/sync-images`) - Dedizierter Bilder-Sync
+  - GET: Status (Firebase Storage vs. Airtable Counts)
+  - POST: Bilder synchronisieren (Batches von 2, mit Pause)
+  - Admin-UI: Bilder-Sync Card mit Status und separatem Button
+- [x] **Reliable Sync** - Vercel-kompatible Sync-Architektur
+  - `maxDuration=300s` auf allen Sync-Endpoints
+  - `await` statt fire-and-forget (Vercel beendet Function nach Response)
+  - Step 5 "Bilder" im normalen Sync-Flow
+- [x] **Kollaborative Jahresplanung** - Planungsteams und geteilte Einheiten
+- [x] **Datenschutz revDSG** - Compliance-Verbesserungen
+- [x] **Startseite überarbeitet** - Neues Design mit Feature-Übersicht
+- [x] **FAQ Bild/GIF-Upload** - FAQ-Antworten können Medien enthalten
+- [x] **TypeScript gepinnt auf 5.9.3** - Stabile Build-Umgebung
+
 ### 🚧 In Arbeit / Geplant
 
 #### Infrastructure & Performance
 
-- [ ] **Automatischer Daily Sync (Cron Job)** - PRIORITÄT: MEDIUM
-  - Vercel Cron Job für täglich automatischen Sync
-  - Konfigurierbare Sync-Zeit (z.B. 2:00 Uhr morgens)
-  - Email-Benachrichtigung bei Sync-Fehlern
-  - Incremental Sync (nur geänderte Daten)
-
-  **Implementierung:**
+- [ ] **Automatischer Daily Sync (Vercel Cron Job)** - PRIORITÄT: MEDIUM
+  - Cron-Endpoint existiert: `/api/cron/sync` (maxDuration=300s, CRON_SECRET required)
+  - Noch zu konfigurieren in `vercel.json`:
   ```json
-  // vercel.json
   {
     "crons": [{
-      "path": "/api/admin/cron/sync",
+      "path": "/api/cron/sync",
       "schedule": "0 2 * * *"
     }]
   }
   ```
+  - CRON_SECRET als Environment Variable in Vercel setzen
+  - Optional: Email-Benachrichtigung bei Sync-Fehlern
 
 - [ ] **Cache Invalidierung Strategie**
   - TTL (Time-to-Live) für Cache-Einträge
   - Selective Cache Refresh (einzelne Collections)
-  - Cache-Status Dashboard
 
 #### UI/UX Verbesserungen
-- [ ] **Landing Page Hero-Section**
-  - MIA-App Branding
-  - Features-Übersicht
-  - Call-to-Action für Login/Registrierung
-
 - [ ] **Custom Theme Badge im Kanban-Board**
   - Badge "Eigenes Thema" für Custom Themes
   - Visuell von Airtable-Themen unterscheidbar
@@ -1809,27 +1916,14 @@ makeSuperAdmin("deine-email@schule.ch");
 - [ ] **Lektionsplanung-Viewer für Custom Themes**
   - Viewer auch für Custom Lektionen
   - Export-Funktionen (Markdown, PDF) für Custom Lektionen
-  - Integration in Thema-Detail-Dialog
 
 - [ ] **Erweiterte Admin-Features**
-  - ~~Benutzer-Verwaltung für Super Admins~~ ✅ (Schulverwaltung implementiert)
   - PICTS-Admin Ernennung direkt in der App
   - Statistiken (Anzahl Themen, Reviews, etc.)
 
 ### Performance & Qualität
-- [ ] **React Query Integration**
-  - Caching für API-Calls
-  - Optimistic Updates
-  - Background Refresh
-
-- [ ] **Error Handling verbessern**
-  - Toast Notifications für Errors
-  - Bessere Error Messages
-  - Retry-Mechanismus
-
-- [ ] **Loading States**
-  - Skeleton Screens statt Spinner
-  - Progressive Loading
+- [ ] **React Query Integration** - Caching, Optimistic Updates, Background Refresh
+- [ ] **Loading States** - Skeleton Screens statt Spinner
 
 ### Testing & Monitoring
 - [ ] **Unit Tests** für kritische Funktionen

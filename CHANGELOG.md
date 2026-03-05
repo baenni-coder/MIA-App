@@ -2,6 +2,55 @@
 
 Alle wichtigen Änderungen an der MIA-App werden hier dokumentiert.
 
+## [2026-03] - Airtable API-Limit Fixes & Performance
+
+### Behoben
+- **Login nicht mehr durch Airtable API-Limits blockiert**: Schulen werden aus Firestore-Cache geladen statt direkt aus Airtable
+- **Jahresplan MIA nicht mehr durch API-Limits blockiert**: Themen und Kompetenzen nutzen Firestore-Cache
+- **Lehrplan-Kompetenzen nutzen Firestore-Cache**: Keine direkten Airtable-Calls mehr für Kompetenzen-Seite
+- **Lehrmittel-Bilder permanent in Firebase Storage**: Bilder werden beim Sync von Airtable nach Firebase Storage kopiert, damit sie nicht nach ~2h ablaufen
+- **Expired Airtable Image URLs**: Sync überschreibt keine bestehenden Firebase Storage URLs mehr mit temporären Airtable URLs
+- **Reliable Image Sync**: Fire-and-forget Pattern durch await ersetzt, Vercel beendet Function nicht mehr vorzeitig
+- **Theme-Löschung erweitert**: Custom Themes können korrekt gelöscht werden, automatischer Sync nach Löschung entfernt
+
+### Hinzugefügt
+- **Bilder-Sync Endpoint** (`/api/admin/sync-images`): Dedizierter Endpoint für Bilder-Synchronisation mit Status-Anzeige
+- **Bilder-Sync Card** auf Admin Sync-Seite: Zeigt Status (Firebase Storage vs. Airtable), separater Sync-Button
+- **Step 5 "Bilder"** im Sync-Flow: Bilder werden automatisch als 5. Schritt im normalen Sync mitverarbeitet
+- **maxDuration=300s** auf allen Sync-Endpoints für ausreichend Zeit auf Vercel
+
+### Geändert
+- **TypeScript gepinnt auf 5.9.3**: Vermeidet Build-Fehler durch inkompatible neuere Versionen
+
+## [2026-02] - Jahresplanung, Kollaboration & Datenschutz
+
+### Hinzugefügt
+- **Fächerübergreifende Jahresplanung**: Komplettes Planungstool mit Quartals- und Wochenansicht
+- **LP21-Fachbereiche**: Einheiten mit Fachbereichen und Kompetenzbereichen aus dem Lehrplan 21
+- **Manuelle Ferienverwaltung**: Schulferien pro Schuljahr anpassen, Preset-Ferien nach Kanton
+- **MIA-Themen-Verknüpfung**: Jahresplanungs-Einheiten mit MIA-Themen verknüpfen
+- **Beurteilungen mit KW-Zuordnung**: Mehrere formative/summative Beurteilungen pro Einheit, jeweils einer KW zugewiesen
+- **PDF-Export Jahresplanung**: Quartals-, Wochen- und Jahresplanung als PDF mit Lehrperson und Klasse
+- **Wochennavigation**: Vor/Zurück-Buttons in Wochenansicht
+- **Schuljahr kopieren**: Einheiten aus beliebigem vergangenen Schuljahr (6 Jahre) übernehmen
+- **Konfigurierbare Dashboard-Kacheln**: Lehrpersonen wählen ihre 12 verfügbaren Kacheln selbst
+- **Hover-Tooltips**: Beurteilungsmarker in Quartalsübersicht zeigen Details bei Hover
+- **LP21-Kompetenzfilter**: Filter für Kompetenzen in der Jahresplanung
+- **Ferien-zu-Ferien Kacheln**: Quartale orientieren sich an Ferienzeiten
+- **Kanban-Quartalsansicht**: Alternative Ansicht mit Fachbereich-Spalten
+- **Kollaborative Jahresplanung**: Einheiten mit Kolleg:innen teilen, geteilte Einheiten anzeigen
+- **Planungsteams**: Teams für gemeinsame Jahresplanung erstellen und verwalten
+- **Schul-Dateien mit Einheiten verknüpfen**: Dateien können auch mit Jahresplanungs-Einheiten verlinkt werden
+- **Datenschutz-Audit revDSG**: Compliance-Verbesserungen für Schweizer Datenschutzgesetz
+- **Elterneinwilligungs-Vorlage**: Link in Schülererfassung und Datenschutzseite
+- **Startseite überarbeitet**: Neues Design mit Feature-Übersicht
+- **FAQ Bild/GIF-Upload**: FAQ-Antworten können Bilder und GIFs enthalten
+
+### Geändert
+- **Jahresplan MIA**: Umbenennung im Menü und Dashboard für Klarheit
+- **Klassenbezeichnung im PDF**: DisplayName aus Meine Klassen statt nur Stufe
+- **Repo-Struktur bereinigt**: Veraltete Dokumente entfernt
+
 ## [2026-01] - Kompetenzenpass, Schul-Dateien & FAQ
 
 ### Hinzugefügt
