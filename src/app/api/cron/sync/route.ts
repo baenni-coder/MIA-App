@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncAirtableToFirestore } from "@/lib/sync/airtable-firestore-sync";
 import { getSyncMetadata } from "@/lib/firestore/system-cache";
 
+// Vercel Function Timeout: 300 Sekunden für Cron Job (Bilder-Sync braucht Zeit)
+export const maxDuration = 300;
+
 /**
  * GET /api/cron/sync
  * Automatischer Sync-Endpunkt für Vercel Cron Jobs

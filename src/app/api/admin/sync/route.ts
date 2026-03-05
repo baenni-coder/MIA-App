@@ -4,6 +4,10 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { getSyncMetadata } from "@/lib/firestore/system-cache";
 import { logDataSync } from "@/lib/audit/logger";
 
+// Vercel Function Timeout: 300 Sekunden (5 Minuten) für Pro Plan
+// Notwendig für Phase 3 (Bilder-Download und Upload zu Firebase Storage)
+export const maxDuration = 300;
+
 /**
  * POST /api/admin/sync
  * Trigger manueller Sync (nur für Super Admins)
@@ -59,29 +63,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Trigger Sync (asynchron im Hintergrund)
-    // Wir starten den Sync und geben sofort eine Response zurück
+    // 4. Sync ausführen und auf Ergebnis warten
+    // WICHTIG: Nicht fire-and-forget! Vercel beendet die Function nach Response.
     console.log(`🔄 Manual sync triggered by user ${userId} (${teacher?.name})`);
 
-    // Audit-Log: Sync gestartet
     await logDataSync("DATA_SYNC_STARTED", userId, teacher?.name || "Unknown");
 
-    // Fire-and-forget: Sync läuft im Hintergrund
-    syncAirtableToFirestore(userId)
-      .then(async () => {
-        await logDataSync("DATA_SYNC_COMPLETED", userId, teacher?.name || "Unknown");
-      })
-      .catch(async (error) => {
-        console.error("Background sync failed:", error);
-        await logDataSync("DATA_SYNC_FAILED", userId, teacher?.name || "Unknown", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
+    const result = await syncAirtableToFirestore(userId);
+
+    if (result.success) {
+      await logDataSync("DATA_SYNC_COMPLETED", userId, teacher?.name || "Unknown");
+    } else {
+      await logDataSync("DATA_SYNC_FAILED", userId, teacher?.name || "Unknown", {
+        error: result.errors.join("; "),
       });
+    }
 
     return NextResponse.json({
-      success: true,
-      message: "Sync started successfully",
-      status: "syncing",
+      success: result.success,
+      message: result.success ? "Sync completed successfully" : "Sync completed with errors",
+      duration: result.duration,
+      recordsProcessed: result.recordsProcessed,
+      errors: result.errors.length > 0 ? result.errors : undefined,
     });
   } catch (error) {
     console.error("Error in sync API:", error);

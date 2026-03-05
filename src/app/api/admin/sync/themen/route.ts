@@ -49,6 +49,9 @@ export async function POST(req: NextRequest) {
     const firestoreThemen = await getSystemThemes();
     const firestoreIds = new Set(firestoreThemen.map((t) => t.airtableId));
 
+    // Map für schnellen Zugriff auf existierende Firestore-Themen
+    const firestoreThemeMap = new Map(firestoreThemen.map((t) => [t.airtableId, t]));
+
     // 5. Identifiziere neue und zu aktualisierende Themen
     const toUpsert: Omit<SystemTheme, "id">[] = airtableThemen.map((thema) => {
       const isNew = !firestoreIds.has(thema.id);
@@ -58,12 +61,18 @@ export async function POST(req: NextRequest) {
         updated++;
       }
 
+      // WICHTIG: Bestehende Firebase Storage URLs beibehalten!
+      // Airtable Attachment-URLs laufen nach ~2 Stunden ab.
+      const existingBild = firestoreThemeMap.get(thema.id)?.bildLehrmittel;
+      const existingHasStorageUrl = existingBild?.includes("storage.googleapis.com");
+      const bildLehrmittel = existingHasStorageUrl ? existingBild : thema.bildLehrmittel;
+
       return {
         airtableId: thema.id,
         thema: thema.thema,
         beschreibung: thema.beschreibung,
         lehrmittel: thema.lehrmittel,
-        bildLehrmittel: thema.bildLehrmittel,
+        bildLehrmittel,
         anzahlLektionen: thema.anzahlLektionen,
         schuljahr: thema.schuljahr,
         zeitraum: thema.zeitraum,
