@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, RefreshCw, Trash2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Loader2, RefreshCw, Trash2, CheckCircle, XCircle, Clock, ImageIcon } from "lucide-react";
 
 interface SyncMetadata {
   syncStatus: "idle" | "syncing" | "completed" | "error";
@@ -51,6 +51,14 @@ export default function AdminSyncPage() {
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [syncingImages, setSyncingImages] = useState(false);
+  const [imageStatus, setImageStatus] = useState<{
+    total: number;
+    inFirebaseStorage: number;
+    inAirtable: number;
+    noImage: number;
+    allSynced: boolean;
+  } | null>(null);
   const [syncProgress, setSyncProgress] = useState<{
     step: string;
     current: number;
@@ -65,6 +73,7 @@ export default function AdminSyncPage() {
   useEffect(() => {
     if (isAdmin) {
       loadSyncStatus();
+      loadImageStatus();
       // Auto-refresh alle 10 Sekunden wenn am syncen
       const interval = setInterval(() => {
         if (metadata?.syncStatus === "syncing") {
@@ -145,6 +154,54 @@ export default function AdminSyncPage() {
     }
   };
 
+  const loadImageStatus = async () => {
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/admin/sync-images", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setImageStatus(data);
+      }
+    } catch (error) {
+      console.error("Error loading image status:", error);
+    }
+  };
+
+  const triggerImageSync = async () => {
+    if (!user) return;
+    setSyncingImages(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/admin/sync-images", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(
+          `🖼️ Bilder-Sync abgeschlossen!\n` +
+            `   ${data.stats.synced} synchronisiert, ${data.stats.failed} fehlgeschlagen\n` +
+            `   ${data.stats.alreadySynced} waren bereits in Firebase Storage`
+        );
+        loadImageStatus();
+      } else {
+        setError(`Bilder-Sync Fehler: ${data.error || data.message}`);
+      }
+    } catch (error: any) {
+      setError(`Bilder-Sync Fehler: ${error.message}`);
+    } finally {
+      setSyncingImages(false);
+    }
+  };
+
   const triggerSync = async () => {
     if (!user) return;
 
@@ -173,7 +230,7 @@ export default function AdminSyncPage() {
       });
 
       // 1. Sync Schulen
-      setSyncProgress({ step: "Schulen", current: 1, total: 4, status: "running" });
+      setSyncProgress({ step: "Schulen", current: 1, total: 5, status: "running" });
       const schulenResponse = await fetch("/api/admin/sync/schulen", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -189,10 +246,10 @@ export default function AdminSyncPage() {
         updated: schulenData.updated || 0,
         deleted: schulenData.deleted || 0,
       };
-      setSyncProgress({ step: "Schulen", current: 1, total: 4, status: "success" });
+      setSyncProgress({ step: "Schulen", current: 1, total: 5, status: "success" });
 
       // 2. Sync Themen
-      setSyncProgress({ step: "Themen", current: 2, total: 4, status: "running" });
+      setSyncProgress({ step: "Themen", current: 2, total: 5, status: "running" });
       const themenResponse = await fetch("/api/admin/sync/themen", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -208,10 +265,10 @@ export default function AdminSyncPage() {
         updated: themenData.updated || 0,
         deleted: themenData.deleted || 0,
       };
-      setSyncProgress({ step: "Themen", current: 2, total: 4, status: "success" });
+      setSyncProgress({ step: "Themen", current: 2, total: 5, status: "success" });
 
       // 3. Sync Kompetenzen
-      setSyncProgress({ step: "Kompetenzen", current: 3, total: 4, status: "running" });
+      setSyncProgress({ step: "Kompetenzen", current: 3, total: 5, status: "running" });
       const kompetenzenResponse = await fetch("/api/admin/sync/kompetenzen", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -227,7 +284,7 @@ export default function AdminSyncPage() {
         updated: kompetenzenData.updated || 0,
         deleted: kompetenzenData.deleted || 0,
       };
-      setSyncProgress({ step: "Kompetenzen", current: 3, total: 4, status: "success" });
+      setSyncProgress({ step: "Kompetenzen", current: 3, total: 5, status: "success" });
 
       // 4. Sync Lektionen
       setSyncProgress({ step: "Lektionen", current: 4, total: 4, status: "running" });
@@ -246,7 +303,25 @@ export default function AdminSyncPage() {
         updated: lektionenData.updated || 0,
         deleted: lektionenData.deleted || 0,
       };
-      setSyncProgress({ step: "Lektionen", current: 4, total: 4, status: "success" });
+      setSyncProgress({ step: "Lektionen", current: 4, total: 5, status: "success" });
+
+      // 5. Sync Bilder zu Firebase Storage
+      setSyncProgress({ step: "Bilder", current: 5, total: 5, status: "running" });
+      try {
+        const imageResponse = await fetch("/api/admin/sync-images", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          console.log(`🖼️ Bilder synced: ${imageData.stats?.synced || 0} synced, ${imageData.stats?.failed || 0} failed`);
+        }
+      } catch (imgError) {
+        console.warn("Image sync warning:", imgError);
+        // Bilder-Sync-Fehler sind nicht kritisch
+      }
+      setSyncProgress({ step: "Bilder", current: 5, total: 5, status: "success" });
 
       const duration = Date.now() - startTime;
 
@@ -521,6 +596,71 @@ export default function AdminSyncPage() {
             </CardContent>
           </Card>
 
+          {/* Bilder-Sync Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5" />
+                Bilder-Synchronisation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Airtable-Bild-URLs laufen nach ~2 Stunden ab. Hier werden die Bilder permanent
+                in Firebase Storage kopiert, damit sie immer verfügbar sind.
+              </p>
+
+              {imageStatus && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-muted rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold">{imageStatus.total}</p>
+                    <p className="text-xs text-muted-foreground">Total Themen</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-green-700">{imageStatus.inFirebaseStorage}</p>
+                    <p className="text-xs text-green-600">In Firebase Storage</p>
+                  </div>
+                  <div className={`rounded-lg p-3 text-center ${imageStatus.inAirtable > 0 ? "bg-orange-50" : "bg-muted"}`}>
+                    <p className={`text-2xl font-bold ${imageStatus.inAirtable > 0 ? "text-orange-700" : ""}`}>
+                      {imageStatus.inAirtable}
+                    </p>
+                    <p className={`text-xs ${imageStatus.inAirtable > 0 ? "text-orange-600" : "text-muted-foreground"}`}>
+                      Noch in Airtable (temporär)
+                    </p>
+                  </div>
+                  <div className="bg-muted rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold">{imageStatus.noImage}</p>
+                    <p className="text-xs text-muted-foreground">Ohne Bild</p>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                onClick={triggerImageSync}
+                disabled={syncingImages || imageStatus?.allSynced}
+                variant={imageStatus?.inAirtable && imageStatus.inAirtable > 0 ? "default" : "outline"}
+              >
+                {syncingImages ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Bilder synchronisieren...
+                  </>
+                ) : imageStatus?.allSynced ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Alle Bilder synchronisiert
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="w-4 h-4 mr-2" />
+                    Bilder jetzt synchronisieren
+                    {imageStatus?.inAirtable ? ` (${imageStatus.inAirtable})` : ""}
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Sync Logs */}
           <Card>
             <CardHeader>
@@ -591,8 +731,8 @@ export default function AdminSyncPage() {
             </CardHeader>
             <CardContent className="text-sm text-blue-800 space-y-2">
               <p>
-                <strong>Sync Jetzt Starten:</strong> Synchronisiert alle Airtable-Daten nach Firestore.
-                Der Prozess läuft im Hintergrund und dauert ca. 10-30 Sekunden.
+                <strong>Sync Jetzt Starten:</strong> Synchronisiert alle Airtable-Daten nach Firestore
+                inkl. Bilder-Upload zu Firebase Storage. Kann bis zu 2 Minuten dauern.
               </p>
               <p>
                 <strong>Cache Löschen:</strong> Markiert alle gecachten Daten als inaktiv.
