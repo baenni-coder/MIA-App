@@ -16,7 +16,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, RefreshCw, Trash2, CheckCircle, XCircle, Clock, ImageIcon } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, RefreshCw, Trash2, CheckCircle, XCircle, Clock, ImageIcon, BookOpen } from "lucide-react";
 
 interface SyncMetadata {
   syncStatus: "idle" | "syncing" | "completed" | "error";
@@ -64,6 +71,20 @@ export default function AdminSyncPage() {
     current: number;
     total: number;
     status: "pending" | "running" | "success" | "error";
+  } | null>(null);
+
+  // LP21 Sync State
+  const [syncingLP21, setSyncingLP21] = useState(false);
+  const [lp21Kanton, setLp21Kanton] = useState("v-fe");
+  const [lp21Result, setLp21Result] = useState<{
+    success: boolean;
+    added: number;
+    updated: number;
+    totalKompetenzstufen: number;
+    kompetenzbereiche: number;
+    totalDuration: number;
+    crawlDuration: number;
+    error?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -199,6 +220,64 @@ export default function AdminSyncPage() {
       setError(`Bilder-Sync Fehler: ${error.message}`);
     } finally {
       setSyncingImages(false);
+    }
+  };
+
+  const triggerLP21Sync = async () => {
+    if (!user) return;
+    setSyncingLP21(true);
+    setError(null);
+    setSuccess(null);
+    setLp21Result(null);
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/admin/sync/lp21", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          kanton: lp21Kanton,
+          fachbereich: "MI",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setLp21Result({
+          success: true,
+          added: data.added || 0,
+          updated: data.updated || 0,
+          totalKompetenzstufen: data.totalKompetenzstufen || 0,
+          kompetenzbereiche: data.kompetenzbereiche || 0,
+          totalDuration: data.totalDuration || 0,
+          crawlDuration: data.crawlDuration || 0,
+        });
+        setSuccess(
+          `LP21 Sync erfolgreich! ${data.totalKompetenzstufen} Kompetenzstufen geladen ` +
+            `(+${data.added} neu, ~${data.updated} aktualisiert) in ${(data.totalDuration / 1000).toFixed(1)}s`
+        );
+      } else {
+        setLp21Result({
+          success: false,
+          added: 0,
+          updated: 0,
+          totalKompetenzstufen: 0,
+          kompetenzbereiche: 0,
+          totalDuration: data.duration || 0,
+          crawlDuration: 0,
+          error: data.error || "Unbekannter Fehler",
+        });
+        setError(`LP21 Sync Fehler: ${data.error || "Unbekannter Fehler"}`);
+      }
+    } catch (error: any) {
+      setError(`LP21 Sync Fehler: ${error.message}`);
+      setLp21Result(null);
+    } finally {
+      setSyncingLP21(false);
     }
   };
 
@@ -661,6 +740,113 @@ export default function AdminSyncPage() {
             </CardContent>
           </Card>
 
+          {/* LP21 API Sync */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5" />
+                LP21 Lehrplan-API Sync
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Kompetenzen direkt von der offiziellen LP21 Datenschnittstelle (api.lehrplan.ch) laden.
+                Dies ersetzt die Airtable-Kompetenzen mit den aktuellen Daten des Lehrplans 21.
+              </p>
+
+              <div className="flex items-end gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Kanton</label>
+                  <Select value={lp21Kanton} onValueChange={setLp21Kanton}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="v-fe">Vorlage (Standard)</SelectItem>
+                      <SelectItem value="zh">Zürich</SelectItem>
+                      <SelectItem value="be">Bern</SelectItem>
+                      <SelectItem value="lu">Luzern</SelectItem>
+                      <SelectItem value="sg">St. Gallen</SelectItem>
+                      <SelectItem value="ag">Aargau</SelectItem>
+                      <SelectItem value="so">Solothurn</SelectItem>
+                      <SelectItem value="tg">Thurgau</SelectItem>
+                      <SelectItem value="sh">Schaffhausen</SelectItem>
+                      <SelectItem value="sz">Schwyz</SelectItem>
+                      <SelectItem value="gl">Glarus</SelectItem>
+                      <SelectItem value="zg">Zug</SelectItem>
+                      <SelectItem value="bs">Basel-Stadt</SelectItem>
+                      <SelectItem value="bl">Basel-Landschaft</SelectItem>
+                      <SelectItem value="nw">Nidwalden</SelectItem>
+                      <SelectItem value="ow">Obwalden</SelectItem>
+                      <SelectItem value="ur">Uri</SelectItem>
+                      <SelectItem value="ai">Appenzell I.</SelectItem>
+                      <SelectItem value="ar">Appenzell A.</SelectItem>
+                      <SelectItem value="gr-d">Graubünden (DE)</SelectItem>
+                      <SelectItem value="vs">Wallis</SelectItem>
+                      <SelectItem value="fr">Freiburg</SelectItem>
+                      <SelectItem value="fl">Liechtenstein</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button
+                  onClick={triggerLP21Sync}
+                  disabled={syncingLP21}
+                >
+                  {syncingLP21 ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      LP21 Sync läuft...
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      LP21 Kompetenzen laden
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {syncingLP21 && (
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800">
+                  Der Crawler traversiert den LP21-Kompetenzbaum. Dies kann 10-30 Sekunden dauern...
+                </div>
+              )}
+
+              {lp21Result && lp21Result.success && (
+                <div className="bg-green-50 border border-green-200 rounded p-3 space-y-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-green-700">{lp21Result.totalKompetenzstufen}</p>
+                      <p className="text-xs text-green-600">Kompetenzstufen</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-green-700">{lp21Result.kompetenzbereiche}</p>
+                      <p className="text-xs text-green-600">Kompetenzbereiche</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-blue-700">+{lp21Result.added}</p>
+                      <p className="text-xs text-blue-600">Neu</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-orange-700">~{lp21Result.updated}</p>
+                      <p className="text-xs text-orange-600">Aktualisiert</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-green-700 text-center">
+                    Crawl: {(lp21Result.crawlDuration / 1000).toFixed(1)}s | Total: {(lp21Result.totalDuration / 1000).toFixed(1)}s
+                  </p>
+                </div>
+              )}
+
+              {lp21Result && !lp21Result.success && (
+                <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-800">
+                  Fehler: {lp21Result.error}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Sync Logs */}
           <Card>
             <CardHeader>
@@ -737,6 +923,10 @@ export default function AdminSyncPage() {
               <p>
                 <strong>Cache Löschen:</strong> Markiert alle gecachten Daten als inaktiv.
                 Führe danach einen Sync durch, um die Daten neu zu laden.
+              </p>
+              <p>
+                <strong>LP21 API Sync:</strong> Lädt Kompetenzen direkt von der offiziellen
+                LP21 Datenschnittstelle. Bestehende Unterrichtsideen-Verknüpfungen werden beibehalten.
               </p>
               <p>
                 <strong>Automatischer Sync:</strong> Der Cron Job läuft täglich um 2:00 Uhr morgens
