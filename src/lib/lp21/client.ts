@@ -96,13 +96,21 @@ export async function getData(
         continue; // Nächste URL versuchen
       }
 
-      const data = await response.json();
+      const rawData = await response.json();
 
-      if (data.error) {
-        throw new Error(`LP21 API returned error: ${data.error}`);
+      // LP21 API gibt { lp21: [ { ...element } ] } zurück
+      const element = rawData?.lp21?.[0] ?? rawData;
+
+      if (element.error) {
+        throw new Error(`LP21 API returned error: ${element.error}`);
       }
 
-      return data as LP21GetDataResponse;
+      // Debug: ersten erfolgreichen Call loggen
+      if (uid === "00000000000000000000000000000000") {
+        console.log(`✅ LP21 API Root-Element: strukturtyp=${element.strukturtyp}, hierarchie_unten=${element.hierarchie_unten?.length || 0} Kinder`);
+      }
+
+      return element as LP21GetDataResponse;
     } catch (e) {
       if (e instanceof Error && e.message.startsWith("LP21 API returned error")) {
         throw e; // API-Fehler sofort weitergeben

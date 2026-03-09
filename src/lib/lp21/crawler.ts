@@ -30,7 +30,7 @@ import {
  * Dieses Element hat strukturtyp="Kompetenzaufbau" und
  * enthält alle Fachbereiche als hierarchie_unten.
  */
-const KOMPETENZAUFBAU_UID = "000000000000000000000000000000000";
+const KOMPETENZAUFBAU_UID = "00000000000000000000000000000000";
 
 // ============================================
 // Crawler
