@@ -32,10 +32,9 @@ export async function getData(
 
   requestCount++;
 
-  // URL bauen (wie PHP-Script: https://api.lehrplan.ch/getData.php?kanton=...&uid=...&user=...&password=...)
+  // URL bauen (wie PHP-Script: kanton + uid + user + password, KEIN sprache-Parameter)
   const params = new URLSearchParams();
   params.set("kanton", kanton || config.defaultKanton);
-  params.set("sprache", sprache || (config.defaultSprache as LP21Sprache));
   params.set("uid", uid);
   params.set("user", config.username);
   params.set("password", config.password);
