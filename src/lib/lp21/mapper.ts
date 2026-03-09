@@ -43,21 +43,23 @@ const ZYKLUS_KLASSENSTUFEN: Record<string, string[]> = {
  * - MI.2.x = Informatik
  * - Andere Codes mit "Anwendung" im Bezeichnung = Anwendungskompetenzen
  */
-function detectKompetenzbereich(code: string, kompetenzbereichCode: string): string {
-  // MI.1 = Medien, MI.2 = Informatik
-  // Anwendungskompetenzen haben oft separate Codes
-  if (kompetenzbereichCode.startsWith("MI.1")) return "Medien";
-  if (kompetenzbereichCode.startsWith("MI.2")) return "Informatik";
+function detectKompetenzbereich(code: string, kompetenzbereichCode: string, kompetenzbereichName: string): string {
+  // MI.1 / IB.1 = Medien, MI.2 / IB.2 = Informatik
+  // Solothurn nutzt "IB" (Informatische Bildung) statt "MI"
+  const kbCode = kompetenzbereichCode.toUpperCase();
 
-  // Fallback für Anwendungskompetenzen und andere
-  const codeParts = code.split(".");
-  if (codeParts.length >= 2) {
-    const bereichNr = codeParts[1];
-    if (bereichNr === "1") return "Medien";
-    if (bereichNr === "2") return "Informatik";
+  // Nur für MIA-Fachbereiche (MI/IB) spezifische Zuordnung
+  if (/^(MI|IB)\.1/.test(kbCode)) return "Medien";
+  if (/^(MI|IB)\.2/.test(kbCode)) return "Informatik";
+
+  // MI/IB Fallback für Anwendungskompetenzen
+  const fachbereichPrefix = code.split(".")[0]?.toUpperCase();
+  if (fachbereichPrefix === "MI" || fachbereichPrefix === "IB") {
+    return "Anwendungskompetenzen";
   }
 
-  return "Anwendungskompetenzen";
+  // Für andere Fachbereiche (D, MA, NMG, etc.): Kompetenzbereich-Name verwenden
+  return kompetenzbereichName || kompetenzbereichCode;
 }
 
 // ============================================
@@ -114,7 +116,7 @@ function mapKompetenzstufeToKompetenz(
   const klassenstufe = ZYKLUS_KLASSENSTUFEN[ks.zyklus] || [];
 
   // Kompetenzbereich bestimmen
-  const kompetenzbereich = detectKompetenzbereich(ks.code, kompetenzbereichCode);
+  const kompetenzbereich = detectKompetenzbereich(ks.code, kompetenzbereichCode, kompetenzbereichName);
 
   // Querverweise formatieren
   const querverweisLP = ks.querverweise?.length
@@ -131,7 +133,9 @@ function mapKompetenzstufeToKompetenz(
     zyklus,
     klassenstufe,
     grundanspruch: ks.grundanspruch ? "Ja" : "Nein",
+    orientierungspunkt: ks.orientierungspunkt,
     querverweisLP,
+    source: "lp21" as const,
   };
 }
 
@@ -158,6 +162,7 @@ export function mapToSystemKompetenzen(
       zyklus: k.zyklus,
       klassenstufe: k.klassenstufe,
       grundanspruch: k.grundanspruch,
+      orientierungspunkt: k.orientierungspunkt,
       querverweisLP: k.querverweisLP,
       unterrichtsideenIds: [], // Werden separat verknüpft
       isActive: true,

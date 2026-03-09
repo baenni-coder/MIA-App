@@ -91,3 +91,25 @@ export function kantonToLP21(kanton?: Kanton | string): LP21Kanton {
   if (!kanton) return LP21_DEFAULT_KANTON;
   return KANTON_MAP[kanton as Kanton] || LP21_DEFAULT_KANTON;
 }
+
+// ============================================
+// Fachbereich-Mapping: Kanton → MIA-Fachbereich-Code
+// ============================================
+
+/**
+ * Einige Kantone verwenden abweichende Fachbereich-Codes.
+ * Solothurn nutzt "IB" (Informatische Bildung) statt "MI".
+ * Standardmässig wird "MI" (Medien und Informatik) verwendet.
+ */
+const KANTON_MIA_FACHBEREICH: Partial<Record<string, string>> = {
+  so: "IB",
+  // Weitere Kantone mit abweichendem Code hier ergänzen
+};
+
+/**
+ * Gibt den MIA-Fachbereich-Code für einen LP21-Kanton zurück.
+ * z.B. "so" → "IB", "zh" → "MI"
+ */
+export function getMiaFachbereichCode(lp21Kanton: string): string {
+  return KANTON_MIA_FACHBEREICH[lp21Kanton] || "MI";
+}
