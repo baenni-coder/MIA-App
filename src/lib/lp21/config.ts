@@ -12,7 +12,8 @@ import { LP21Kanton } from "./types";
 // Konfiguration
 // ============================================
 
-const LP21_API_URL = process.env.LP21_API_URL || "https://api.lehrplan.ch";
+// Dokumentation spezifiziert HTTP (nicht HTTPS!)
+const LP21_API_URL = process.env.LP21_API_URL || "http://api.lehrplan.ch";
 const LP21_API_USERNAME = process.env.LP21_API_USERNAME;
 const LP21_API_PASSWORD = process.env.LP21_API_PASSWORD;
 const LP21_DEFAULT_KANTON = (process.env.LP21_DEFAULT_KANTON || "v-fe") as LP21Kanton;
