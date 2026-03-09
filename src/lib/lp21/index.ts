@@ -7,7 +7,7 @@
 export { getData, getDataBatch, getChildren, extractUidFromUrl } from "./client";
 export { crawlFachbereich } from "./crawler";
 export { mapCrawlResultToKompetenzen, mapToSystemKompetenzen } from "./mapper";
-export { getLP21Config, kantonToLP21 } from "./config";
+export { getLP21Config, kantonToLP21, getMiaFachbereichCode } from "./config";
 export type {
   LP21GetDataResponse,
   LP21Fachbereich,

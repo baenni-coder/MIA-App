@@ -76,6 +76,7 @@ export default function AdminSyncPage() {
   // LP21 Sync State
   const [syncingLP21, setSyncingLP21] = useState(false);
   const [lp21Kanton, setLp21Kanton] = useState("v-fe");
+  const [lp21Fachbereich, setLp21Fachbereich] = useState("auto");
   const [lp21Result, setLp21Result] = useState<{
     success: boolean;
     added: number;
@@ -240,7 +241,7 @@ export default function AdminSyncPage() {
         },
         body: JSON.stringify({
           kanton: lp21Kanton,
-          fachbereich: "MI",
+          ...(lp21Fachbereich !== "auto" ? { fachbereich: lp21Fachbereich } : {}),
         }),
       });
 
@@ -754,7 +755,7 @@ export default function AdminSyncPage() {
                 Dies ersetzt die Airtable-Kompetenzen mit den aktuellen Daten des Lehrplans 21.
               </p>
 
-              <div className="flex items-end gap-3">
+              <div className="flex items-end gap-3 flex-wrap">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Kanton</label>
                   <Select value={lp21Kanton} onValueChange={setLp21Kanton}>
@@ -789,6 +790,29 @@ export default function AdminSyncPage() {
                   </Select>
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Fachbereich</label>
+                  <Select value={lp21Fachbereich} onValueChange={setLp21Fachbereich}>
+                    <SelectTrigger className="w-[260px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Automatisch (MI/IB je nach Kanton)</SelectItem>
+                      <SelectItem value="MI">MI - Medien und Informatik</SelectItem>
+                      <SelectItem value="IB">IB - Informatische Bildung (SO)</SelectItem>
+                      <SelectItem value="D">D - Deutsch</SelectItem>
+                      <SelectItem value="MA">MA - Mathematik</SelectItem>
+                      <SelectItem value="NMG">NMG - Natur, Mensch, Gesellschaft</SelectItem>
+                      <SelectItem value="BG">BG - Bildnerisches Gestalten</SelectItem>
+                      <SelectItem value="TTG">TTG - Textiles und Techn. Gestalten</SelectItem>
+                      <SelectItem value="MU">MU - Musik</SelectItem>
+                      <SelectItem value="BS">BS - Bewegung und Sport</SelectItem>
+                      <SelectItem value="E">E - Englisch</SelectItem>
+                      <SelectItem value="F">F - Französisch</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <Button
                   onClick={triggerLP21Sync}
                   disabled={syncingLP21}
@@ -806,6 +830,12 @@ export default function AdminSyncPage() {
                   )}
                 </Button>
               </div>
+
+              {lp21Kanton === "so" && lp21Fachbereich === "auto" && (
+                <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm text-amber-800">
+                  Kanton Solothurn: Automatisch wird &quot;IB&quot; (Informatische Bildung) statt &quot;MI&quot; verwendet.
+                </div>
+              )}
 
               {syncingLP21 && (
                 <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800">

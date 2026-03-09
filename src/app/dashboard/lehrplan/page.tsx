@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Kompetenz, Regelstandard } from "@/types";
 import { getRegelstandardsByLPCode } from "@/lib/data/regelstandards";
-import { GraduationCap, Search, Lightbulb, BookOpen, ExternalLink, CheckCircle, XCircle, FileText } from "lucide-react";
+import { GraduationCap, Search, Lightbulb, BookOpen, ExternalLink, CheckCircle, XCircle, FileText, Target } from "lucide-react";
 import Link from "next/link";
 
 // Reihenfolge der Kompetenzbereiche
@@ -279,19 +279,25 @@ function LehrplanPageContent() {
                                 </p>
                               )}
 
-                              {/* Grundanspruch */}
-                              <div className="flex items-center gap-1">
+                              {/* Grundanspruch & Orientierungspunkt */}
+                              <div className="flex items-center gap-1 flex-wrap">
                                 {k.grundanspruch?.toLowerCase() === "ja" ? (
                                   <Badge className="bg-green-100 text-green-800 border-0 text-xs">
                                     <CheckCircle className="h-3 w-3 mr-1" />
-                                    Ja
+                                    Grundanspruch
                                   </Badge>
                                 ) : k.grundanspruch?.toLowerCase() === "nein" ? (
                                   <Badge className="bg-red-100 text-red-800 border-0 text-xs">
                                     <XCircle className="h-3 w-3 mr-1" />
-                                    nein
+                                    kein Grundanspruch
                                   </Badge>
                                 ) : null}
+                                {k.orientierungspunkt && (
+                                  <Badge className="bg-orange-100 text-orange-800 border-0 text-xs">
+                                    <Target className="h-3 w-3 mr-1" />
+                                    Orientierungspunkt
+                                  </Badge>
+                                )}
                               </div>
 
                               {/* Zyklus & Klassenstufe */}
@@ -412,7 +418,7 @@ function LehrplanPageContent() {
           {!loading && kompetenzen.length > 0 && (
             <Card>
               <CardContent className="pt-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                   <div>
                     <div className="text-2xl font-bold text-primary">{kompetenzen.length}</div>
                     <div className="text-sm text-muted-foreground">Kompetenzen</div>
@@ -428,6 +434,12 @@ function LehrplanPageContent() {
                       {kompetenzen.filter((k) => k.unterrichtsideen?.length).length}
                     </div>
                     <div className="text-sm text-muted-foreground">Mit Unterrichtsideen</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-orange-600">
+                      {kompetenzen.filter((k) => k.orientierungspunkt).length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Orientierungspunkte</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-primary">{alleZyklen.length}</div>
@@ -470,22 +482,35 @@ function LehrplanPageContent() {
                     </div>
                   )}
 
-                  {/* Grundanspruch */}
-                  <div>
-                    <h4 className="font-semibold text-sm text-muted-foreground mb-1">Grundanspruch</h4>
-                    {selectedKompetenz.grundanspruch?.toLowerCase() === "ja" ? (
-                      <Badge className="bg-green-100 text-green-800 border-0">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Ja
-                      </Badge>
-                    ) : selectedKompetenz.grundanspruch?.toLowerCase() === "nein" ? (
-                      <Badge className="bg-red-100 text-red-800 border-0">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        Nein
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
+                  {/* Grundanspruch & Orientierungspunkt */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground mb-1">Grundanspruch</h4>
+                      {selectedKompetenz.grundanspruch?.toLowerCase() === "ja" ? (
+                        <Badge className="bg-green-100 text-green-800 border-0">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Ja
+                        </Badge>
+                      ) : selectedKompetenz.grundanspruch?.toLowerCase() === "nein" ? (
+                        <Badge className="bg-red-100 text-red-800 border-0">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Nein
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm text-muted-foreground mb-1">Orientierungspunkt</h4>
+                      {selectedKompetenz.orientierungspunkt ? (
+                        <Badge className="bg-orange-100 text-orange-800 border-0">
+                          <Target className="h-3 w-3 mr-1" />
+                          Ja
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">Nein</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Zyklus & Klassenstufe */}

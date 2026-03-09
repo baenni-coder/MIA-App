@@ -339,6 +339,8 @@ export async function getSystemKompetenzenByIds(airtableIds: string[]): Promise<
         kompetenzenMap.set(data.airtableId, {
           id: doc.id,
           airtableId: data.airtableId,
+          lp21Uid: data.lp21Uid,
+          source: data.source,
           name: data.name,
           lpCode: data.lpCode,
           kompetenzbereich: data.kompetenzbereich,
@@ -347,6 +349,7 @@ export async function getSystemKompetenzenByIds(airtableIds: string[]): Promise<
           zyklus: data.zyklus,
           klassenstufe: data.klassenstufe,
           grundanspruch: data.grundanspruch,
+          orientierungspunkt: data.orientierungspunkt,
           querverweisLP: data.querverweisLP,
           unterrichtsideenIds: data.unterrichtsideenIds || [],
           lastSyncedAt: timestampToDate(data.lastSyncedAt),

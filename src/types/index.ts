@@ -106,10 +106,13 @@ export interface Kompetenz {
   zyklus?: string[];
   klassenstufe?: string[];
   grundanspruch?: string;
+  orientierungspunkt?: boolean; // LP21 Orientierungspunkt
   querverweisLP?: string;
   unterrichtsideen?: Unterrichtsidee[];
   // Verknüpfung zu Regelstandards (für bidirektionale Links)
   regelstandardCodes?: string[]; // z.B. ["RS.1.1.a", "RS.1.1.b"]
+  // Datenquelle (LP21 API oder Airtable)
+  source?: "airtable" | "lp21";
 }
 
 // Regelstandard (Kanton Solothurn)
@@ -402,6 +405,7 @@ export interface SystemKompetenz {
   zyklus?: string[];
   klassenstufe?: string[];
   grundanspruch?: string;
+  orientierungspunkt?: boolean; // LP21 Orientierungspunkt
   querverweisLP?: string;
 
   // Unterrichtsideen (als IDs, werden bei Bedarf aufgelöst)

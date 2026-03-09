@@ -54,7 +54,9 @@ export async function getKompetenzen(resolveUnterrichtsideen = true): Promise<Ko
           zyklus: sk.zyklus,
           klassenstufe: sk.klassenstufe,
           grundanspruch: sk.grundanspruch,
+          orientierungspunkt: sk.orientierungspunkt,
           querverweisLP: sk.querverweisLP,
+          source: sk.source,
         };
 
         if (resolveUnterrichtsideen && sk.unterrichtsideenIds?.length > 0) {

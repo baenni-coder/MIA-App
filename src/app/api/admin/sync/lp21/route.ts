@@ -6,7 +6,7 @@ import {
   getSystemKompetenzen,
 } from "@/lib/firestore/system-cache";
 import { SystemKompetenz } from "@/types";
-import { crawlFachbereich, mapCrawlResultToKompetenzen, mapToSystemKompetenzen, kantonToLP21 } from "@/lib/lp21";
+import { crawlFachbereich, mapCrawlResultToKompetenzen, mapToSystemKompetenzen, kantonToLP21, getMiaFachbereichCode } from "@/lib/lp21";
 import type { LP21Kanton } from "@/lib/lp21";
 
 // Vercel Serverless: LP21 Crawl braucht Zeit für viele API-Aufrufe
@@ -44,7 +44,6 @@ export async function POST(req: NextRequest) {
     // 3. Parameter lesen
     const body = await req.json().catch(() => ({}));
     const kantonParam = body.kanton as string | undefined;
-    const fachbereich = body.fachbereich || "MI";
 
     // Kanton-Code: UI sendet direkt LP21-Codes (z.B. "so", "zh", "v-fe")
     // Falls Grossbuchstaben (App-Format), konvertieren
@@ -53,6 +52,10 @@ export async function POST(req: NextRequest) {
           ? kantonParam as LP21Kanton  // Bereits LP21-Format (z.B. "v-fe", "so")
           : kantonToLP21(kantonParam)) // App-Format (z.B. "SO" → "so")
       : (process.env.LP21_DEFAULT_KANTON as LP21Kanton) || "v-fe";
+
+    // Fachbereich: Entweder explizit angegeben oder automatisch aus Kanton ableiten
+    // Solothurn nutzt "IB" statt "MI"
+    const fachbereich = body.fachbereich || getMiaFachbereichCode(kanton);
 
     console.log(`🎯 LP21 Sync: Fachbereich=${fachbereich}, Kanton=${kanton}`);
 
