@@ -19,10 +19,10 @@ const LP21_DEFAULT_KANTON = (process.env.LP21_DEFAULT_KANTON || "v-fe") as LP21K
 const LP21_DEFAULT_SPRACHE = process.env.LP21_DEFAULT_SPRACHE || "de";
 
 /** Maximale Anzahl gleichzeitiger API-Requests */
-const LP21_MAX_CONCURRENT = 5;
+const LP21_MAX_CONCURRENT = 10;
 
 /** Delay zwischen Requests in ms (Rate Limiting) */
-const LP21_REQUEST_DELAY = 200;
+const LP21_REQUEST_DELAY = 50;
 
 /** Request Timeout in ms */
 const LP21_REQUEST_TIMEOUT = 15000;

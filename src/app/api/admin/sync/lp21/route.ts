@@ -9,6 +9,9 @@ import { SystemKompetenz } from "@/types";
 import { crawlFachbereich, mapCrawlResultToKompetenzen, mapToSystemKompetenzen, kantonToLP21 } from "@/lib/lp21";
 import type { LP21Kanton } from "@/lib/lp21";
 
+// Vercel Serverless: LP21 Crawl braucht Zeit für viele API-Aufrufe
+export const maxDuration = 120; // 2 Minuten
+
 /**
  * POST /api/admin/sync/lp21
  * Synchronisiert Kompetenzen von LP21 API → Firestore
@@ -43,9 +46,12 @@ export async function POST(req: NextRequest) {
     const kantonParam = body.kanton as string | undefined;
     const fachbereich = body.fachbereich || "MI";
 
-    // Kanton-Code konvertieren (App-Format → LP21-Format)
+    // Kanton-Code: UI sendet direkt LP21-Codes (z.B. "so", "zh", "v-fe")
+    // Falls Grossbuchstaben (App-Format), konvertieren
     const kanton: LP21Kanton = kantonParam
-      ? kantonToLP21(kantonParam)
+      ? (kantonParam.includes("-") || kantonParam === kantonParam.toLowerCase()
+          ? kantonParam as LP21Kanton  // Bereits LP21-Format (z.B. "v-fe", "so")
+          : kantonToLP21(kantonParam)) // App-Format (z.B. "SO" → "so")
       : (process.env.LP21_DEFAULT_KANTON as LP21Kanton) || "v-fe";
 
     console.log(`🎯 LP21 Sync: Fachbereich=${fachbereich}, Kanton=${kanton}`);
@@ -131,7 +137,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorStack = error instanceof Error ? error.stack : undefined;
     console.error("❌ Error in LP21 Sync:", errorMessage);
+    if (errorStack) console.error("Stack:", errorStack);
 
     return NextResponse.json(
       {
