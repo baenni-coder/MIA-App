@@ -385,10 +385,14 @@ export interface SystemSchule {
   isActive: boolean;
 }
 
-// System Kompetenz (Cache von Airtable Kompetenzen)
+// System Kompetenz (Cache von Airtable/LP21 Kompetenzen)
 export interface SystemKompetenz {
   id: string; // Firestore Doc ID (gleich wie airtableId)
   airtableId: string; // Original Airtable Record ID
+
+  // LP21 API Felder (optional, nur bei LP21-Quelle)
+  lp21Uid?: string; // UID aus LP21 API
+  source?: "airtable" | "lp21"; // Datenquelle
 
   name: string;
   lpCode?: string;

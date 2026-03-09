@@ -4,6 +4,10 @@ import { getKompetenzen } from "@/lib/data-sources/kompetenzen-adapter";
 /**
  * GET /api/kompetenzen
  * Lädt alle Kompetenzen (Firestore Cache oder Airtable Fallback)
+ *
+ * Query Parameters:
+ * - resolveUnterrichtsideen: true|false (default: true)
+ * - kanton: Kantonscode (z.B. "ZH") - für kantonsspezifische Kompetenzen (Zukunft)
  */
 export async function GET(request: NextRequest) {
   try {
