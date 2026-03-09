@@ -58,6 +58,11 @@ export async function getData(
 
   const url = `${config.baseUrl}/getData.php?${params.toString()}`;
 
+  // Debug-Log (ohne Passwort)
+  const debugParams = new URLSearchParams(params);
+  debugParams.set("password", "***");
+  console.log(`🔗 LP21 API: ${config.baseUrl}/getData.php?${debugParams.toString()}`);
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.requestTimeout);
 
@@ -71,6 +76,8 @@ export async function getData(
     });
 
     if (!response.ok) {
+      const responseText = await response.text().catch(() => "");
+      console.error(`❌ LP21 API ${response.status}: ${responseText.substring(0, 200)}`);
       throw new Error(`LP21 API error: ${response.status} ${response.statusText}`);
     }
 
