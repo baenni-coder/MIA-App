@@ -53,10 +53,10 @@ export async function getData(
   params.set("kanton", kanton || config.defaultKanton);
   params.set("sprache", sprache || (config.defaultSprache as LP21Sprache));
   params.set("uid", uid);
+  params.set("user", config.username);
+  params.set("password", config.password);
 
   const url = `${config.baseUrl}/getData.php?${params.toString()}`;
-
-  const authHeader = "Basic " + Buffer.from(`${config.username}:${config.password}`).toString("base64");
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.requestTimeout);
@@ -65,7 +65,6 @@ export async function getData(
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        Authorization: authHeader,
         Accept: "application/json",
       },
       signal: controller.signal,
