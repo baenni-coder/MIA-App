@@ -56,41 +56,65 @@ export async function getData(
   params.set("user", config.username);
   params.set("password", config.password);
 
-  const url = `${config.baseUrl}/getData.php?${params.toString()}`;
-
   // Debug-Log (ohne Passwort)
   const debugParams = new URLSearchParams(params);
   debugParams.set("password", "***");
-  console.log(`🔗 LP21 API: ${config.baseUrl}/getData.php?${debugParams.toString()}`);
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.requestTimeout);
+  // Versuche HTTPS zuerst, dann HTTP als Fallback
+  const baseUrls = [
+    config.baseUrl.replace("http://", "https://"),
+    config.baseUrl.replace("https://", "http://"),
+  ];
+  // Deduplizieren falls gleich
+  const urls = [...new Set(baseUrls)];
 
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-      signal: controller.signal,
-    });
+  let lastError: Error | null = null;
 
-    if (!response.ok) {
-      const responseText = await response.text().catch(() => "");
-      console.error(`❌ LP21 API ${response.status}: ${responseText.substring(0, 200)}`);
-      throw new Error(`LP21 API error: ${response.status} ${response.statusText}`);
+  for (const base of urls) {
+    const url = `${base}/getData.php?${params.toString()}`;
+
+    console.log(`🔗 LP21 API: ${base}/getData.php?${debugParams.toString()}`);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), config.requestTimeout);
+
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "MIA-App/1.0 (LP21 Datenschnittstelle; +https://mia.schueu.ch)",
+        },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text().catch(() => "");
+        const isCloudflare = responseText.includes("Just a moment") || responseText.includes("cloudflare");
+        console.error(`❌ LP21 API ${response.status} (${base}): ${isCloudflare ? "Cloudflare challenge" : responseText.substring(0, 200)}`);
+        lastError = new Error(`LP21 API error: ${response.status} ${response.statusText}${isCloudflare ? " (Cloudflare block)" : ""}`);
+        continue; // Nächste URL versuchen
+      }
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(`LP21 API returned error: ${data.error}`);
+      }
+
+      return data as LP21GetDataResponse;
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith("LP21 API returned error")) {
+        throw e; // API-Fehler sofort weitergeben
+      }
+      lastError = e instanceof Error ? e : new Error(String(e));
+      console.warn(`⚠️ LP21 API Versuch fehlgeschlagen (${base}): ${lastError.message}`);
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = await response.json();
-
-    if (data.error) {
-      throw new Error(`LP21 API returned error: ${data.error}`);
-    }
-
-    return data as LP21GetDataResponse;
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw lastError || new Error("LP21 API: Alle Versuche fehlgeschlagen");
 }
 
 /**
