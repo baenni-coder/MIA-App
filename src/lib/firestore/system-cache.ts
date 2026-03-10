@@ -402,6 +402,22 @@ export async function getSystemKompetenzen(): Promise<SystemKompetenz[]> {
 }
 
 /**
+ * System Kompetenzen nach Fachbereich-Prefix laden (z.B. "D", "MI", "IB")
+ * Filtert nach lpCode-Prefix (z.B. "D." für Deutsch)
+ */
+export async function getSystemKompetenzenByFachbereich(fachbereichCode: string): Promise<SystemKompetenz[]> {
+  try {
+    // Alle aktiven laden und clientseitig filtern (Firestore hat keine startsWith-Query)
+    const alle = await getSystemKompetenzen();
+    const prefix = fachbereichCode + ".";
+    return alle.filter((k) => k.lpCode?.startsWith(prefix));
+  } catch (error) {
+    console.error("Error getting system kompetenzen by fachbereich:", error);
+    return [];
+  }
+}
+
+/**
  * System Kompetenzen als inaktiv markieren
  */
 export async function deactivateSystemKompetenzen(airtableIds: string[]): Promise<number> {

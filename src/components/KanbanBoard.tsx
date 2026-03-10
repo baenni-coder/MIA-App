@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { ExternalLink, BookOpen, Clock, FileText, Info, Paperclip } from "lucide-react";
+import { ExternalLink, BookOpen, Clock, FileText, Info, Paperclip, Target } from "lucide-react";
 import LektionsplanungViewer from "./LektionsplanungViewer";
 import LinkedFilesViewer from "./LinkedFilesViewer";
 
@@ -539,15 +539,28 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                   </div>
                 )}
 
-                {/* Grundanspruch */}
-                {selectedKompetenz.grundanspruch && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Grundanspruch</h4>
-                    <Badge
-                      variant={selectedKompetenz.grundanspruch === "ja" ? "default" : "secondary"}
-                    >
-                      {selectedKompetenz.grundanspruch}
-                    </Badge>
+                {/* Grundanspruch & Orientierungspunkt */}
+                {(selectedKompetenz.grundanspruch || selectedKompetenz.orientierungspunkt) && (
+                  <div className="flex flex-wrap gap-4">
+                    {selectedKompetenz.grundanspruch && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Grundanspruch</h4>
+                        <Badge
+                          variant={selectedKompetenz.grundanspruch.toLowerCase() === "ja" ? "default" : "secondary"}
+                        >
+                          {selectedKompetenz.grundanspruch}
+                        </Badge>
+                      </div>
+                    )}
+                    {selectedKompetenz.orientierungspunkt && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Orientierungspunkt</h4>
+                        <Badge className="bg-orange-100 text-orange-800 border-0">
+                          <Target className="h-3 w-3 mr-1" />
+                          Ja
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 )}
 
