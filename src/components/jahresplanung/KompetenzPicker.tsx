@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { X, ChevronDown, ChevronUp, BookOpen } from "lucide-react";
+import { X, ChevronDown, ChevronUp, BookOpen, Target, CheckCircle } from "lucide-react";
 import {
   getAlleFachbereiche,
   getKompetenzbereiche,
@@ -19,6 +19,20 @@ import {
   getFachbereichById,
 } from "@/lib/data/lp21-data";
 import type { LP21Fachbereich, LP21Kompetenzbereich, LP21KompetenzRef } from "@/types";
+
+/** Synced LP21 Kompetenzstufe (von API) */
+interface LP21SyncedKompetenzstufe {
+  id: string;
+  lpCode: string;
+  name: string;
+  kompetenzbereich: string;
+  kompetenz: string;
+  kompetenzstufe: string;
+  zyklus: string[];
+  klassenstufe: string[];
+  grundanspruch: string;
+  orientierungspunkt: boolean;
+}
 
 interface KompetenzPickerProps {
   selectedKompetenzen: string[]; // Array von Kompetenz-IDs
@@ -36,6 +50,11 @@ export default function KompetenzPicker({
   const [selectedFachbereich, setSelectedFachbereich] = useState<string>(defaultFachbereich || "");
   const [selectedKompetenzbereich, setSelectedKompetenzbereich] = useState<string>("");
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Synced LP21 Kompetenzstufen
+  const [syncedKompetenzstufen, setSyncedKompetenzstufen] = useState<LP21SyncedKompetenzstufe[]>([]);
+  const [loadingSynced, setLoadingSynced] = useState(false);
+  const [showKompetenzstufen, setShowKompetenzstufen] = useState(false);
 
   // Fachbereich aus Formular synchronisieren
   useEffect(() => {
@@ -60,52 +79,82 @@ export default function KompetenzPicker({
     return getKompetenzen(selectedFachbereich, selectedKompetenzbereich);
   }, [selectedFachbereich, selectedKompetenzbereich]);
 
-  // Kompetenz hinzufügen/entfernen
+  // Synced Kompetenzstufen laden wenn Kompetenzbereich gewählt wird
+  useEffect(() => {
+    if (!selectedFachbereich || !selectedKompetenzbereich) {
+      setSyncedKompetenzstufen([]);
+      return;
+    }
+
+    setLoadingSynced(true);
+    fetch(`/api/kompetenzen/lp21?fachbereich=${selectedFachbereich}&kompetenzbereich=${selectedKompetenzbereich}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setSyncedKompetenzstufen(data.kompetenzstufen || []);
+      })
+      .catch((err) => {
+        console.error("Error loading synced kompetenzstufen:", err);
+        setSyncedKompetenzstufen([]);
+      })
+      .finally(() => setLoadingSynced(false));
+  }, [selectedFachbereich, selectedKompetenzbereich]);
+
+  // Kompetenz hinzufügen/entfernen (statisch)
   const toggleKompetenz = (kompetenz: LP21KompetenzRef) => {
     const isSelected = selectedKompetenzen.includes(kompetenz.id);
 
     let newIds: string[];
-    let newNames: string[];
 
     if (isSelected) {
-      // Entfernen
       newIds = selectedKompetenzen.filter((id) => id !== kompetenz.id);
     } else {
-      // Hinzufügen
       newIds = [...selectedKompetenzen, kompetenz.id];
     }
 
     // Namen regenerieren
-    newNames = newIds.map((id) => {
-      // Kompetenz in allen Fachbereichen suchen
-      for (const fb of fachbereiche) {
-        for (const kb of fb.kompetenzbereiche) {
-          const k = kb.kompetenzen.find((komp) => komp.id === id);
-          if (k) return `${k.code}: ${k.name}`;
-        }
-      }
-      return id;
-    });
-
+    const newNames = newIds.map((id) => resolveKompetenzName(id));
     onKompetenzenChange(newIds, newNames);
+  };
+
+  // Synced Kompetenzstufe hinzufügen/entfernen
+  const toggleSyncedKompetenzstufe = (ks: LP21SyncedKompetenzstufe) => {
+    const isSelected = selectedKompetenzen.includes(ks.id);
+
+    let newIds: string[];
+
+    if (isSelected) {
+      newIds = selectedKompetenzen.filter((id) => id !== ks.id);
+    } else {
+      newIds = [...selectedKompetenzen, ks.id];
+    }
+
+    const newNames = newIds.map((id) => resolveKompetenzName(id));
+    onKompetenzenChange(newIds, newNames);
+  };
+
+  // Kompetenz-Name auflösen (statisch oder synced)
+  const resolveKompetenzName = (id: string): string => {
+    // Zuerst in statischen Daten suchen
+    for (const fb of fachbereiche) {
+      for (const kb of fb.kompetenzbereiche) {
+        const k = kb.kompetenzen.find((komp) => komp.id === id);
+        if (k) return `${k.code}: ${k.name}`;
+      }
+    }
+    // Dann in synced Daten suchen
+    const synced = syncedKompetenzstufen.find((ks) => ks.id === id);
+    if (synced) return `${synced.lpCode}: ${synced.kompetenzstufe}`;
+    return id;
   };
 
   // Kompetenz entfernen (über Badge)
   const removeKompetenz = (kompetenzId: string) => {
     const newIds = selectedKompetenzen.filter((id) => id !== kompetenzId);
-    const newNames = newIds.map((id) => {
-      for (const fb of fachbereiche) {
-        for (const kb of fb.kompetenzbereiche) {
-          const k = kb.kompetenzen.find((komp) => komp.id === id);
-          if (k) return `${k.code}: ${k.name}`;
-        }
-      }
-      return id;
-    });
+    const newNames = newIds.map((id) => resolveKompetenzName(id));
     onKompetenzenChange(newIds, newNames);
   };
 
-  // Kompetenz-Info holen
+  // Kompetenz-Info holen (für Badge-Anzeige)
   const getKompetenzInfo = (kompetenzId: string) => {
     for (const fb of fachbereiche) {
       for (const kb of fb.kompetenzbereiche) {
@@ -115,9 +164,21 @@ export default function KompetenzPicker({
             kompetenz: k,
             fachbereich: fb,
             kompetenzbereich: kb,
+            isSynced: false,
           };
         }
       }
+    }
+    // Check synced Kompetenzstufen
+    const synced = syncedKompetenzstufen.find((ks) => ks.id === kompetenzId);
+    if (synced) {
+      const fb = getFachbereichById(selectedFachbereich);
+      return {
+        kompetenz: { id: synced.id, code: synced.lpCode, name: synced.kompetenzstufe, beschreibung: synced.kompetenz },
+        fachbereich: fb || { id: selectedFachbereich, name: selectedFachbereich, fachbereichKuerzel: selectedFachbereich, farbe: "#6b7280", zyklen: [], kompetenzbereiche: [] },
+        kompetenzbereich: { id: "", code: "", name: synced.kompetenzbereich, kompetenzen: [] },
+        isSynced: true,
+      };
     }
     return null;
   };
@@ -159,7 +220,19 @@ export default function KompetenzPicker({
         <div className="flex flex-wrap gap-2">
           {selectedKompetenzen.map((kompetenzId) => {
             const info = getKompetenzInfo(kompetenzId);
-            if (!info) return null;
+            if (!info) {
+              // Fallback für unbekannte IDs: zeige die ID
+              return (
+                <Badge key={kompetenzId} variant="secondary" className="flex items-center gap-1 px-2 py-1">
+                  <span className="font-mono text-xs">{kompetenzId}</span>
+                  {!disabled && (
+                    <button type="button" onClick={() => removeKompetenz(kompetenzId)} className="ml-1 hover:bg-gray-200 rounded-full p-0.5">
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </Badge>
+              );
+            }
 
             return (
               <Badge
@@ -181,6 +254,9 @@ export default function KompetenzPicker({
                 <span className="text-gray-600 text-xs max-w-[150px] truncate">
                   {info.kompetenz.name}
                 </span>
+                {info.isSynced && (
+                  <span className="text-[10px] text-gray-400">LP21</span>
+                )}
                 {!disabled && (
                   <button
                     type="button"
@@ -254,7 +330,7 @@ export default function KompetenzPicker({
             </div>
           )}
 
-          {/* Kompetenzen-Auswahl */}
+          {/* Kompetenzen-Auswahl (statisch) */}
           {selectedKompetenzbereich && kompetenzen.length > 0 && (
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -297,6 +373,87 @@ export default function KompetenzPicker({
                 })}
               </div>
             </div>
+          )}
+
+          {/* Synced LP21 Kompetenzstufen */}
+          {selectedKompetenzbereich && syncedKompetenzstufen.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Target className="h-4 w-4 text-orange-500" />
+                  LP21 Kompetenzstufen ({syncedKompetenzstufen.length})
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowKompetenzstufen(!showKompetenzstufen)}
+                  className="text-xs"
+                >
+                  {showKompetenzstufen ? "Ausblenden" : "Einblenden"}
+                </Button>
+              </div>
+
+              {showKompetenzstufen && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {syncedKompetenzstufen.map((ks) => {
+                    const isChecked = selectedKompetenzen.includes(ks.id);
+
+                    return (
+                      <div
+                        key={ks.id}
+                        className={`flex items-start gap-3 p-2 rounded border cursor-pointer transition-colors ${
+                          isChecked
+                            ? "bg-orange-50 border-orange-300"
+                            : "bg-white border-gray-200 hover:bg-gray-50"
+                        }`}
+                        onClick={() => toggleSyncedKompetenzstufe(ks)}
+                      >
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={() => toggleSyncedKompetenzstufe(ks)}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-sm font-semibold text-orange-700">
+                              {ks.lpCode}
+                            </span>
+                            {ks.grundanspruch?.toLowerCase() === "ja" && (
+                              <Badge className="bg-green-100 text-green-700 border-0 text-[10px] px-1 py-0">
+                                <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
+                                GA
+                              </Badge>
+                            )}
+                            {ks.orientierungspunkt && (
+                              <Badge className="bg-orange-100 text-orange-700 border-0 text-[10px] px-1 py-0">
+                                <Target className="h-2.5 w-2.5 mr-0.5" />
+                                OP
+                              </Badge>
+                            )}
+                            {ks.zyklus?.map((z) => (
+                              <Badge key={z} variant="outline" className="text-[10px] px-1 py-0">
+                                {z}
+                              </Badge>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                            {ks.kompetenz}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Laden-Indikator für synced Daten */}
+          {loadingSynced && selectedKompetenzbereich && (
+            <p className="text-xs text-gray-400 text-center">
+              LP21 Kompetenzstufen werden geladen...
+            </p>
           )}
 
           {/* Hinweis wenn keine Auswahl */}
