@@ -155,8 +155,11 @@ function LehrplanPageContent() {
       return indexA - indexB;
     });
 
-  // Alle Zyklen extrahieren
-  const alleZyklen = [...new Set(kompetenzen.flatMap((k) => k.zyklus || []))].sort();
+  // Alle Zyklen extrahieren (nur gültige Zyklen 1-3)
+  const VALID_ZYKLEN = ["Zyklus 1", "Zyklus 2", "Zyklus 3"];
+  const alleZyklen = [...new Set(kompetenzen.flatMap((k) => k.zyklus || []))]
+    .filter((z) => VALID_ZYKLEN.includes(z))
+    .sort();
 
   const getBereichColors = (bereich: string) => {
     return BEREICH_COLORS[bereich] || { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-200" };
@@ -302,7 +305,7 @@ function LehrplanPageContent() {
 
                               {/* Zyklus & Klassenstufe */}
                               <div className="flex flex-wrap gap-1">
-                                {k.zyklus?.map((z) => (
+                                {k.zyklus?.filter((z) => VALID_ZYKLEN.includes(z)).map((z) => (
                                   <Badge
                                     key={z}
                                     className={`text-xs ${ZYKLUS_COLORS[z] || "bg-gray-100 text-gray-800"}`}
@@ -518,7 +521,7 @@ function LehrplanPageContent() {
                     <div>
                       <h4 className="font-semibold text-sm text-muted-foreground mb-1">Zyklus</h4>
                       <div className="flex flex-wrap gap-1">
-                        {selectedKompetenz.zyklus?.map((z) => (
+                        {selectedKompetenz.zyklus?.filter((z) => VALID_ZYKLEN.includes(z)).map((z) => (
                           <Badge
                             key={z}
                             className={`${ZYKLUS_COLORS[z] || "bg-gray-100 text-gray-800"}`}

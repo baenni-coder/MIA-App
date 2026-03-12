@@ -86,8 +86,12 @@ export default function KompetenzPicker({
       return;
     }
 
+    // Verwende fachbereichKuerzel (z.B. "FS1F") statt id (z.B. "FS1") für LP21-Code-Matching
+    const fb = getFachbereichById(selectedFachbereich);
+    const fachbereichCode = fb?.fachbereichKuerzel || selectedFachbereich;
+
     setLoadingSynced(true);
-    fetch(`/api/kompetenzen/lp21?fachbereich=${selectedFachbereich}&kompetenzbereich=${selectedKompetenzbereich}`)
+    fetch(`/api/kompetenzen/lp21?fachbereich=${fachbereichCode}&kompetenzbereich=${selectedKompetenzbereich}`)
       .then((res) => res.json())
       .then((data) => {
         setSyncedKompetenzstufen(data.kompetenzstufen || []);
@@ -431,7 +435,7 @@ export default function KompetenzPicker({
                                 OP
                               </Badge>
                             )}
-                            {ks.zyklus?.map((z) => (
+                            {ks.zyklus?.filter((z) => z.startsWith("Zyklus")).map((z) => (
                               <Badge key={z} variant="outline" className="text-[10px] px-1 py-0">
                                 {z}
                               </Badge>

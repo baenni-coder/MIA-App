@@ -16,7 +16,30 @@ export async function getKompetenzen(resolveUnterrichtsideen = true): Promise<Ko
     try {
       console.log("📦 Loading kompetenzen from Firestore cache...");
 
-      const systemKompetenzen = await getSystemKompetenzen();
+      const allSystemKompetenzen = await getSystemKompetenzen();
+
+      // Nur MIA-Kompetenzen (MI/IB) für die Lehrplan-Seite
+      // Andere Fachbereiche (D, MA, NMG etc.) sind für die Jahresplanung via /api/kompetenzen/lp21
+      const miaKompetenzen = allSystemKompetenzen.filter((sk) => {
+        const prefix = sk.lpCode?.split(".")[0]?.toUpperCase();
+        return prefix === "MI" || prefix === "IB";
+      });
+
+      // Deduplizierung MI/IB: Wenn beide existieren, bevorzuge LP21-Quelle (aktueller)
+      // Normalisiere MI↔IB Codes für Vergleich
+      const seen = new Map<string, typeof miaKompetenzen[0]>();
+      for (const sk of miaKompetenzen) {
+        // Normalisierter Key: IB.1.1.a → MI.1.1.a
+        const normalizedCode = sk.lpCode?.replace(/^IB\./, "MI.") || sk.airtableId;
+        const existing = seen.get(normalizedCode);
+        if (!existing) {
+          seen.set(normalizedCode, sk);
+        } else if (sk.source === "lp21" && existing.source !== "lp21") {
+          // LP21 bevorzugen (aktuellere Daten)
+          seen.set(normalizedCode, sk);
+        }
+      }
+      const systemKompetenzen = Array.from(seen.values());
 
       // Unterrichtsideen auflösen: IDs → Themen-Daten
       let unterrichtsideenMap = new Map<string, Unterrichtsidee>();
