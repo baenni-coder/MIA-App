@@ -111,8 +111,8 @@ function mapKompetenzstufeToKompetenz(
   // Vollständiger Kompetenztext
   const kompetenzText = begriffe ? `${beschreibung}\n\nBegriffe: ${begriffe}` : beschreibung;
 
-  // Zyklus und Klassenstufen
-  const zyklus = ZYKLUS_MAP[ks.zyklus] || [ks.zyklus];
+  // Zyklus und Klassenstufen (nur gültige Werte: 1, 12, 2, 23, 3)
+  const zyklus = ZYKLUS_MAP[ks.zyklus] || [];
   const klassenstufe = ZYKLUS_KLASSENSTUFEN[ks.zyklus] || [];
 
   // Kompetenzbereich bestimmen

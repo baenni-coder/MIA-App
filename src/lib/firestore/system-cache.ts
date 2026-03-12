@@ -381,6 +381,8 @@ export async function getSystemKompetenzen(): Promise<SystemKompetenz[]> {
       return {
         id: doc.id,
         airtableId: data.airtableId,
+        lp21Uid: data.lp21Uid,
+        source: data.source,
         name: data.name,
         lpCode: data.lpCode,
         kompetenzbereich: data.kompetenzbereich,
@@ -389,6 +391,7 @@ export async function getSystemKompetenzen(): Promise<SystemKompetenz[]> {
         zyklus: data.zyklus,
         klassenstufe: data.klassenstufe,
         grundanspruch: data.grundanspruch,
+        orientierungspunkt: data.orientierungspunkt,
         querverweisLP: data.querverweisLP,
         unterrichtsideenIds: data.unterrichtsideenIds || [],
         lastSyncedAt: timestampToDate(data.lastSyncedAt),
