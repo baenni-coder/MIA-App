@@ -54,7 +54,7 @@ export default function KompetenzPicker({
   // Synced LP21 Kompetenzstufen
   const [syncedKompetenzstufen, setSyncedKompetenzstufen] = useState<LP21SyncedKompetenzstufe[]>([]);
   const [loadingSynced, setLoadingSynced] = useState(false);
-  const [showKompetenzstufen, setShowKompetenzstufen] = useState(false);
+  const [showKompetenzstufen, setShowKompetenzstufen] = useState(true);
 
   // Fachbereich aus Formular synchronisieren
   useEffect(() => {

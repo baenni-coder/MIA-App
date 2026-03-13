@@ -25,21 +25,33 @@ export async function getKompetenzen(resolveUnterrichtsideen = true): Promise<Ko
         return prefix === "MI" || prefix === "IB";
       });
 
-      // Deduplizierung MI/IB: Wenn beide existieren, bevorzuge LP21-Quelle (aktueller)
-      // Normalisiere MI↔IB Codes für Vergleich
-      const seen = new Map<string, typeof miaKompetenzen[0]>();
+      // Merge-Strategie: Airtable als Basis behalten (hat Unterrichtsideen, Regelstandards)
+      // LP21-Daten nur zur Anreicherung verwenden (Orientierungspunkte)
+      // Index: normalisierter LP-Code (IB→MI) → LP21-Daten
+      const lp21ByCode = new Map<string, typeof miaKompetenzen[0]>();
       for (const sk of miaKompetenzen) {
-        // Normalisierter Key: IB.1.1.a → MI.1.1.a
-        const normalizedCode = sk.lpCode?.replace(/^IB\./, "MI.") || sk.airtableId;
-        const existing = seen.get(normalizedCode);
-        if (!existing) {
-          seen.set(normalizedCode, sk);
-        } else if (sk.source === "lp21" && existing.source !== "lp21") {
-          // LP21 bevorzugen (aktuellere Daten)
-          seen.set(normalizedCode, sk);
+        if (sk.source === "lp21") {
+          const normalizedCode = sk.lpCode?.replace(/^IB\./, "MI.") || "";
+          if (normalizedCode) lp21ByCode.set(normalizedCode, sk);
         }
       }
-      const systemKompetenzen = Array.from(seen.values());
+
+      // Behalte nur Airtable-Kompetenzen (source !== "lp21") als Basis
+      // Ergänze sie mit Orientierungspunkten aus LP21
+      const systemKompetenzen = miaKompetenzen
+        .filter((sk) => sk.source !== "lp21")
+        .map((sk) => {
+          // Passende LP21-Daten finden (MI.1.1.a → suche MI.1.1.a oder IB.1.1.a)
+          const normalizedCode = sk.lpCode || "";
+          const lp21Match = lp21ByCode.get(normalizedCode);
+          if (lp21Match) {
+            return {
+              ...sk,
+              orientierungspunkt: lp21Match.orientierungspunkt,
+            };
+          }
+          return sk;
+        });
 
       // Unterrichtsideen auflösen: IDs → Themen-Daten
       let unterrichtsideenMap = new Map<string, Unterrichtsidee>();
