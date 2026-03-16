@@ -253,6 +253,7 @@ export interface LP21KompetenzstufeResult {
   zyklus: string;
   grundanspruch: boolean;
   orientierungspunkt: boolean;
+  orientierungspunktVorher?: number;
   aufzaehlungspunkte: {
     bezeichnung: string;
     begriffe?: string;
