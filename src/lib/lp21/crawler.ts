@@ -277,9 +277,37 @@ async function crawlKompetenzstufen(
       zyklus: data.zyklus || "",
       grundanspruch: data.grundanspruch === true,
       orientierungspunkt: data.orientierungspunkt === true,
+      orientierungspunktVorher: typeof data.orientierungspunkt_vorher === "number" ? data.orientierungspunkt_vorher : undefined,
       aufzaehlungspunkte,
       querverweise: data.querverweise,
     });
+  }
+
+  // Post-Processing: Orientierungspunkte korrekt zuordnen
+  // Die LP21 API markiert manchmal die Stufe NACH der OP-Grenze mit orientierungspunkt=true.
+  // Im Lehrplan ist der OP die LETZTE Stufe, die Schüler erreichen sollen (die VOR der Grenze).
+  // Strategie:
+  // 1. Wenn eine Stufe orientierungspunkt_vorher hat, ist die OP-Grenze VOR dieser Stufe
+  //    → markiere die vorherige Stufe als OP
+  // 2. Wenn orientierungspunkt=true auf einer Stufe ist und orientierungspunkt_vorher
+  //    auch gesetzt ist, verschiebe den OP zur vorherigen Stufe
+  results.sort((a, b) => a.code.localeCompare(b.code));
+
+  for (let i = 0; i < results.length; i++) {
+    const ks = results[i];
+    // Wenn diese Stufe orientierungspunkt_vorher hat, ist die OP-Grenze VOR ihr
+    if (typeof ks.orientierungspunktVorher === "number") {
+      // Die Stufe davor sollte den OP haben
+      if (i > 0 && !results[i - 1].orientierungspunkt) {
+        results[i - 1].orientierungspunkt = true;
+      }
+      // Wenn die aktuelle Stufe orientierungspunkt=true hat UND orientierungspunkt_vorher,
+      // dann ist der OP eigentlich auf der vorherigen Stufe
+      if (ks.orientierungspunkt && i > 0) {
+        ks.orientierungspunkt = false;
+        results[i - 1].orientierungspunkt = true;
+      }
+    }
   }
 
   return results;

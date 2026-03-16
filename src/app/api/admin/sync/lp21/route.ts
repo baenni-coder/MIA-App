@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
     const existingIds = new Set(existingKompetenzen.map((k) => k.airtableId));
     let added = 0;
     let updated = 0;
+    let orientierungspunkte = 0;
 
     systemKompetenzen.forEach((sk) => {
       if (existingIds.has(sk.airtableId)) {
@@ -108,7 +109,12 @@ export async function POST(req: NextRequest) {
       } else {
         added++;
       }
+      if (sk.orientierungspunkt) {
+        orientierungspunkte++;
+      }
     });
+
+    console.log(`🎯 Orientierungspunkte: ${orientierungspunkte} von ${systemKompetenzen.length} Kompetenzstufen`);
 
     // 9. Upsert in Firestore (in Batches von 500)
     if (systemKompetenzen.length > 0) {
@@ -135,6 +141,7 @@ export async function POST(req: NextRequest) {
       updated,
       totalKompetenzstufen: crawlResult.totalKompetenzstufen,
       kompetenzbereiche: crawlResult.kompetenzbereiche.length,
+      orientierungspunkte,
       crawlDuration: crawlResult.duration,
       totalDuration: duration,
     });
