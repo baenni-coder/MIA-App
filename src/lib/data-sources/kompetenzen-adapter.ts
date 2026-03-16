@@ -1,4 +1,4 @@
-import { Kompetenz, Unterrichtsidee } from "@/types";
+import { Kompetenz, SystemKompetenz, Unterrichtsidee } from "@/types";
 import { getAllKompetenzen } from "@/lib/airtable/kompetenzen";
 import { getSystemKompetenzen, getSystemThemes } from "@/lib/firestore/system-cache";
 
@@ -8,8 +8,58 @@ import { getSystemKompetenzen, getSystemThemes } from "@/lib/firestore/system-ca
 const USE_FIRESTORE_CACHE = process.env.ENABLE_FIRESTORE_CACHE === "true";
 
 /**
- * Alle Kompetenzen laden (Firestore Cache oder Airtable Fallback)
+ * Normalisiert LP-Code: IB → MI (für Solothurn)
+ * IB.1.1.a → MI.1.1.a
+ */
+function normalizeLpCode(lpCode: string | undefined): string {
+  if (!lpCode) return "";
+  return lpCode.replace(/^IB\./, "MI.");
+}
+
+/**
+ * Dedupliziert MI/IB Kompetenzen: gleicher normalisierter Code = gleiche Kompetenz.
+ * Bevorzugt Einträge mit Unterrichtsideen (Airtable-Daten sind reichhaltiger).
+ * Ergänzt alle Einträge mit Orientierungspunkten aus LP21-Daten.
+ */
+function deduplicateMiaKompetenzen(kompetenzen: SystemKompetenz[]): SystemKompetenz[] {
+  const byCode = new Map<string, SystemKompetenz>();
+
+  for (const sk of kompetenzen) {
+    const normalizedCode = normalizeLpCode(sk.lpCode) || sk.airtableId;
+    const existing = byCode.get(normalizedCode);
+
+    if (!existing) {
+      byCode.set(normalizedCode, sk);
+    } else {
+      // Merge: Bevorzuge den Eintrag mit mehr Daten
+      const existingHasUnterrichtsideen = (existing.unterrichtsideenIds?.length || 0) > 0;
+      const currentHasUnterrichtsideen = (sk.unterrichtsideenIds?.length || 0) > 0;
+
+      if (currentHasUnterrichtsideen && !existingHasUnterrichtsideen) {
+        // Aktueller hat Unterrichtsideen → bevorzugen, aber Orientierungspunkt übernehmen
+        byCode.set(normalizedCode, {
+          ...sk,
+          orientierungspunkt: sk.orientierungspunkt || existing.orientierungspunkt,
+        });
+      } else {
+        // Bestehender behalten, aber Orientierungspunkt vom LP21-Eintrag übernehmen
+        byCode.set(normalizedCode, {
+          ...existing,
+          orientierungspunkt: existing.orientierungspunkt || sk.orientierungspunkt,
+        });
+      }
+    }
+  }
+
+  return Array.from(byCode.values());
+}
+
+/**
+ * Alle MIA-Kompetenzen laden (Firestore Cache oder Airtable Fallback)
  * Unterrichtsideen werden über die gecachten System-Themen aufgelöst.
+ *
+ * Gibt nur MI/IB Kompetenzen zurück (dedupliziert).
+ * Andere Fachbereiche (D, MA, NMG) sind via /api/kompetenzen/lp21 verfügbar.
  */
 export async function getKompetenzen(resolveUnterrichtsideen = true): Promise<Kompetenz[]> {
   if (USE_FIRESTORE_CACHE) {
@@ -18,40 +68,15 @@ export async function getKompetenzen(resolveUnterrichtsideen = true): Promise<Ko
 
       const allSystemKompetenzen = await getSystemKompetenzen();
 
-      // Nur MIA-Kompetenzen (MI/IB) für die Lehrplan-Seite
-      // Andere Fachbereiche (D, MA, NMG etc.) sind für die Jahresplanung via /api/kompetenzen/lp21
+      // Nur MIA-Kompetenzen (MI/IB)
       const miaKompetenzen = allSystemKompetenzen.filter((sk) => {
         const prefix = sk.lpCode?.split(".")[0]?.toUpperCase();
         return prefix === "MI" || prefix === "IB";
       });
 
-      // Merge-Strategie: Airtable als Basis behalten (hat Unterrichtsideen, Regelstandards)
-      // LP21-Daten nur zur Anreicherung verwenden (Orientierungspunkte)
-      // Index: normalisierter LP-Code (IB→MI) → LP21-Daten
-      const lp21ByCode = new Map<string, typeof miaKompetenzen[0]>();
-      for (const sk of miaKompetenzen) {
-        if (sk.source === "lp21") {
-          const normalizedCode = sk.lpCode?.replace(/^IB\./, "MI.") || "";
-          if (normalizedCode) lp21ByCode.set(normalizedCode, sk);
-        }
-      }
-
-      // Behalte nur Airtable-Kompetenzen (source !== "lp21") als Basis
-      // Ergänze sie mit Orientierungspunkten aus LP21
-      const systemKompetenzen = miaKompetenzen
-        .filter((sk) => sk.source !== "lp21")
-        .map((sk) => {
-          // Passende LP21-Daten finden (MI.1.1.a → suche MI.1.1.a oder IB.1.1.a)
-          const normalizedCode = sk.lpCode || "";
-          const lp21Match = lp21ByCode.get(normalizedCode);
-          if (lp21Match) {
-            return {
-              ...sk,
-              orientierungspunkt: lp21Match.orientierungspunkt,
-            };
-          }
-          return sk;
-        });
+      // Deduplizieren: MI.1.1.a und IB.1.1.a sind dieselbe Kompetenz
+      // Bevorzugt Einträge mit Unterrichtsideen, ergänzt mit Orientierungspunkten
+      const systemKompetenzen = deduplicateMiaKompetenzen(miaKompetenzen);
 
       // Unterrichtsideen auflösen: IDs → Themen-Daten
       let unterrichtsideenMap = new Map<string, Unterrichtsidee>();
@@ -106,10 +131,12 @@ export async function getKompetenzen(resolveUnterrichtsideen = true): Promise<Ko
         return kompetenz;
       });
 
-      // Sortiere nach LP Code
-      kompetenzen.sort((a, b) => (a.lpCode || "").localeCompare(b.lpCode || ""));
+      // Sortiere nach normalisiertem LP Code (damit MI und IB zusammen sortiert werden)
+      kompetenzen.sort((a, b) =>
+        normalizeLpCode(a.lpCode).localeCompare(normalizeLpCode(b.lpCode))
+      );
 
-      console.log(`✅ Loaded ${kompetenzen.length} kompetenzen from Firestore`);
+      console.log(`✅ Loaded ${kompetenzen.length} kompetenzen from Firestore (dedupliziert aus ${miaKompetenzen.length})`);
       return kompetenzen;
     } catch (error) {
       console.error("❌ Error loading kompetenzen from Firestore, falling back to Airtable:", error);
