@@ -38,12 +38,20 @@ export async function GET(request: NextRequest) {
     const struktur = await getLP21Struktur(fachbereich);
 
     if (!struktur) {
+      // Return 200 with empty data (not 404) - no synced structure is a valid state
       return NextResponse.json(
         {
-          error: `Keine LP21-Struktur für Fachbereich "${fachbereich}" gefunden. Bitte zuerst über Admin > Daten-Sync synchronisieren.`,
+          fachbereichCode: fachbereich,
+          fachbereichName: "",
+          kanton: "",
           kompetenzbereiche: [],
+          synced: false,
         },
-        { status: 404 }
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+          },
+        }
       );
     }
 
