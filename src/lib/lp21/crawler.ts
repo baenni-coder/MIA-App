@@ -267,42 +267,68 @@ async function crawlKompetenzstufen(
 
   const results: LP21KompetenzstufeResult[] = [];
 
+  // Diagnostic: Log OP-relevant raw fields for ALL Kompetenzstufen
+  let opDiagCount = 0;
+  const opDiagnostics: string[] = [];
+
   for (const { uid, data } of kompetenzstufeElements) {
     // Aufzählungspunkte laden
     const aufzaehlungspunkte = await crawlAufzaehlungspunkte(data, kanton, sprache);
+
+    // Diagnostic: Check ALL OP-related fields from the API
+    const hasOp = data.orientierungspunkt === true;
+    const hasOpVorher = typeof data.orientierungspunkt_vorher === "number";
+    const hasLinieUnten = typeof data.linie_unten === "number" && data.linie_unten > 0;
+    const hasLinieOben = typeof data.linie_oben === "number" && data.linie_oben > 0;
+
+    if (hasOp || hasOpVorher || hasLinieUnten || hasLinieOben) {
+      opDiagCount++;
+      opDiagnostics.push(
+        `  ${data.code}: op=${data.orientierungspunkt}, op_vorher=${data.orientierungspunkt_vorher}, ` +
+        `linie_unten=${data.linie_unten}, linie_oben=${data.linie_oben}, grundanspruch=${data.grundanspruch}`
+      );
+    }
+
+    // Determine OP: Use orientierungspunkt field first, then fall back to linie_unten
+    // linie_unten > 0 means there's a horizontal line BELOW this Kompetenzstufe,
+    // which is how the LP21 visually shows the Orientierungspunkt boundary
+    const isOp = data.orientierungspunkt === true || (typeof data.linie_unten === "number" && data.linie_unten > 0);
 
     results.push({
       uid,
       code: data.code || "",
       zyklus: data.zyklus || "",
       grundanspruch: data.grundanspruch === true,
-      orientierungspunkt: data.orientierungspunkt === true,
+      orientierungspunkt: isOp,
       orientierungspunktVorher: typeof data.orientierungspunkt_vorher === "number" ? data.orientierungspunkt_vorher : undefined,
       aufzaehlungspunkte,
       querverweise: data.querverweise,
     });
   }
 
-  // Post-Processing: Orientierungspunkte korrekt zuordnen
-  // Die LP21 API markiert manchmal die Stufe NACH der OP-Grenze mit orientierungspunkt=true.
-  // Im Lehrplan ist der OP die LETZTE Stufe, die Schüler erreichen sollen (die VOR der Grenze).
-  // Strategie:
-  // 1. Wenn eine Stufe orientierungspunkt_vorher hat, ist die OP-Grenze VOR dieser Stufe
-  //    → markiere die vorherige Stufe als OP
-  // 2. Wenn orientierungspunkt=true auf einer Stufe ist und orientierungspunkt_vorher
-  //    auch gesetzt ist, verschiebe den OP zur vorherigen Stufe
+  // Log diagnostics for OP detection
+  if (opDiagnostics.length > 0) {
+    console.log(`🔍 OP-Diagnostik: ${opDiagCount} Stufen mit OP-relevanten Feldern:`);
+    opDiagnostics.forEach(d => console.log(d));
+  } else {
+    console.log(`⚠️ OP-Diagnostik: KEINE Stufe hat orientierungspunkt, orientierungspunkt_vorher, linie_unten oder linie_oben!`);
+    // Log first 3 raw elements for debugging
+    const sample = kompetenzstufeElements.slice(0, 3);
+    sample.forEach(({ data }) => {
+      console.log(`  Sample ${data.code}: keys=${Object.keys(data).join(", ")}`);
+    });
+  }
+
+  // Post-Processing: Handle orientierungspunkt_vorher if present
+  // This shifts the OP marker to the correct (previous) Kompetenzstufe
   results.sort((a, b) => a.code.localeCompare(b.code));
 
   for (let i = 0; i < results.length; i++) {
     const ks = results[i];
-    // Wenn diese Stufe orientierungspunkt_vorher hat, ist die OP-Grenze VOR ihr
     if (typeof ks.orientierungspunktVorher === "number") {
-      // Die Stufe davor sollte den OP haben
       if (i > 0 && !results[i - 1].orientierungspunkt) {
         results[i - 1].orientierungspunkt = true;
       }
-      // Wenn die aktuelle Stufe orientierungspunkt=true hat UND orientierungspunkt_vorher,
-      // dann ist der OP eigentlich auf der vorherigen Stufe
       if (ks.orientierungspunkt && i > 0) {
         ks.orientierungspunkt = false;
         results[i - 1].orientierungspunkt = true;
