@@ -18,6 +18,7 @@ const SYSTEM_THEMES_COLLECTION = "system_themes";
 const SYSTEM_SCHULEN_COLLECTION = "system_schulen";
 const SYSTEM_KOMPETENZEN_COLLECTION = "system_kompetenzen";
 const SYSTEM_LEKTIONEN_COLLECTION = "system_lektionen";
+const LP21_STRUKTUR_COLLECTION = "lp21_struktur";
 const SYNC_METADATA_COLLECTION = "sync_metadata";
 const SYNC_LOGS_COLLECTION = "sync_logs";
 
@@ -775,5 +776,96 @@ export async function cleanupOldSyncLogs(daysToKeep: number = 30): Promise<numbe
   } catch (error) {
     console.error("Error cleaning up old sync logs:", error);
     return 0;
+  }
+}
+
+// ============================================
+// LP21 Fachbereich-Struktur (Kompetenzbereiche + Kompetenzen)
+// ============================================
+
+/** Struktur eines LP21-Fachbereichs wie von der API gesynct */
+export interface LP21StrukturKompetenz {
+  uid: string;
+  code: string;
+  bezeichnung: string;
+  kompetenzstufen: number; // Anzahl Kompetenzstufen
+}
+
+export interface LP21StrukturKompetenzbereich {
+  uid: string;
+  code: string;
+  bezeichnung: string;
+  kompetenzen: LP21StrukturKompetenz[];
+}
+
+export interface LP21FachbereichStruktur {
+  fachbereichCode: string;
+  fachbereichName: string;
+  kanton: string;
+  kompetenzbereiche: LP21StrukturKompetenzbereich[];
+  lastSyncedAt: Date;
+}
+
+/**
+ * LP21 Fachbereich-Struktur speichern (Kompetenzbereiche + Kompetenzen)
+ * Wird während LP21 Sync automatisch gespeichert.
+ * Dokument-ID = fachbereichCode (z.B. "D", "IB", "MA")
+ */
+export async function upsertLP21Struktur(struktur: LP21FachbereichStruktur): Promise<void> {
+  try {
+    const adminDb = getAdminDb();
+    await adminDb.collection(LP21_STRUKTUR_COLLECTION).doc(struktur.fachbereichCode).set({
+      ...struktur,
+      lastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log(`✅ LP21 Struktur gespeichert: ${struktur.fachbereichCode} (${struktur.kompetenzbereiche.length} Kompetenzbereiche)`);
+  } catch (error) {
+    console.error("Error saving LP21 Struktur:", error);
+    throw error;
+  }
+}
+
+/**
+ * LP21 Fachbereich-Struktur laden
+ */
+export async function getLP21Struktur(fachbereichCode: string): Promise<LP21FachbereichStruktur | null> {
+  try {
+    const adminDb = getAdminDb();
+    const doc = await adminDb.collection(LP21_STRUKTUR_COLLECTION).doc(fachbereichCode).get();
+    if (!doc.exists) return null;
+    const data = doc.data()!;
+    return {
+      fachbereichCode: data.fachbereichCode,
+      fachbereichName: data.fachbereichName,
+      kanton: data.kanton,
+      kompetenzbereiche: data.kompetenzbereiche || [],
+      lastSyncedAt: timestampToDate(data.lastSyncedAt),
+    };
+  } catch (error) {
+    console.error("Error getting LP21 Struktur:", error);
+    return null;
+  }
+}
+
+/**
+ * Alle LP21 Fachbereich-Strukturen laden
+ */
+export async function getAllLP21Strukturen(): Promise<LP21FachbereichStruktur[]> {
+  try {
+    const adminDb = getAdminDb();
+    const snapshot = await adminDb.collection(LP21_STRUKTUR_COLLECTION).get();
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        fachbereichCode: data.fachbereichCode,
+        fachbereichName: data.fachbereichName,
+        kanton: data.kanton,
+        kompetenzbereiche: data.kompetenzbereiche || [],
+        lastSyncedAt: timestampToDate(data.lastSyncedAt),
+      };
+    });
+  } catch (error) {
+    console.error("Error getting all LP21 Strukturen:", error);
+    return [];
   }
 }

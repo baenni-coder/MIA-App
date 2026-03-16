@@ -267,21 +267,6 @@ async function crawlKompetenzstufen(
 
   const results: LP21KompetenzstufeResult[] = [];
 
-  // Diagnostic: Log RAW VALUES of OP-relevant fields for first few Kompetenzstufen
-  // to understand what the API actually returns (types and values)
-  const diagSample = kompetenzstufeElements.slice(0, 8);
-  console.log(`🔍 OP Raw Values (first ${diagSample.length} of ${kompetenzstufeElements.length} Stufen):`);
-  for (const { data } of diagSample) {
-    const raw = data as unknown as Record<string, unknown>;
-    console.log(
-      `  ${data.code}: op=${JSON.stringify(raw.orientierungspunkt)}(${typeof raw.orientierungspunkt}), ` +
-      `op_vorher=${JSON.stringify(raw.orientierungspunkt_vorher)}(${typeof raw.orientierungspunkt_vorher}), ` +
-      `linie_unten=${JSON.stringify(raw.linie_unten)}(${typeof raw.linie_unten}), ` +
-      `linie_oben=${JSON.stringify(raw.linie_oben)}(${typeof raw.linie_oben}), ` +
-      `grundanspruch=${JSON.stringify(raw.grundanspruch)}(${typeof raw.grundanspruch})`
-    );
-  }
-
   for (const { uid, data } of kompetenzstufeElements) {
     // Aufzählungspunkte laden
     const aufzaehlungspunkte = await crawlAufzaehlungspunkte(data, kanton, sprache);

@@ -80,7 +80,8 @@
           "name": "Literatur im Fokus",
           "kompetenzen": [
             { "id": "D.6.A", "code": "D.6.A.1", "name": "Auseinandersetzung mit literarischen Texten", "beschreibung": "Die SuS können spielerisch und kreativ gestaltend mit literarischen Texten umgehen." },
-            { "id": "D.6.B", "code": "D.6.B.1", "name": "Auseinandersetzung mit verschiedenen Autor/innen und Genres", "beschreibung": "Die SuS kennen einzelne Autor/innen und verschiedene Genres." }
+            { "id": "D.6.B", "code": "D.6.B.1", "name": "Auseinandersetzung mit verschiedenen Autor/innen und verschiedenen Kulturen", "beschreibung": "Die SuS kennen einzelne Autor/innen der Kinder-, Jugend- und Erwachsenenliteratur und können Texte aus verschiedenen Kulturen lesen, hören, sehen und deren Besonderheiten erkennen und wertschätzen." },
+            { "id": "D.6.C", "code": "D.6.C.1", "name": "Literarische Texte: Beschaffenheit und Wirkung", "beschreibung": "Die SuS erfahren, erkennen und reflektieren, dass literarische Texte in Bezug auf Inhalt, Form und Sprache bewusst gestaltet sind, um eine ästhetische Wirkung zu erzielen." }
           ]
         }
       ]
