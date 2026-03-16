@@ -83,6 +83,7 @@ export default function AdminSyncPage() {
     updated: number;
     totalKompetenzstufen: number;
     kompetenzbereiche: number;
+    orientierungspunkte: number;
     totalDuration: number;
     crawlDuration: number;
     error?: string;
@@ -254,6 +255,7 @@ export default function AdminSyncPage() {
           updated: data.updated || 0,
           totalKompetenzstufen: data.totalKompetenzstufen || 0,
           kompetenzbereiche: data.kompetenzbereiche || 0,
+          orientierungspunkte: data.orientierungspunkte || 0,
           totalDuration: data.totalDuration || 0,
           crawlDuration: data.crawlDuration || 0,
         });
@@ -268,6 +270,7 @@ export default function AdminSyncPage() {
           updated: 0,
           totalKompetenzstufen: 0,
           kompetenzbereiche: 0,
+          orientierungspunkte: 0,
           totalDuration: data.duration || 0,
           crawlDuration: 0,
           error: data.error || "Unbekannter Fehler",
@@ -845,7 +848,7 @@ export default function AdminSyncPage() {
 
               {lp21Result && lp21Result.success && (
                 <div className="bg-green-50 border border-green-200 rounded p-3 space-y-2">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <div className="text-center">
                       <p className="text-2xl font-bold text-green-700">{lp21Result.totalKompetenzstufen}</p>
                       <p className="text-xs text-green-600">Kompetenzstufen</p>
@@ -853,6 +856,10 @@ export default function AdminSyncPage() {
                     <div className="text-center">
                       <p className="text-2xl font-bold text-green-700">{lp21Result.kompetenzbereiche}</p>
                       <p className="text-xs text-green-600">Kompetenzbereiche</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-orange-600">{lp21Result.orientierungspunkte}</p>
+                      <p className="text-xs text-orange-500">Orientierungspunkte</p>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-bold text-blue-700">+{lp21Result.added}</p>
