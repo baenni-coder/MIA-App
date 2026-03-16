@@ -93,19 +93,24 @@ export default function KompetenzPicker({
     }
     const fb = getFachbereichById(selectedFachbereich);
     const fachbereichCode = fb?.fachbereichKuerzel || selectedFachbereich;
+
+    let cancelled = false;
     fetch(`/api/kompetenzen/lp21/struktur?fachbereich=${fachbereichCode}`)
-      .then((res) => {
-        if (!res.ok) return null;
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
-        if (data?.kompetenzbereiche) {
+        if (cancelled) return;
+        // Only update state if we got actual synced data
+        if (data?.kompetenzbereiche?.length > 0) {
           setSyncedStruktur(data.kompetenzbereiche);
         } else {
           setSyncedStruktur(null);
         }
       })
-      .catch(() => setSyncedStruktur(null));
+      .catch(() => {
+        if (!cancelled) setSyncedStruktur(null);
+      });
+
+    return () => { cancelled = true; };
   }, [selectedFachbereich]);
 
   // Kompetenzbereiche: Bevorzuge synced Struktur, Fallback auf statisch
