@@ -34,6 +34,21 @@ interface LP21SyncedKompetenzstufe {
   orientierungspunkt: boolean;
 }
 
+/** Synced LP21 Struktur (Kompetenzbereiche + Kompetenzen) */
+interface LP21SyncedStrukturKompetenz {
+  uid: string;
+  code: string;
+  bezeichnung: string;
+  kompetenzstufen: number;
+}
+
+interface LP21SyncedStrukturKompetenzbereich {
+  uid: string;
+  code: string;
+  bezeichnung: string;
+  kompetenzen: LP21SyncedStrukturKompetenz[];
+}
+
 interface KompetenzPickerProps {
   selectedKompetenzen: string[]; // Array von Kompetenz-IDs
   onKompetenzenChange: (kompetenzenIds: string[], kompetenzenNamen: string[]) => void;
@@ -56,6 +71,9 @@ export default function KompetenzPicker({
   const [loadingSynced, setLoadingSynced] = useState(false);
   const [showKompetenzstufen, setShowKompetenzstufen] = useState(true);
 
+  // Synced LP21 Struktur (Kompetenzbereiche + Kompetenzen von API)
+  const [syncedStruktur, setSyncedStruktur] = useState<LP21SyncedStrukturKompetenzbereich[] | null>(null);
+
   // Fachbereich aus Formular synchronisieren
   useEffect(() => {
     if (defaultFachbereich && defaultFachbereich !== selectedFachbereich) {
@@ -67,17 +85,65 @@ export default function KompetenzPicker({
   // Alle Fachbereiche laden
   const fachbereiche = useMemo(() => getAlleFachbereiche(), []);
 
-  // Kompetenzbereiche des gewählten Fachbereichs
-  const kompetenzbereiche = useMemo(() => {
-    if (!selectedFachbereich) return [];
-    return getKompetenzbereiche(selectedFachbereich);
+  // Synced Struktur laden wenn Fachbereich gewählt wird
+  useEffect(() => {
+    if (!selectedFachbereich) {
+      setSyncedStruktur(null);
+      return;
+    }
+    const fb = getFachbereichById(selectedFachbereich);
+    const fachbereichCode = fb?.fachbereichKuerzel || selectedFachbereich;
+    fetch(`/api/kompetenzen/lp21/struktur?fachbereich=${fachbereichCode}`)
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((data) => {
+        if (data?.kompetenzbereiche) {
+          setSyncedStruktur(data.kompetenzbereiche);
+        } else {
+          setSyncedStruktur(null);
+        }
+      })
+      .catch(() => setSyncedStruktur(null));
   }, [selectedFachbereich]);
 
-  // Kompetenzen des gewählten Kompetenzbereichs
+  // Kompetenzbereiche: Bevorzuge synced Struktur, Fallback auf statisch
+  const kompetenzbereiche = useMemo(() => {
+    if (syncedStruktur && syncedStruktur.length > 0) {
+      // Synced Struktur als LP21Kompetenzbereich formatieren
+      return syncedStruktur.map((kb) => ({
+        id: kb.code,
+        code: kb.code,
+        name: kb.bezeichnung,
+        kompetenzen: kb.kompetenzen.map((k) => ({
+          id: k.code,
+          code: k.code,
+          name: k.bezeichnung,
+          beschreibung: "",
+        })),
+      }));
+    }
+    if (!selectedFachbereich) return [];
+    return getKompetenzbereiche(selectedFachbereich);
+  }, [selectedFachbereich, syncedStruktur]);
+
+  // Kompetenzen: Bevorzuge synced Struktur, Fallback auf statisch
   const kompetenzen = useMemo(() => {
     if (!selectedFachbereich || !selectedKompetenzbereich) return [];
+    if (syncedStruktur && syncedStruktur.length > 0) {
+      const kb = syncedStruktur.find((kb) => kb.code === selectedKompetenzbereich);
+      if (kb) {
+        return kb.kompetenzen.map((k) => ({
+          id: k.code,
+          code: k.code,
+          name: k.bezeichnung,
+          beschreibung: `${k.kompetenzstufen} Kompetenzstufen`,
+        }));
+      }
+    }
     return getKompetenzen(selectedFachbereich, selectedKompetenzbereich);
-  }, [selectedFachbereich, selectedKompetenzbereich]);
+  }, [selectedFachbereich, selectedKompetenzbereich, syncedStruktur]);
 
   // Synced Kompetenzstufen laden wenn Kompetenzbereich gewählt wird
   useEffect(() => {

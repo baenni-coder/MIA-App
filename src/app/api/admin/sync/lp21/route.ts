@@ -4,7 +4,9 @@ import { getTeacherProfile } from "@/lib/firestore/permissions";
 import {
   upsertSystemKompetenzen,
   getSystemKompetenzen,
+  upsertLP21Struktur,
 } from "@/lib/firestore/system-cache";
+import type { LP21StrukturKompetenzbereich } from "@/lib/firestore/system-cache";
 import { SystemKompetenz } from "@/types";
 import { crawlFachbereich, mapCrawlResultToKompetenzen, mapToSystemKompetenzen, kantonToLP21, getMiaFachbereichCode } from "@/lib/lp21";
 import type { LP21Kanton } from "@/lib/lp21";
@@ -123,6 +125,28 @@ export async function POST(req: NextRequest) {
         await upsertSystemKompetenzen(batch);
       }
     }
+
+    // 10. Fachbereich-Struktur speichern (Kompetenzbereiche + Kompetenzen)
+    // Damit der KompetenzPicker korrekte Daten anzeigen kann
+    const strukturKompetenzbereiche: LP21StrukturKompetenzbereich[] = crawlResult.kompetenzbereiche.map((kb) => ({
+      uid: kb.uid,
+      code: kb.code,
+      bezeichnung: kb.bezeichnung,
+      kompetenzen: kb.kompetenzen.map((k) => ({
+        uid: k.uid,
+        code: k.code,
+        bezeichnung: k.bezeichnung,
+        kompetenzstufen: k.kompetenzstufen.length,
+      })),
+    }));
+
+    await upsertLP21Struktur({
+      fachbereichCode: crawlResult.fachbereich.code,
+      fachbereichName: crawlResult.fachbereich.bezeichnung,
+      kanton,
+      kompetenzbereiche: strukturKompetenzbereiche,
+      lastSyncedAt: new Date(),
+    });
 
     const duration = Date.now() - startTime;
 
