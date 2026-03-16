@@ -267,38 +267,43 @@ async function crawlKompetenzstufen(
 
   const results: LP21KompetenzstufeResult[] = [];
 
-  // Diagnostic: Log OP-relevant raw fields for ALL Kompetenzstufen
-  let opDiagCount = 0;
-  const opDiagnostics: string[] = [];
+  // Diagnostic: Log RAW VALUES of OP-relevant fields for first few Kompetenzstufen
+  // to understand what the API actually returns (types and values)
+  const diagSample = kompetenzstufeElements.slice(0, 8);
+  console.log(`🔍 OP Raw Values (first ${diagSample.length} of ${kompetenzstufeElements.length} Stufen):`);
+  for (const { data } of diagSample) {
+    const raw = data as unknown as Record<string, unknown>;
+    console.log(
+      `  ${data.code}: op=${JSON.stringify(raw.orientierungspunkt)}(${typeof raw.orientierungspunkt}), ` +
+      `op_vorher=${JSON.stringify(raw.orientierungspunkt_vorher)}(${typeof raw.orientierungspunkt_vorher}), ` +
+      `linie_unten=${JSON.stringify(raw.linie_unten)}(${typeof raw.linie_unten}), ` +
+      `linie_oben=${JSON.stringify(raw.linie_oben)}(${typeof raw.linie_oben}), ` +
+      `grundanspruch=${JSON.stringify(raw.grundanspruch)}(${typeof raw.grundanspruch})`
+    );
+  }
 
   for (const { uid, data } of kompetenzstufeElements) {
     // Aufzählungspunkte laden
     const aufzaehlungspunkte = await crawlAufzaehlungspunkte(data, kanton, sprache);
 
-    // Diagnostic: Check ALL OP-related fields from the API
-    const hasOp = data.orientierungspunkt === true;
-    const hasOpVorher = typeof data.orientierungspunkt_vorher === "number";
-    const hasLinieUnten = typeof data.linie_unten === "number" && data.linie_unten > 0;
-    const hasLinieOben = typeof data.linie_oben === "number" && data.linie_oben > 0;
+    const raw = data as unknown as Record<string, unknown>;
 
-    if (hasOp || hasOpVorher || hasLinieUnten || hasLinieOben) {
-      opDiagCount++;
-      opDiagnostics.push(
-        `  ${data.code}: op=${data.orientierungspunkt}, op_vorher=${data.orientierungspunkt_vorher}, ` +
-        `linie_unten=${data.linie_unten}, linie_oben=${data.linie_oben}, grundanspruch=${data.grundanspruch}`
-      );
-    }
-
-    // Determine OP: Use orientierungspunkt field first, then fall back to linie_unten
-    // linie_unten > 0 means there's a horizontal line BELOW this Kompetenzstufe,
-    // which is how the LP21 visually shows the Orientierungspunkt boundary
-    const isOp = data.orientierungspunkt === true || (typeof data.linie_unten === "number" && data.linie_unten > 0);
+    // Detect OP using multiple strategies:
+    // 1. orientierungspunkt === true (boolean)
+    // 2. orientierungspunkt is truthy (could be string "true", number 1, etc.)
+    // 3. linie_unten > 0 (visual boundary line below the Kompetenzstufe)
+    // 4. linie_unten is truthy (could be string)
+    const opVal = raw.orientierungspunkt;
+    const linieUntenVal = raw.linie_unten;
+    const isOp = opVal === true || opVal === 1 || opVal === "true" || opVal === "1"
+      || (typeof linieUntenVal === "number" && linieUntenVal > 0)
+      || linieUntenVal === "1" || linieUntenVal === true;
 
     results.push({
       uid,
       code: data.code || "",
       zyklus: data.zyklus || "",
-      grundanspruch: data.grundanspruch === true,
+      grundanspruch: data.grundanspruch === true || (raw.grundanspruch as unknown) === 1 || (raw.grundanspruch as unknown) === "true",
       orientierungspunkt: isOp,
       orientierungspunktVorher: typeof data.orientierungspunkt_vorher === "number" ? data.orientierungspunkt_vorher : undefined,
       aufzaehlungspunkte,
@@ -306,18 +311,9 @@ async function crawlKompetenzstufen(
     });
   }
 
-  // Log diagnostics for OP detection
-  if (opDiagnostics.length > 0) {
-    console.log(`🔍 OP-Diagnostik: ${opDiagCount} Stufen mit OP-relevanten Feldern:`);
-    opDiagnostics.forEach(d => console.log(d));
-  } else {
-    console.log(`⚠️ OP-Diagnostik: KEINE Stufe hat orientierungspunkt, orientierungspunkt_vorher, linie_unten oder linie_oben!`);
-    // Log first 3 raw elements for debugging
-    const sample = kompetenzstufeElements.slice(0, 3);
-    sample.forEach(({ data }) => {
-      console.log(`  Sample ${data.code}: keys=${Object.keys(data).join(", ")}`);
-    });
-  }
+  // Count detected OPs
+  const opCount = results.filter(r => r.orientierungspunkt).length;
+  console.log(`🎯 OP nach Erkennung: ${opCount} von ${results.length} Stufen`);
 
   // Post-Processing: Handle orientierungspunkt_vorher if present
   // This shifts the OP marker to the correct (previous) Kompetenzstufe
