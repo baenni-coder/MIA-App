@@ -71,10 +71,20 @@ export async function crawlFachbereich(
   const fachbereichUids = kompetenzaufbau.hierarchie_unten.map(extractUidFromUrl);
   const fachbereiche = await getDataBatch(fachbereichUids, kanton, sprache);
 
+  // Alle verfügbaren Fachbereiche loggen
+  const alleFachbereicheMap = new Map<string, { uid: string; data: LP21GetDataResponse }>();
+  for (const [uid, fb] of fachbereiche) {
+    alleFachbereicheMap.set(fb.code || uid, { uid, data: fb });
+  }
+  const alleCodesLog = Array.from(fachbereiche.entries())
+    .map(([, fb]) => `${fb.code} (${getBezeichnung(fb)})`)
+    .join(", ");
+  console.log(`📋 LP21 Verfügbare Fachbereiche [${kanton || "v-fe"}]: ${alleCodesLog}`);
+
   let targetFachbereich: LP21GetDataResponse | null = null;
   let targetUid = "";
 
-  // Zuerst exakte Übereinstimmung suchen (z.B. "D" === "D", nicht "DaZ")
+  // Exakte Übereinstimmung suchen
   for (const [uid, fb] of fachbereiche) {
     if (fb.code === fachbereichCode) {
       targetFachbereich = fb;
@@ -83,21 +93,16 @@ export async function crawlFachbereich(
     }
   }
 
-  // Fallback: startsWith-Match (z.B. "FS1" findet "FS1F")
   if (!targetFachbereich) {
-    for (const [uid, fb] of fachbereiche) {
-      if (fb.code?.startsWith(fachbereichCode)) {
-        targetFachbereich = fb;
-        targetUid = uid;
-        break;
-      }
-    }
-  }
-
-  if (!targetFachbereich) {
-    const verfuegbar = Array.from(fachbereiche.values()).map((fb) => `${fb.code} (${getBezeichnung(fb)})`).join(", ");
+    const verfuegbar = Array.from(fachbereiche.values())
+      .map((fb) => `${fb.code}`)
+      .join(", ");
+    const verfuegbarDetail = Array.from(fachbereiche.values())
+      .map((fb) => `${fb.code} (${getBezeichnung(fb)})`)
+      .join(", ");
     throw new Error(
-      `Fachbereich "${fachbereichCode}" nicht gefunden. Verfügbare: ${verfuegbar}`
+      `Fachbereich "${fachbereichCode}" nicht gefunden in Kanton "${kanton || "v-fe"}". ` +
+      `Verfügbare Codes: ${verfuegbarDetail}`
     );
   }
 

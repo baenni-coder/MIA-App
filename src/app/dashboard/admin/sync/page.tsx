@@ -77,6 +77,8 @@ export default function AdminSyncPage() {
   const [syncingLP21, setSyncingLP21] = useState(false);
   const [lp21Kanton, setLp21Kanton] = useState("v-fe");
   const [lp21Fachbereich, setLp21Fachbereich] = useState("auto");
+  const [lp21Fachbereiche, setLp21Fachbereiche] = useState<{ code: string; bezeichnung: string }[]>([]);
+  const [loadingFachbereiche, setLoadingFachbereiche] = useState(false);
   const [lp21Result, setLp21Result] = useState<{
     success: boolean;
     added: number;
@@ -92,6 +94,26 @@ export default function AdminSyncPage() {
   useEffect(() => {
     checkAdminAccess();
   }, [user]);
+
+  // LP21 Fachbereiche laden wenn Kanton sich ändert
+  const loadLP21Fachbereiche = async (kanton: string) => {
+    if (!user) return;
+    setLoadingFachbereiche(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/admin/sync/lp21/fachbereiche?kanton=${kanton}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.fachbereiche) {
+        setLp21Fachbereiche(data.fachbereiche);
+      }
+    } catch (err) {
+      console.error("Error loading LP21 fachbereiche:", err);
+    } finally {
+      setLoadingFachbereiche(false);
+    }
+  };
 
   useEffect(() => {
     if (isAdmin) {
@@ -794,26 +816,59 @@ export default function AdminSyncPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Fachbereich</label>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium">Fachbereich</label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-6 px-2"
+                      onClick={() => loadLP21Fachbereiche(lp21Kanton)}
+                      disabled={loadingFachbereiche}
+                    >
+                      {loadingFachbereiche ? (
+                        <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Laden...</>
+                      ) : (
+                        <>Von API laden</>
+                      )}
+                    </Button>
+                  </div>
                   <Select value={lp21Fachbereich} onValueChange={setLp21Fachbereich}>
-                    <SelectTrigger className="w-[260px]">
+                    <SelectTrigger className="w-[320px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="auto">Automatisch (MI/IB je nach Kanton)</SelectItem>
-                      <SelectItem value="MI">MI - Medien und Informatik</SelectItem>
-                      <SelectItem value="IB">IB - Informatische Bildung (SO)</SelectItem>
-                      <SelectItem value="D">D - Deutsch</SelectItem>
-                      <SelectItem value="MA">MA - Mathematik</SelectItem>
-                      <SelectItem value="NMG">NMG - Natur, Mensch, Gesellschaft</SelectItem>
-                      <SelectItem value="BG">BG - Bildnerisches Gestalten</SelectItem>
-                      <SelectItem value="TTG">TTG - Textiles und Techn. Gestalten</SelectItem>
-                      <SelectItem value="MU">MU - Musik</SelectItem>
-                      <SelectItem value="BS">BS - Bewegung und Sport</SelectItem>
-                      <SelectItem value="E">E - Englisch</SelectItem>
-                      <SelectItem value="F">F - Französisch</SelectItem>
+                      {lp21Fachbereiche.length > 0 ? (
+                        <>
+                          {lp21Fachbereiche.map((fb) => (
+                            <SelectItem key={fb.code} value={fb.code}>
+                              {fb.code} – {fb.bezeichnung}
+                            </SelectItem>
+                          ))}
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="MI">MI - Medien und Informatik</SelectItem>
+                          <SelectItem value="IB">IB - Informatische Bildung (SO)</SelectItem>
+                          <SelectItem value="D">D - Deutsch</SelectItem>
+                          <SelectItem value="MA">MA - Mathematik</SelectItem>
+                          <SelectItem value="NMG">NMG - Natur, Mensch, Gesellschaft</SelectItem>
+                          <SelectItem value="BG">BG - Bildnerisches Gestalten</SelectItem>
+                          <SelectItem value="TTG">TTG - Textiles und Techn. Gestalten</SelectItem>
+                          <SelectItem value="MU">MU - Musik</SelectItem>
+                          <SelectItem value="BS">BS - Bewegung und Sport</SelectItem>
+                          <SelectItem value="E">E - Englisch</SelectItem>
+                          <SelectItem value="F">F - Französisch</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
+                  {lp21Fachbereiche.length > 0 && (
+                    <p className="text-xs text-green-600">
+                      {lp21Fachbereiche.length} Fachbereiche von LP21 API geladen
+                    </p>
+                  )}
                 </div>
 
                 <Button
