@@ -68,6 +68,7 @@ export default function KompetenzPicker({
   const [syncedStruktur, setSyncedStruktur] = useState<LP21SyncedStrukturKompetenzbereich[] | null>(null);
   const [loadingStruktur, setLoadingStruktur] = useState(false);
   const [strukturSynced, setStrukturSynced] = useState<boolean | null>(null); // null = loading, true = synced, false = not synced
+  const [verfuegbareFachbereiche, setVerfuegbareFachbereiche] = useState<string[]>([]);
 
   // Fachbereich aus Formular synchronisieren
   useEffect(() => {
@@ -104,6 +105,7 @@ export default function KompetenzPicker({
         } else {
           setSyncedStruktur(null);
           setStrukturSynced(false);
+          setVerfuegbareFachbereiche(data?.verfuegbareFachbereiche || []);
         }
       })
       .catch(() => {
@@ -332,6 +334,11 @@ export default function KompetenzPicker({
                   Bitte zuerst unter <span className="font-medium">Admin → Daten-Sync → LP21 Lehrplan-API Sync</span> den
                   entsprechenden Fachbereich synchronisieren.
                 </p>
+                {verfuegbareFachbereiche.length > 0 && (
+                  <p className="text-xs mt-1">
+                    Bereits synchronisiert: <span className="font-mono">{verfuegbareFachbereiche.join(", ")}</span>
+                  </p>
+                )}
               </div>
             </div>
           )}

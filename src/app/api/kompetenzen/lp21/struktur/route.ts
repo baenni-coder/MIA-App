@@ -39,6 +39,12 @@ export async function GET(request: NextRequest) {
 
     if (!struktur) {
       // Return 200 with empty data (not 404) - no synced structure is a valid state
+      // Include available structures for debugging
+      const alle = await getAllLP21Strukturen();
+      const verfuegbar = alle.map((s) => s.fachbereichCode);
+      console.log(
+        `LP21 Struktur API: '${fachbereich}' nicht gefunden. Verfügbar: ${verfuegbar.join(", ") || "(leer)"}`
+      );
       return NextResponse.json(
         {
           fachbereichCode: fachbereich,
@@ -46,10 +52,11 @@ export async function GET(request: NextRequest) {
           kanton: "",
           kompetenzbereiche: [],
           synced: false,
+          verfuegbareFachbereiche: verfuegbar,
         },
         {
           headers: {
-            "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+            "Cache-Control": "no-cache",
           },
         }
       );
