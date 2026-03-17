@@ -16,6 +16,45 @@ export const schulkalender = schulkalenderData as unknown as SchulkalenderData;
 export const lp21Fachbereiche = lp21FachbereicheData as unknown as LP21FachbereicheData;
 
 /**
+ * Default-Farben für LP21 Fachbereich-Codes (von API synchronisiert).
+ * Diese Farben werden verwendet, wenn Fachbereiche aus der LP21 API
+ * geladen werden statt aus der statischen JSON-Datei.
+ */
+const LP21_FACHBEREICH_FARBEN: Record<string, string> = {
+  // Sprachen
+  SPR: "#2563EB",   // Blau
+  D: "#2563EB",     // Deutsch (Alias)
+  FS1: "#7C3AED",   // Französisch
+  FS2: "#9333EA",   // Englisch
+  DaZ: "#3B82F6",   // Deutsch als Zweitsprache
+  // MINT
+  MA: "#DC2626",    // Mathematik – Rot
+  IB: "#6366F1",    // Informatische Bildung – Indigo
+  MI: "#6366F1",    // Medien und Informatik (Alias)
+  // Natur, Mensch, Gesellschaft
+  NMG: "#16A34A",   // Grün
+  // Gestalten
+  GES: "#F59E0B",   // Gelb/Orange
+  BG: "#F59E0B",    // Bildnerisches Gestalten (Alias)
+  TTG: "#EA580C",   // Textiles/Technisches Gestalten
+  // Musik
+  MU: "#EC4899",    // Pink
+  // Bewegung und Sport
+  BS: "#0891B2",    // Cyan
+  // Berufliche Orientierung
+  BO: "#64748B",    // Slate/Grau
+};
+
+/**
+ * Gibt die Farbe für einen LP21 Fachbereich-Code zurück.
+ * Funktioniert mit sowohl statischen IDs ("D", "MI") als auch
+ * LP21-API-Codes ("SPR", "IB", "DaZ").
+ */
+export function getLp21FachbereichFarbe(code: string): string {
+  return LP21_FACHBEREICH_FARBEN[code] || "#6b7280";
+}
+
+/**
  * Gibt alle Fachbereiche zurück
  */
 export function getAlleFachbereiche(): LP21Fachbereich[] {

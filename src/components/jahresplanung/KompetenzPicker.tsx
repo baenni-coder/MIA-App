@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { X, ChevronDown, ChevronUp, BookOpen, Target, CheckCircle, AlertTriangle } from "lucide-react";
-import { getAlleFachbereiche, getFachbereichById } from "@/lib/data/lp21-data";
+import { getLp21FachbereichFarbe } from "@/lib/data/lp21-data";
 
 /** Synced LP21 Kompetenzstufe (von API) */
 interface LP21SyncedKompetenzstufe {
@@ -69,8 +69,11 @@ export default function KompetenzPicker({
   const [loadingStruktur, setLoadingStruktur] = useState(false);
   const [strukturSynced, setStrukturSynced] = useState<boolean | null>(null); // null = loading, true = synced, false = not synced
   const [verfuegbareFachbereiche, setVerfuegbareFachbereiche] = useState<string[]>([]);
-  // Tatsächlicher LP21 Fachbereich-Code (z.B. "DaZ" statt "D" in Solothurn)
-  const [lp21FachbereichCode, setLp21FachbereichCode] = useState<string>("");
+  // Fachbereiche aus LP21 API (synchronisierte Daten)
+  const [fachbereiche, setFachbereiche] = useState<
+    { code: string; name: string; farbe: string }[]
+  >([]);
+  const [loadingFachbereiche, setLoadingFachbereiche] = useState(true);
 
   // Fachbereich aus Formular synchronisieren
   useEffect(() => {
@@ -80,8 +83,29 @@ export default function KompetenzPicker({
     }
   }, [defaultFachbereich]);
 
-  // Fachbereich-Liste (nur für Namen/Farben – die kommen aus statischen Daten)
-  const fachbereiche = useMemo(() => getAlleFachbereiche(), []);
+  // Fachbereiche aus API laden
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/kompetenzen/lp21/struktur")
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.fachbereiche?.length > 0) {
+          setFachbereiche(
+            data.fachbereiche.map((fb: { code: string; name: string }) => ({
+              code: fb.code,
+              name: fb.name,
+              farbe: getLp21FachbereichFarbe(fb.code),
+            }))
+          );
+        }
+      })
+      .catch((err) => console.error("Error loading Fachbereiche:", err))
+      .finally(() => {
+        if (!cancelled) setLoadingFachbereiche(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Synced Struktur laden wenn Fachbereich gewählt wird
   useEffect(() => {
@@ -90,24 +114,18 @@ export default function KompetenzPicker({
       setStrukturSynced(null);
       return;
     }
-    const fb = getFachbereichById(selectedFachbereich);
-    const fachbereichCode = fb?.fachbereichKuerzel || selectedFachbereich;
 
     let cancelled = false;
     setLoadingStruktur(true);
     setStrukturSynced(null);
 
-    fetch(`/api/kompetenzen/lp21/struktur?fachbereich=${fachbereichCode}`)
+    fetch(`/api/kompetenzen/lp21/struktur?fachbereich=${selectedFachbereich}`)
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return;
         if (data?.kompetenzbereiche?.length > 0) {
           setSyncedStruktur(data.kompetenzbereiche);
           setStrukturSynced(true);
-          // Tatsächlichen LP21-Code extrahieren (z.B. "DaZ" aus "DaZ.1")
-          const firstKbCode = data.kompetenzbereiche[0]?.code || "";
-          const actualPrefix = firstKbCode.split(".")[0] || fachbereichCode;
-          setLp21FachbereichCode(actualPrefix);
         } else {
           setSyncedStruktur(null);
           setStrukturSynced(false);
@@ -144,12 +162,9 @@ export default function KompetenzPicker({
       return;
     }
 
-    // Verwende den tatsächlichen LP21-Code (z.B. "DaZ" statt "D")
-    const effectiveFachbereichCode = lp21FachbereichCode || getFachbereichById(selectedFachbereich)?.fachbereichKuerzel || selectedFachbereich;
-
     let cancelled = false;
     setLoadingKompetenzstufen(true);
-    fetch(`/api/kompetenzen/lp21?fachbereich=${effectiveFachbereichCode}&kompetenzbereich=${selectedKompetenzbereich}`)
+    fetch(`/api/kompetenzen/lp21?fachbereich=${selectedFachbereich}&kompetenzbereich=${selectedKompetenzbereich}`)
       .then((res) => res.json())
       .then((data) => {
         if (!cancelled) setSyncedKompetenzstufen(data.kompetenzstufen || []);
@@ -163,7 +178,7 @@ export default function KompetenzPicker({
       });
 
     return () => { cancelled = true; };
-  }, [selectedFachbereich, selectedKompetenzbereich, lp21FachbereichCode]);
+  }, [selectedFachbereich, selectedKompetenzbereich]);
 
   // Kompetenzstufe hinzufügen/entfernen
   const toggleKompetenzstufe = (ks: LP21SyncedKompetenzstufe) => {
@@ -198,11 +213,11 @@ export default function KompetenzPicker({
   const getKompetenzInfo = (kompetenzId: string) => {
     const synced = syncedKompetenzstufen.find((ks) => ks.id === kompetenzId);
     if (synced) {
-      const fb = getFachbereichById(selectedFachbereich);
+      const fb = fachbereiche.find((f) => f.code === selectedFachbereich);
       return {
         code: synced.lpCode,
         name: synced.kompetenzstufe,
-        farbe: fb?.farbe || "#6b7280",
+        farbe: fb?.farbe || getLp21FachbereichFarbe(selectedFachbereich),
       };
     }
     // Fallback: ID als Code anzeigen
@@ -296,30 +311,34 @@ export default function KompetenzPicker({
             <label className="text-sm font-medium text-gray-700 mb-1 block">
               Fachbereich
             </label>
-            <Select
-              value={selectedFachbereich}
-              onValueChange={(value) => {
-                setSelectedFachbereich(value);
-                setSelectedKompetenzbereich("");
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Fachbereich wählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                {fachbereiche.map((fb) => (
-                  <SelectItem key={fb.id} value={fb.id}>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: fb.farbe }}
-                      />
-                      {fb.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {loadingFachbereiche ? (
+              <p className="text-xs text-gray-400 py-2">Fachbereiche werden geladen...</p>
+            ) : (
+              <Select
+                value={selectedFachbereich}
+                onValueChange={(value) => {
+                  setSelectedFachbereich(value);
+                  setSelectedKompetenzbereich("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Fachbereich wählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {fachbereiche.map((fb) => (
+                    <SelectItem key={fb.code} value={fb.code}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: fb.farbe }}
+                        />
+                        {fb.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Lade-Indikator für Struktur */}
