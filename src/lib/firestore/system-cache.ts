@@ -406,15 +406,49 @@ export async function getSystemKompetenzen(): Promise<SystemKompetenz[]> {
 }
 
 /**
+ * Fachbereich-Alias-Mapping (Kanton-spezifische Varianten).
+ * z.B. MI (Standard) ↔ IB (Solothurn)
+ */
+const FACHBEREICH_ALIASES: Record<string, string[]> = {
+  "MI": ["IB"],
+  "IB": ["MI"],
+};
+
+/**
+ * Sub-Fachbereiche die aus einem direkt gesyncten Fachbereich herausgefiltert werden müssen.
+ * z.B. "D" wurde direkt gesynct und enthält auch DaZ Kompetenzbereiche.
+ */
+const FACHBEREICH_EXCLUDES: Record<string, string[]> = {
+  "D": ["DaZ"],
+};
+
+/**
  * System Kompetenzen nach Fachbereich-Prefix laden (z.B. "D", "MI", "IB")
  * Filtert nach lpCode-Prefix (z.B. "D." für Deutsch)
+ * Unterstützt Aliase: MI findet auch IB-Kompetenzen und umgekehrt.
  */
 export async function getSystemKompetenzenByFachbereich(fachbereichCode: string): Promise<SystemKompetenz[]> {
   try {
-    // Alle aktiven laden und clientseitig filtern (Firestore hat keine startsWith-Query)
     const alle = await getSystemKompetenzen();
-    const prefix = fachbereichCode + ".";
-    return alle.filter((k) => k.lpCode?.startsWith(prefix));
+    const prefixes = [fachbereichCode + "."];
+
+    // Add alias prefixes (MI ↔ IB)
+    const aliases = FACHBEREICH_ALIASES[fachbereichCode];
+    if (aliases) {
+      for (const alias of aliases) {
+        prefixes.push(alias + ".");
+      }
+    }
+
+    // Filter by any matching prefix, exclude sub-fachbereiche
+    const excludes = FACHBEREICH_EXCLUDES[fachbereichCode] || [];
+    return alle.filter((k) => {
+      if (!k.lpCode) return false;
+      const matchesPrefix = prefixes.some((p) => k.lpCode!.startsWith(p));
+      if (!matchesPrefix) return false;
+      // Exclude sub-fachbereiche (e.g., DaZ from D)
+      return !excludes.some((ex) => k.lpCode!.startsWith(ex + "."));
+    });
   } catch (error) {
     console.error("Error getting system kompetenzen by fachbereich:", error);
     return [];
@@ -829,99 +863,152 @@ export async function upsertLP21Struktur(struktur: LP21FachbereichStruktur): Pro
 }
 
 /**
- * LP21 Fachbereich-Struktur laden
- * Sucht zuerst per Doc-ID, dann per fachbereichCode-Feld,
- * und schliesslich per Prefix-Match (z.B. "D" findet "D | Deutsch").
+ * Sub-Fachbereich Mapping: Codes die aus Umbrella-Kategorien extrahiert werden.
+ * SPR (Sprachen) enthält D, DaZ, FS1F, FS2E, FS3I
+ * GES (Gestalten) enthält BG, TTG
+ */
+const SUB_FACHBEREICH_MAP: Record<string, { umbrella: string; name: string }> = {
+  "D": { umbrella: "SPR", name: "Deutsch" },
+  "DaZ": { umbrella: "SPR", name: "Deutsch als Zweitsprache" },
+  "FS1F": { umbrella: "SPR", name: "Französisch (1. Fremdsprache)" },
+  "FS2E": { umbrella: "SPR", name: "Englisch (2. Fremdsprache)" },
+  "FS3I": { umbrella: "SPR", name: "Italienisch (3. Fremdsprache)" },
+  "BG": { umbrella: "GES", name: "Bildnerisches Gestalten" },
+  "TTG": { umbrella: "GES", name: "Textiles und Technisches Gestalten" },
+};
+
+/**
+ * Filtert Kompetenzbereiche für einen Fachbereich-Code.
+ * Entfernt Sub-Fachbereiche (z.B. DaZ aus D).
+ */
+function filterKompetenzbereiche(
+  kbs: LP21StrukturKompetenzbereich[],
+  fachbereichCode: string
+): LP21StrukturKompetenzbereich[] {
+  const prefix = fachbereichCode + ".";
+  const excludes = FACHBEREICH_EXCLUDES[fachbereichCode] || [];
+
+  return kbs.filter((kb) => {
+    if (!kb.code.startsWith(prefix)) return false;
+    // Exclude sub-fachbereiche (e.g., DaZ from D)
+    return !excludes.some((ex) => kb.code.startsWith(ex + "."));
+  });
+}
+
+/**
+ * LP21 Fachbereich-Struktur laden.
+ *
+ * Suche-Strategie:
+ * 1. Exakte Doc-ID + Alias (MI ↔ IB)
+ * 2. Sub-Fachbereich-Extraktion aus Umbrella-Kategorien (SPR, GES)
+ * 3. Prefix-Match als letzter Fallback
+ *
+ * Bei direkt geladenen Dokumenten werden Sub-Fachbereich-Codes gefiltert
+ * (z.B. DaZ wird aus dem D-Dokument herausgefiltert).
  */
 export async function getLP21Struktur(fachbereichCode: string): Promise<LP21FachbereichStruktur | null> {
   try {
     const adminDb = getAdminDb();
 
-    // 1. Exakte Doc-ID
-    const doc = await adminDb.collection(LP21_STRUKTUR_COLLECTION).doc(fachbereichCode).get();
-    if (doc.exists) {
-      const data = doc.data()!;
-      return {
-        fachbereichCode: data.fachbereichCode,
-        fachbereichName: data.fachbereichName,
-        kanton: data.kanton,
-        kompetenzbereiche: data.kompetenzbereiche || [],
-        lastSyncedAt: timestampToDate(data.lastSyncedAt),
-      };
-    }
+    // Codes to try: original + aliases (MI ↔ IB)
+    const codesToTry = [fachbereichCode, ...(FACHBEREICH_ALIASES[fachbereichCode] || [])];
 
-    // 2. Fallback: Suche per fachbereichCode-Feld
-    const querySnapshot = await adminDb
-      .collection(LP21_STRUKTUR_COLLECTION)
-      .where("fachbereichCode", "==", fachbereichCode)
-      .limit(1)
-      .get();
+    // 1. Exakte Doc-ID (inkl. Aliase)
+    for (const code of codesToTry) {
+      const doc = await adminDb.collection(LP21_STRUKTUR_COLLECTION).doc(code).get();
+      if (doc.exists) {
+        const data = doc.data()!;
+        let kbs: LP21StrukturKompetenzbereich[] = data.kompetenzbereiche || [];
 
-    if (!querySnapshot.empty) {
-      const data = querySnapshot.docs[0].data();
-      return {
-        fachbereichCode: data.fachbereichCode,
-        fachbereichName: data.fachbereichName,
-        kanton: data.kanton,
-        kompetenzbereiche: data.kompetenzbereiche || [],
-        lastSyncedAt: timestampToDate(data.lastSyncedAt),
-      };
-    }
+        // Filter: Nur Kompetenzbereiche die zum gewünschten Code passen
+        // z.B. D-Dok enthält auch DaZ → DaZ herausfiltern
+        const excludes = FACHBEREICH_EXCLUDES[fachbereichCode] || [];
+        if (excludes.length > 0) {
+          kbs = kbs.filter((kb) =>
+            !excludes.some((ex) => kb.code.startsWith(ex + "."))
+          );
+        }
 
-    // 3. Fallback: Prefix-Match (LP21 API gibt manchmal längere Codes zurück)
-    const allDocs = await adminDb.collection(LP21_STRUKTUR_COLLECTION).get();
-    for (const d of allDocs.docs) {
-      const data = d.data();
-      const storedCode = data.fachbereichCode || d.id;
-      if (storedCode.startsWith(fachbereichCode) || fachbereichCode.startsWith(storedCode)) {
-        console.log(`LP21 Struktur: Prefix-Match '${fachbereichCode}' → '${storedCode}' (doc: ${d.id})`);
-        return {
-          fachbereichCode: data.fachbereichCode,
-          fachbereichName: data.fachbereichName,
-          kanton: data.kanton,
-          kompetenzbereiche: data.kompetenzbereiche || [],
-          lastSyncedAt: timestampToDate(data.lastSyncedAt),
-        };
+        if (kbs.length > 0) {
+          return {
+            fachbereichCode,
+            fachbereichName: data.fachbereichName,
+            kanton: data.kanton,
+            kompetenzbereiche: kbs,
+            lastSyncedAt: timestampToDate(data.lastSyncedAt),
+          };
+        }
+        // Doc found but empty after filtering → continue to other strategies
       }
     }
 
-    // 4. Sub-Fachbereich-Extraktion aus Umbrella-Kategorien
-    // SPR (Sprachen) enthält D, FS1F, FS2E, FS3I als Kompetenzbereiche
-    // GES (Gestalten) enthält BG, TTG als Kompetenzbereiche
-    const SUB_FACHBEREICH_MAP: Record<string, { umbrella: string; name: string }> = {
-      "D": { umbrella: "SPR", name: "Deutsch" },
-      "FS1F": { umbrella: "SPR", name: "Französisch (1. Fremdsprache)" },
-      "FS2E": { umbrella: "SPR", name: "Englisch (2. Fremdsprache)" },
-      "FS3I": { umbrella: "SPR", name: "Italienisch (3. Fremdsprache)" },
-      "BG": { umbrella: "GES", name: "Bildnerisches Gestalten" },
-      "TTG": { umbrella: "GES", name: "Textiles und Technisches Gestalten" },
-    };
-
+    // 2. Sub-Fachbereich-Extraktion aus Umbrella-Kategorien
     const subInfo = SUB_FACHBEREICH_MAP[fachbereichCode];
     if (subInfo) {
-      // Suche die Umbrella-Struktur und filtere relevante Kompetenzbereiche
-      for (const d of allDocs.docs) {
-        const data = d.data();
-        const storedCode = data.fachbereichCode || d.id;
-        if (storedCode === subInfo.umbrella) {
-          const filteredKB = (data.kompetenzbereiche || []).filter(
-            (kb: LP21StrukturKompetenzbereich) => kb.code.startsWith(fachbereichCode + ".")
-          );
-          if (filteredKB.length > 0) {
-            console.log(`LP21 Struktur: Sub-Fachbereich '${fachbereichCode}' aus Umbrella '${subInfo.umbrella}' extrahiert (${filteredKB.length} Kompetenzbereiche)`);
-            return {
-              fachbereichCode,
-              fachbereichName: subInfo.name,
-              kanton: data.kanton,
-              kompetenzbereiche: filteredKB,
-              lastSyncedAt: timestampToDate(data.lastSyncedAt),
-            };
-          }
+      const umbrellaDoc = await adminDb.collection(LP21_STRUKTUR_COLLECTION).doc(subInfo.umbrella).get();
+      if (umbrellaDoc.exists) {
+        const data = umbrellaDoc.data()!;
+        const filteredKB = filterKompetenzbereiche(
+          data.kompetenzbereiche || [],
+          fachbereichCode
+        );
+        if (filteredKB.length > 0) {
+          console.log(`LP21 Struktur: Sub-Fachbereich '${fachbereichCode}' aus Umbrella '${subInfo.umbrella}' extrahiert (${filteredKB.length} Kompetenzbereiche)`);
+          return {
+            fachbereichCode,
+            fachbereichName: subInfo.name,
+            kanton: data.kanton,
+            kompetenzbereiche: filteredKB,
+            lastSyncedAt: timestampToDate(data.lastSyncedAt),
+          };
         }
       }
     }
 
-    // Nicht gefunden - logge verfügbare Codes
+    // 3. Fallback: Prefix-Match in allen Dokumenten
+    const allDocs = await adminDb.collection(LP21_STRUKTUR_COLLECTION).get();
+    for (const d of allDocs.docs) {
+      const data = d.data();
+      const storedCode = data.fachbereichCode || d.id;
+      // Skip umbrella categories that should be expanded
+      if (["SPR", "GES"].includes(storedCode)) continue;
+
+      if (storedCode.startsWith(fachbereichCode) || fachbereichCode.startsWith(storedCode)) {
+        const kbs = data.kompetenzbereiche || [];
+        if (kbs.length > 0) {
+          console.log(`LP21 Struktur: Prefix-Match '${fachbereichCode}' → '${storedCode}' (doc: ${d.id})`);
+          return {
+            fachbereichCode: data.fachbereichCode,
+            fachbereichName: data.fachbereichName,
+            kanton: data.kanton,
+            kompetenzbereiche: kbs,
+            lastSyncedAt: timestampToDate(data.lastSyncedAt),
+          };
+        }
+      }
+    }
+
+    // 4. Fallback: Sub-Fachbereich-Suche in allen Umbrella-Dokumenten
+    if (!subInfo) {
+      // Check all umbrella docs for matching Kompetenzbereiche
+      for (const d of allDocs.docs) {
+        const data = d.data();
+        const kbs: LP21StrukturKompetenzbereich[] = data.kompetenzbereiche || [];
+        const matching = kbs.filter((kb) => kb.code.startsWith(fachbereichCode + "."));
+        if (matching.length > 0) {
+          console.log(`LP21 Struktur: '${fachbereichCode}' in doc '${d.id}' gefunden (${matching.length} KBs)`);
+          return {
+            fachbereichCode,
+            fachbereichName: fachbereichCode,
+            kanton: data.kanton,
+            kompetenzbereiche: matching,
+            lastSyncedAt: timestampToDate(data.lastSyncedAt),
+          };
+        }
+      }
+    }
+
+    // Nicht gefunden
     const availableCodes = allDocs.docs.map((d) => d.id);
     console.log(`LP21 Struktur nicht gefunden: '${fachbereichCode}'. Verfügbar: ${availableCodes.join(", ") || "(leer)"}`);
     return null;
@@ -933,7 +1020,9 @@ export async function getLP21Struktur(fachbereichCode: string): Promise<LP21Fach
 
 /**
  * Alle LP21 Fachbereich-Strukturen laden.
- * Umbrella-Kategorien (SPR, GES) werden in Sub-Fachbereiche aufgelöst.
+ * - Umbrella-Kategorien (SPR, GES) werden in Sub-Fachbereiche aufgelöst
+ * - DaZ wird von D separiert
+ * - Direkt gesynced Dokumente (D, TTG etc.) werden mit Umbrella-Daten ergänzt
  */
 export async function getAllLP21Strukturen(): Promise<LP21FachbereichStruktur[]> {
   try {
@@ -944,6 +1033,7 @@ export async function getAllLP21Strukturen(): Promise<LP21FachbereichStruktur[]>
     const UMBRELLA_EXPAND: Record<string, { prefix: string; name: string }[]> = {
       "SPR": [
         { prefix: "D", name: "Deutsch" },
+        { prefix: "DaZ", name: "Deutsch als Zweitsprache" },
         { prefix: "FS1F", name: "Französisch (1. Fremdsprache)" },
         { prefix: "FS2E", name: "Englisch (2. Fremdsprache)" },
         { prefix: "FS3I", name: "Italienisch (3. Fremdsprache)" },
@@ -954,7 +1044,12 @@ export async function getAllLP21Strukturen(): Promise<LP21FachbereichStruktur[]>
       ],
     };
 
-    const result: LP21FachbereichStruktur[] = [];
+    // Directly synced fachbereiche that need sub-FB filtering
+    const DIRECT_FACHBEREICH_SUBS: Record<string, string[]> = {
+      "D": ["DaZ"],  // D doc may contain DaZ KBs
+    };
+
+    const result = new Map<string, LP21FachbereichStruktur>();
 
     for (const doc of snapshot.docs) {
       const data = doc.data();
@@ -966,8 +1061,8 @@ export async function getAllLP21Strukturen(): Promise<LP21FachbereichStruktur[]>
         // Expand umbrella into sub-fachbereiche
         for (const sub of expandConfig) {
           const filteredKB = kbs.filter((kb) => kb.code.startsWith(sub.prefix + "."));
-          if (filteredKB.length > 0) {
-            result.push({
+          if (filteredKB.length > 0 && !result.has(sub.prefix)) {
+            result.set(sub.prefix, {
               fachbereichCode: sub.prefix,
               fachbereichName: sub.name,
               kanton: data.kanton,
@@ -977,17 +1072,55 @@ export async function getAllLP21Strukturen(): Promise<LP21FachbereichStruktur[]>
           }
         }
       } else {
-        result.push({
-          fachbereichCode: code,
-          fachbereichName: data.fachbereichName,
-          kanton: data.kanton,
-          kompetenzbereiche: kbs,
-          lastSyncedAt: timestampToDate(data.lastSyncedAt),
-        });
+        // Direct fachbereich - filter out sub-fachbereiche
+        const subsToExclude = DIRECT_FACHBEREICH_SUBS[code] || [];
+        let filteredKBs = kbs;
+        const extractedSubs: { subCode: string; subName: string; subKBs: LP21StrukturKompetenzbereich[] }[] = [];
+
+        if (subsToExclude.length > 0) {
+          filteredKBs = kbs.filter((kb) =>
+            !subsToExclude.some((ex) => kb.code.startsWith(ex + "."))
+          );
+          // Extract sub-fachbereiche as separate entries
+          for (const subCode of subsToExclude) {
+            const subKBs = kbs.filter((kb) => kb.code.startsWith(subCode + "."));
+            if (subKBs.length > 0) {
+              const subMapEntry = SUB_FACHBEREICH_MAP[subCode];
+              extractedSubs.push({
+                subCode,
+                subName: subMapEntry?.name || subCode,
+                subKBs,
+              });
+            }
+          }
+        }
+
+        if (filteredKBs.length > 0 && !result.has(code)) {
+          result.set(code, {
+            fachbereichCode: code,
+            fachbereichName: data.fachbereichName,
+            kanton: data.kanton,
+            kompetenzbereiche: filteredKBs,
+            lastSyncedAt: timestampToDate(data.lastSyncedAt),
+          });
+        }
+
+        // Add extracted sub-fachbereiche
+        for (const sub of extractedSubs) {
+          if (!result.has(sub.subCode)) {
+            result.set(sub.subCode, {
+              fachbereichCode: sub.subCode,
+              fachbereichName: sub.subName,
+              kanton: data.kanton,
+              kompetenzbereiche: sub.subKBs,
+              lastSyncedAt: timestampToDate(data.lastSyncedAt),
+            });
+          }
+        }
       }
     }
 
-    return result;
+    return Array.from(result.values());
   } catch (error) {
     console.error("Error getting all LP21 Strukturen:", error);
     return [];
