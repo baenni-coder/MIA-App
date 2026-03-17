@@ -69,6 +69,8 @@ export default function KompetenzPicker({
   const [loadingStruktur, setLoadingStruktur] = useState(false);
   const [strukturSynced, setStrukturSynced] = useState<boolean | null>(null); // null = loading, true = synced, false = not synced
   const [verfuegbareFachbereiche, setVerfuegbareFachbereiche] = useState<string[]>([]);
+  // Tatsächlicher LP21 Fachbereich-Code (z.B. "DaZ" statt "D" in Solothurn)
+  const [lp21FachbereichCode, setLp21FachbereichCode] = useState<string>("");
 
   // Fachbereich aus Formular synchronisieren
   useEffect(() => {
@@ -102,6 +104,10 @@ export default function KompetenzPicker({
         if (data?.kompetenzbereiche?.length > 0) {
           setSyncedStruktur(data.kompetenzbereiche);
           setStrukturSynced(true);
+          // Tatsächlichen LP21-Code extrahieren (z.B. "DaZ" aus "DaZ.1")
+          const firstKbCode = data.kompetenzbereiche[0]?.code || "";
+          const actualPrefix = firstKbCode.split(".")[0] || fachbereichCode;
+          setLp21FachbereichCode(actualPrefix);
         } else {
           setSyncedStruktur(null);
           setStrukturSynced(false);
@@ -138,12 +144,12 @@ export default function KompetenzPicker({
       return;
     }
 
-    const fb = getFachbereichById(selectedFachbereich);
-    const fachbereichCode = fb?.fachbereichKuerzel || selectedFachbereich;
+    // Verwende den tatsächlichen LP21-Code (z.B. "DaZ" statt "D")
+    const effectiveFachbereichCode = lp21FachbereichCode || getFachbereichById(selectedFachbereich)?.fachbereichKuerzel || selectedFachbereich;
 
     let cancelled = false;
     setLoadingKompetenzstufen(true);
-    fetch(`/api/kompetenzen/lp21?fachbereich=${fachbereichCode}&kompetenzbereich=${selectedKompetenzbereich}`)
+    fetch(`/api/kompetenzen/lp21?fachbereich=${effectiveFachbereichCode}&kompetenzbereich=${selectedKompetenzbereich}`)
       .then((res) => res.json())
       .then((data) => {
         if (!cancelled) setSyncedKompetenzstufen(data.kompetenzstufen || []);
@@ -157,7 +163,7 @@ export default function KompetenzPicker({
       });
 
     return () => { cancelled = true; };
-  }, [selectedFachbereich, selectedKompetenzbereich]);
+  }, [selectedFachbereich, selectedKompetenzbereich, lp21FachbereichCode]);
 
   // Kompetenzstufe hinzufügen/entfernen
   const toggleKompetenzstufe = (ks: LP21SyncedKompetenzstufe) => {
