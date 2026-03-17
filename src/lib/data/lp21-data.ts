@@ -122,6 +122,21 @@ export function getFachbereichFarbe(fachbereichId: string): string {
 }
 
 /**
+ * Findet einen Fachbereich anhand von ID oder fachbereichKuerzel.
+ * Nützlich für Backward-Kompatibilität, wenn gespeicherte IDs API-Codes verwenden.
+ * z.B. "FS1F" → findet Fachbereich mit id="FS1" (kuerzel="FS1F")
+ */
+export function findFachbereich(idOrKuerzel: string): LP21Fachbereich | undefined {
+  // First try by id
+  const byId = getFachbereichById(idOrKuerzel);
+  if (byId) return byId;
+  // Then try by kuerzel
+  return lp21Fachbereiche.fachbereiche.find(
+    (fb) => fb.fachbereichKuerzel === idOrKuerzel
+  );
+}
+
+/**
  * Gibt alle Ferien-Presets zurück
  */
 export function getFerienPresets(): Record<string, FerienPreset> {
