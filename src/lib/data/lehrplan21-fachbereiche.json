@@ -617,6 +617,16 @@
             { "id": "MI.2.2", "code": "MI.2.2", "name": "Algorithmen", "beschreibung": "Die SuS können einfache Problemstellungen analysieren, mögliche Lösungsverfahren beschreiben und in Programmen umsetzen." },
             { "id": "MI.2.3", "code": "MI.2.3", "name": "Informatiksysteme", "beschreibung": "Die SuS verstehen Aufbau und Funktionsweise von informationsverarbeitenden Systemen." }
           ]
+        },
+        {
+          "id": "MI.3",
+          "code": "MI.3",
+          "name": "Anwendungskompetenzen",
+          "kompetenzen": [
+            { "id": "MI.3.1", "code": "MI.3.1", "name": "Handhabung", "beschreibung": "Die SuS können Geräte ein- und ausschalten, Programme starten, bedienen und beenden sowie einfache Funktionen nutzen." },
+            { "id": "MI.3.2", "code": "MI.3.2", "name": "Recherche und Lernunterstützung", "beschreibung": "Die SuS können Medien und Informatikmittel zur Informationssuche und zum Lernen nutzen." },
+            { "id": "MI.3.3", "code": "MI.3.3", "name": "Produktion und Präsentation", "beschreibung": "Die SuS können Medien zum Erstellen und Präsentieren ihrer Arbeiten einsetzen." }
+          ]
         }
       ]
     }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSystemKompetenzenByFachbereich } from "@/lib/firestore/system-cache";
+import { getSystemKompetenzenByFachbereich, getSystemKompetenzen } from "@/lib/firestore/system-cache";
 
 /**
  * GET /api/kompetenzen/lp21?fachbereich=D
@@ -7,8 +7,9 @@ import { getSystemKompetenzenByFachbereich } from "@/lib/firestore/system-cache"
  * Für den KompetenzPicker der Jahresplanung.
  *
  * Query Parameters:
- * - fachbereich: Fachbereich-Code (z.B. "D", "MI", "IB", "MA")
- * - kompetenzbereich: Optional Kompetenzbereich-Prefix (z.B. "D.2")
+ * - fachbereich: Fachbereich-Code (z.B. "D", "MI", "IB", "MA", "FS1F", "BG")
+ * - kompetenzbereich: Optional Kompetenzbereich-Prefix (z.B. "D.2", "MI.3")
+ *   Spezialfall: MI.3 / IB.3 → filtert nach kompetenzbereich="Anwendungskompetenzen"
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,13 +22,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const kompetenzstufen = await getSystemKompetenzenByFachbereich(fachbereich);
+    let kompetenzstufen = await getSystemKompetenzenByFachbereich(fachbereich);
+
+    // Für MI/IB: Auch Anwendungskompetenzen einschliessen
+    const isMIA = fachbereich === "MI" || fachbereich === "IB";
+    if (isMIA) {
+      const alle = await getSystemKompetenzen();
+      const anwendung = alle.filter((k) => k.kompetenzbereich === "Anwendungskompetenzen");
+      // Deduplizierung: nur hinzufügen wenn nicht schon enthalten
+      const existingIds = new Set(kompetenzstufen.map((k) => k.airtableId));
+      const newAnwendung = anwendung.filter((k) => !existingIds.has(k.airtableId));
+      kompetenzstufen = [...kompetenzstufen, ...newAnwendung];
+    }
 
     // Optional: Weiter filtern nach Kompetenzbereich
     const kompetenzbereich = request.nextUrl.searchParams.get("kompetenzbereich");
-    const filtered = kompetenzbereich
-      ? kompetenzstufen.filter((k) => k.lpCode?.startsWith(kompetenzbereich + "."))
-      : kompetenzstufen;
+    let filtered = kompetenzstufen;
+    if (kompetenzbereich) {
+      // Spezialfall: MI.3 / IB.3 → Anwendungskompetenzen (nach Feld, nicht lpCode-Prefix)
+      if (/^(MI|IB)\.3/.test(kompetenzbereich)) {
+        filtered = kompetenzstufen.filter((k) => k.kompetenzbereich === "Anwendungskompetenzen");
+      } else {
+        filtered = kompetenzstufen.filter((k) => k.lpCode?.startsWith(kompetenzbereich + "."));
+      }
+    }
 
     // Nach lpCode sortieren
     filtered.sort((a, b) => (a.lpCode || "").localeCompare(b.lpCode || ""));

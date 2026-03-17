@@ -31,8 +31,9 @@ import SchoolFileUpload from "@/components/SchoolFileUpload";
 import type { SchoolFile } from "@/types";
 import {
   getAktuellesSchuljahr,
+  getAlleFachbereiche,
+  findFachbereich,
   getQuartalSchema,
-  getLp21FachbereichFarbe,
 } from "@/lib/data/lp21-data";
 import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema, Beurteilung } from "@/types";
 
@@ -114,34 +115,16 @@ export default function EinheitFormPage() {
   const [filePickerTab, setFilePickerTab] = useState<"browse" | "upload">("browse");
   const [loadingFiles, setLoadingFiles] = useState(false);
 
-  // Fachbereiche aus LP21 API laden (synchronisierte Daten)
-  const [fachbereiche, setFachbereiche] = useState<
-    { code: string; name: string; farbe: string }[]
-  >([]);
-  const [loadingFachbereiche, setLoadingFachbereiche] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/kompetenzen/lp21/struktur")
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data?.fachbereiche?.length > 0) {
-          setFachbereiche(
-            data.fachbereiche.map((fb: { code: string; name: string }) => ({
-              code: fb.code,
-              name: fb.name,
-              farbe: getLp21FachbereichFarbe(fb.code),
-            }))
-          );
-        }
-      })
-      .catch((err) => console.error("Error loading Fachbereiche:", err))
-      .finally(() => {
-        if (!cancelled) setLoadingFachbereiche(false);
-      });
-    return () => { cancelled = true; };
+  // Fachbereiche aus statischer JSON-Datei (statt API - zuverlässiger und schneller)
+  const fachbereiche = useMemo(() => {
+    return getAlleFachbereiche().map((fb) => ({
+      code: fb.id,
+      name: fb.name,
+      farbe: fb.farbe,
+      kuerzel: fb.fachbereichKuerzel,
+    }));
   }, []);
+  const loadingFachbereiche = false;
 
   // MIA-Themen laden wenn Fachbereich = MI oder IB
   useEffect(() => {
@@ -303,7 +286,9 @@ export default function EinheitFormPage() {
           const einheit = data.einheit as JahresplanEinheit;
 
           setTitel(einheit.titel);
-          setFachbereichId(einheit.fachbereichId);
+          // Normalize fachbereichId: API codes (FS1F, FS2E) → static JSON ids (FS1, FS2)
+          const fbMatch = findFachbereich(einheit.fachbereichId);
+          setFachbereichId(fbMatch?.id || einheit.fachbereichId);
           setLernziele(einheit.lernziele || "");
           setKompetenzenIds(einheit.kompetenzenIds || []);
           setKompetenzenNamen(einheit.kompetenzenNamen || []);
@@ -358,7 +343,7 @@ export default function EinheitFormPage() {
         titel,
         fachbereichId,
         fachbereichName: fb?.name || fachbereichId,
-        fachbereichFarbe: fb?.farbe || getLp21FachbereichFarbe(fachbereichId),
+        fachbereichFarbe: fb?.farbe || fb?.farbe || "#6b7280",
         lernziele,
         kompetenzenIds,
         kompetenzenNamen,
@@ -369,7 +354,7 @@ export default function EinheitFormPage() {
         beurteilungsNotiz: beurteilungen.length > 0 ? beurteilungen[0].notiz : "",
         materialien,
         istPufferwoche,
-        farbe: fb?.farbe || getLp21FachbereichFarbe(fachbereichId),
+        farbe: fb?.farbe || fb?.farbe || "#6b7280",
       };
 
       // TeamId nur bei neuen Einheiten setzen
@@ -547,10 +532,6 @@ export default function EinheitFormPage() {
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
                     Fachbereiche werden geladen...
                   </div>
-                ) : fachbereiche.length === 0 ? (
-                  <p className="text-sm text-amber-600 mt-1">
-                    Keine LP21-Fachbereiche synchronisiert. Bitte zuerst unter Admin → Daten-Sync synchronisieren.
-                  </p>
                 ) : (
                   <Select value={fachbereichId} onValueChange={setFachbereichId}>
                     <SelectTrigger className="mt-1">

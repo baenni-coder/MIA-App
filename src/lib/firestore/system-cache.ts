@@ -885,6 +885,42 @@ export async function getLP21Struktur(fachbereichCode: string): Promise<LP21Fach
       }
     }
 
+    // 4. Sub-Fachbereich-Extraktion aus Umbrella-Kategorien
+    // SPR (Sprachen) enthält D, FS1F, FS2E, FS3I als Kompetenzbereiche
+    // GES (Gestalten) enthält BG, TTG als Kompetenzbereiche
+    const SUB_FACHBEREICH_MAP: Record<string, { umbrella: string; name: string }> = {
+      "D": { umbrella: "SPR", name: "Deutsch" },
+      "FS1F": { umbrella: "SPR", name: "Französisch (1. Fremdsprache)" },
+      "FS2E": { umbrella: "SPR", name: "Englisch (2. Fremdsprache)" },
+      "FS3I": { umbrella: "SPR", name: "Italienisch (3. Fremdsprache)" },
+      "BG": { umbrella: "GES", name: "Bildnerisches Gestalten" },
+      "TTG": { umbrella: "GES", name: "Textiles und Technisches Gestalten" },
+    };
+
+    const subInfo = SUB_FACHBEREICH_MAP[fachbereichCode];
+    if (subInfo) {
+      // Suche die Umbrella-Struktur und filtere relevante Kompetenzbereiche
+      for (const d of allDocs.docs) {
+        const data = d.data();
+        const storedCode = data.fachbereichCode || d.id;
+        if (storedCode === subInfo.umbrella) {
+          const filteredKB = (data.kompetenzbereiche || []).filter(
+            (kb: LP21StrukturKompetenzbereich) => kb.code.startsWith(fachbereichCode + ".")
+          );
+          if (filteredKB.length > 0) {
+            console.log(`LP21 Struktur: Sub-Fachbereich '${fachbereichCode}' aus Umbrella '${subInfo.umbrella}' extrahiert (${filteredKB.length} Kompetenzbereiche)`);
+            return {
+              fachbereichCode,
+              fachbereichName: subInfo.name,
+              kanton: data.kanton,
+              kompetenzbereiche: filteredKB,
+              lastSyncedAt: timestampToDate(data.lastSyncedAt),
+            };
+          }
+        }
+      }
+    }
+
     // Nicht gefunden - logge verfügbare Codes
     const availableCodes = allDocs.docs.map((d) => d.id);
     console.log(`LP21 Struktur nicht gefunden: '${fachbereichCode}'. Verfügbar: ${availableCodes.join(", ") || "(leer)"}`);
@@ -896,24 +932,97 @@ export async function getLP21Struktur(fachbereichCode: string): Promise<LP21Fach
 }
 
 /**
- * Alle LP21 Fachbereich-Strukturen laden
+ * Alle LP21 Fachbereich-Strukturen laden.
+ * Umbrella-Kategorien (SPR, GES) werden in Sub-Fachbereiche aufgelöst.
  */
 export async function getAllLP21Strukturen(): Promise<LP21FachbereichStruktur[]> {
   try {
     const adminDb = getAdminDb();
     const snapshot = await adminDb.collection(LP21_STRUKTUR_COLLECTION).get();
-    return snapshot.docs.map((doc) => {
+
+    // Umbrella → Sub-Fachbereiche Mapping
+    const UMBRELLA_EXPAND: Record<string, { prefix: string; name: string }[]> = {
+      "SPR": [
+        { prefix: "D", name: "Deutsch" },
+        { prefix: "FS1F", name: "Französisch (1. Fremdsprache)" },
+        { prefix: "FS2E", name: "Englisch (2. Fremdsprache)" },
+        { prefix: "FS3I", name: "Italienisch (3. Fremdsprache)" },
+      ],
+      "GES": [
+        { prefix: "BG", name: "Bildnerisches Gestalten" },
+        { prefix: "TTG", name: "Textiles und Technisches Gestalten" },
+      ],
+    };
+
+    const result: LP21FachbereichStruktur[] = [];
+
+    for (const doc of snapshot.docs) {
       const data = doc.data();
-      return {
-        fachbereichCode: data.fachbereichCode,
-        fachbereichName: data.fachbereichName,
-        kanton: data.kanton,
-        kompetenzbereiche: data.kompetenzbereiche || [],
-        lastSyncedAt: timestampToDate(data.lastSyncedAt),
-      };
-    });
+      const code = data.fachbereichCode || doc.id;
+      const kbs: LP21StrukturKompetenzbereich[] = data.kompetenzbereiche || [];
+
+      const expandConfig = UMBRELLA_EXPAND[code];
+      if (expandConfig) {
+        // Expand umbrella into sub-fachbereiche
+        for (const sub of expandConfig) {
+          const filteredKB = kbs.filter((kb) => kb.code.startsWith(sub.prefix + "."));
+          if (filteredKB.length > 0) {
+            result.push({
+              fachbereichCode: sub.prefix,
+              fachbereichName: sub.name,
+              kanton: data.kanton,
+              kompetenzbereiche: filteredKB,
+              lastSyncedAt: timestampToDate(data.lastSyncedAt),
+            });
+          }
+        }
+      } else {
+        result.push({
+          fachbereichCode: code,
+          fachbereichName: data.fachbereichName,
+          kanton: data.kanton,
+          kompetenzbereiche: kbs,
+          lastSyncedAt: timestampToDate(data.lastSyncedAt),
+        });
+      }
+    }
+
+    return result;
   } catch (error) {
     console.error("Error getting all LP21 Strukturen:", error);
     return [];
+  }
+}
+
+/**
+ * Zählt Anwendungskompetenzen in system_kompetenzen (für MI/IB Ergänzung).
+ * Diese kommen typischerweise aus Airtable und haben kompetenzbereich="Anwendungskompetenzen".
+ */
+export async function countAnwendungskompetenzen(): Promise<{ count: number; kompetenzen: { code: string; bezeichnung: string }[] }> {
+  try {
+    const alle = await getSystemKompetenzen();
+    const anwendung = alle.filter((k) => k.kompetenzbereich === "Anwendungskompetenzen");
+
+    // Gruppiere nach Kompetenz-Code (z.B. MI.1.3 → Kompetenzstufen MI.1.3.a, MI.1.3.b)
+    const kompetenzCodes = new Map<string, string>();
+    for (const k of anwendung) {
+      if (!k.lpCode) continue;
+      // Extract Kompetenz code: take first 3 dot-separated parts
+      const parts = k.lpCode.split(".");
+      const kompetenzCode = parts.slice(0, Math.min(3, parts.length)).join(".");
+      if (!kompetenzCodes.has(kompetenzCode)) {
+        kompetenzCodes.set(kompetenzCode, k.kompetenzstufe || k.name || kompetenzCode);
+      }
+    }
+
+    return {
+      count: anwendung.length,
+      kompetenzen: Array.from(kompetenzCodes.entries()).map(([code, bezeichnung]) => ({
+        code,
+        bezeichnung,
+      })),
+    };
+  } catch {
+    return { count: 0, kompetenzen: [] };
   }
 }
