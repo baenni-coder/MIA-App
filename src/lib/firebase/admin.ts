@@ -13,10 +13,20 @@ const initializeAdmin = () => {
       throw new Error("Firebase Admin configuration is missing");
     }
 
-    const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(
-      /\\n/g,
-      "\n"
-    );
+    // Handle private key newlines robustly:
+    // - Vercel stores literal \n in env vars → replace needed
+    // - dotenv v17 with double quotes converts \n to real newlines → already ok
+    // - Some configs strip newlines entirely → we re-add them
+    let privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+    // Replace literal \n sequences with real newlines
+    privateKey = privateKey.replace(/\\n/g, "\n");
+    // If the key still doesn't have proper PEM structure, try to fix it
+    if (privateKey.includes("-----BEGIN") && !privateKey.includes("\n-----")) {
+      // Key is all on one line - split the PEM header/footer from the base64 body
+      privateKey = privateKey
+        .replace(/-----BEGIN (.*?)-----\s*/, "-----BEGIN $1-----\n")
+        .replace(/\s*-----END (.*?)-----/, "\n-----END $1-----\n");
+    }
 
     admin.initializeApp({
       credential: admin.credential.cert({
