@@ -21,18 +21,19 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 import * as fs from "fs";
 
-// .env.local laden
+// .env.local MUSS zuerst geladen werden, bevor App-Module importiert werden.
+// ESM hoisted alle statischen imports, daher hier dynamische imports verwenden.
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
-// Jetzt können wir die App-Module importieren (die env vars brauchen)
-import { crawlFachbereich } from "../src/lib/lp21/crawler";
-import { getData, getDataBatch, extractUidFromUrl } from "../src/lib/lp21/client";
-import { mapCrawlResultToKompetenzen, mapToSystemKompetenzen } from "../src/lib/lp21/mapper";
-import {
+// Dynamische Imports damit dotenv.config() garantiert vorher läuft
+const { crawlFachbereich } = await import("../src/lib/lp21/crawler");
+const { getData, getDataBatch, extractUidFromUrl } = await import("../src/lib/lp21/client");
+const { mapCrawlResultToKompetenzen, mapToSystemKompetenzen } = await import("../src/lib/lp21/mapper");
+const {
   upsertSystemKompetenzen,
   getSystemKompetenzen,
   upsertLP21Struktur,
-} from "../src/lib/firestore/system-cache";
+} = await import("../src/lib/firestore/system-cache");
 import type { LP21StrukturKompetenzbereich } from "../src/lib/firestore/system-cache";
 import type { LP21Kanton } from "../src/lib/lp21/types";
 
