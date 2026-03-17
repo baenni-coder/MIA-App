@@ -87,6 +87,57 @@
       ]
     },
     {
+      "id": "DaZ",
+      "name": "Deutsch als Zweitsprache",
+      "fachbereichKuerzel": "DaZ",
+      "farbe": "#1E40AF",
+      "zyklen": [1, 2, 3],
+      "kompetenzbereiche": [
+        {
+          "id": "DaZ.1",
+          "code": "DaZ.1",
+          "name": "Hören",
+          "kompetenzen": [
+            { "id": "DaZ.1.A", "code": "DaZ.1.A.1", "name": "Monologische und dialogische Texte hören und verstehen", "beschreibung": "Die SuS können verschiedenartige Hörtexte und Gespräche verstehen." }
+          ]
+        },
+        {
+          "id": "DaZ.2",
+          "code": "DaZ.2",
+          "name": "Lesen und Leseverstehen",
+          "kompetenzen": [
+            { "id": "DaZ.2.A", "code": "DaZ.2.A.1", "name": "Texte lesen und verstehen", "beschreibung": "Die SuS können verschiedenartige Texte lesen und verstehen." }
+          ]
+        },
+        {
+          "id": "DaZ.3",
+          "code": "DaZ.3",
+          "name": "Sprechen",
+          "kompetenzen": [
+            { "id": "DaZ.3.A", "code": "DaZ.3.A.1", "name": "Dialogisches Sprechen", "beschreibung": "Die SuS können an verschiedenen Gesprächen teilnehmen." },
+            { "id": "DaZ.3.B", "code": "DaZ.3.B.1", "name": "Monologisches Sprechen", "beschreibung": "Die SuS können zu verschiedenen Themen zusammenhängend sprechen." }
+          ]
+        },
+        {
+          "id": "DaZ.4",
+          "code": "DaZ.4",
+          "name": "Schreiben",
+          "kompetenzen": [
+            { "id": "DaZ.4.A", "code": "DaZ.4.A.1", "name": "Schriftliche Texte verfassen", "beschreibung": "Die SuS können verschiedene Texte verfassen." }
+          ]
+        },
+        {
+          "id": "DaZ.5",
+          "code": "DaZ.5",
+          "name": "Sprache(n) im Fokus",
+          "kompetenzen": [
+            { "id": "DaZ.5.A", "code": "DaZ.5.A.1", "name": "Bewusstheit für Sprache", "beschreibung": "Die SuS können Sprachen und Sprachgebrauch untersuchen." },
+            { "id": "DaZ.5.B", "code": "DaZ.5.B.1", "name": "Wortschatz", "beschreibung": "Die SuS verfügen über einen angemessenen Wortschatz." }
+          ]
+        }
+      ]
+    },
+    {
       "id": "FS1",
       "name": "Französisch (1. Fremdsprache)",
       "fachbereichKuerzel": "FS1F",
