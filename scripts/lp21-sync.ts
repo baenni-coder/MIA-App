@@ -22,18 +22,11 @@ import * as path from "path";
 import * as fs from "fs";
 
 // .env.local MUSS zuerst geladen werden, bevor App-Module importiert werden.
-// ESM hoisted alle statischen imports, daher hier dynamische imports verwenden.
+// ESM hoisted alle statischen imports vor den Code, daher verwenden wir
+// dynamische imports innerhalb von main().
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
-// Dynamische Imports damit dotenv.config() garantiert vorher läuft
-const { crawlFachbereich } = await import("../src/lib/lp21/crawler");
-const { getData, getDataBatch, extractUidFromUrl } = await import("../src/lib/lp21/client");
-const { mapCrawlResultToKompetenzen, mapToSystemKompetenzen } = await import("../src/lib/lp21/mapper");
-const {
-  upsertSystemKompetenzen,
-  getSystemKompetenzen,
-  upsertLP21Struktur,
-} = await import("../src/lib/firestore/system-cache");
+// Type-only imports sind sicher (werden zur Laufzeit entfernt)
 import type { LP21StrukturKompetenzbereich } from "../src/lib/firestore/system-cache";
 import type { LP21Kanton } from "../src/lib/lp21/types";
 
@@ -79,10 +72,30 @@ function formatDuration(ms: number): string {
 }
 
 // ============================================
-// Schritt 1: Verfügbare Fachbereiche laden
+// Main — dynamische Imports damit dotenv zuerst läuft
 // ============================================
 
-async function loadFachbereiche(): Promise<{ uid: string; code: string; bezeichnung: string }[]> {
+async function main() {
+  // Dynamische Imports NACH dotenv.config()
+  const { crawlFachbereich } = await import("../src/lib/lp21/crawler");
+  const { getData, getDataBatch, extractUidFromUrl } = await import("../src/lib/lp21/client");
+  const { mapCrawlResultToKompetenzen, mapToSystemKompetenzen } = await import("../src/lib/lp21/mapper");
+  const {
+    upsertSystemKompetenzen,
+    getSystemKompetenzen,
+    upsertLP21Struktur,
+  } = await import("../src/lib/firestore/system-cache");
+
+  console.log("═══════════════════════════════════════════");
+  console.log("  LP21 Sync Script — Lokaler Download");
+  console.log("═══════════════════════════════════════════");
+  console.log(`  Kanton:     ${KANTON}`);
+  console.log(`  Filter:     ${FACHBEREICH_FILTER || "(alle)"}`);
+  console.log(`  JSON:       ${SAVE_JSON ? "Ja" : "Nein"}`);
+
+  const totalStart = Date.now();
+
+  // Schritt 1: Fachbereiche laden
   console.log(`\n📋 Lade Fachbereiche für Kanton "${KANTON}"...`);
 
   const kompetenzaufbau = await getData(KOMPETENZAUFBAU_UID, KANTON, "de");
@@ -94,149 +107,18 @@ async function loadFachbereiche(): Promise<{ uid: string; code: string; bezeichn
   const fachbereichUids = kompetenzaufbau.hierarchie_unten.map(extractUidFromUrl);
   const fachbereiche = await getDataBatch(fachbereichUids, KANTON, "de");
 
-  const result = Array.from(fachbereiche.entries()).map(([uid, fb]) => ({
+  const fbList = Array.from(fachbereiche.entries()).map(([uid, fb]) => ({
     uid,
     code: fb.code || "",
     bezeichnung: getBezeichnung(fb),
   }));
 
-  result.sort((a, b) => a.code.localeCompare(b.code));
+  fbList.sort((a, b) => a.code.localeCompare(b.code));
 
-  console.log(`\n   Verfügbare Fachbereiche (${result.length}):`);
-  for (const fb of result) {
+  console.log(`\n   Verfügbare Fachbereiche (${fbList.length}):`);
+  for (const fb of fbList) {
     console.log(`   - ${fb.code.padEnd(6)} ${fb.bezeichnung}`);
   }
-
-  return result;
-}
-
-// ============================================
-// Schritt 2: Einen Fachbereich syncen
-// ============================================
-
-async function syncFachbereich(code: string): Promise<{
-  code: string;
-  bezeichnung: string;
-  kompetenzstufen: number;
-  kompetenzbereiche: number;
-  orientierungspunkte: number;
-  duration: number;
-}> {
-  console.log(`\n🔄 Sync: ${code}...`);
-  const startTime = Date.now();
-
-  // LP21 API crawlen
-  const crawlResult = await crawlFachbereich(code, KANTON, "de", (progress) => {
-    if (progress.phase === "kompetenzbereich" && progress.current > 0) {
-      process.stdout.write(
-        `\r   ${progress.phase}: ${progress.current}/${progress.total} - ${progress.message}`.padEnd(80)
-      );
-    }
-  });
-  process.stdout.write("\r" + " ".repeat(80) + "\r"); // Clear progress line
-
-  console.log(`   ✅ Crawl: ${crawlResult.totalKompetenzstufen} Kompetenzstufen, ${crawlResult.kompetenzbereiche.length} Kompetenzbereiche in ${formatDuration(crawlResult.duration)}`);
-
-  // Mapping
-  const kompetenzen = mapCrawlResultToKompetenzen(crawlResult);
-
-  // Bestehende Kompetenzen laden für ID-Mapping
-  const existingKompetenzen = await getSystemKompetenzen();
-  const lpCodeToAirtableId = new Map<string, string>();
-  const existingUnterrichtsideen = new Map<string, string[]>();
-
-  existingKompetenzen.forEach((k) => {
-    if (k.lpCode) {
-      lpCodeToAirtableId.set(k.lpCode, k.airtableId);
-    }
-    if (k.lpCode && k.unterrichtsideenIds?.length) {
-      existingUnterrichtsideen.set(k.lpCode, k.unterrichtsideenIds);
-    }
-  });
-
-  // Zu SystemKompetenz konvertieren
-  const systemKompetenzen = mapToSystemKompetenzen(kompetenzen, lpCodeToAirtableId);
-
-  // Bestehende Unterrichtsideen-Verknüpfungen beibehalten
-  for (const sk of systemKompetenzen) {
-    if (sk.lpCode && existingUnterrichtsideen.has(sk.lpCode)) {
-      sk.unterrichtsideenIds = existingUnterrichtsideen.get(sk.lpCode)!;
-    }
-  }
-
-  // In Firestore schreiben
-  const count = await upsertSystemKompetenzen(systemKompetenzen);
-
-  // Orientierungspunkte zählen
-  const orientierungspunkte = kompetenzen.filter((k) => k.orientierungspunkt).length;
-
-  // Struktur speichern
-  const strukturKompetenzbereiche: LP21StrukturKompetenzbereich[] = crawlResult.kompetenzbereiche.map((kb) => ({
-    uid: kb.uid,
-    code: kb.code,
-    bezeichnung: kb.bezeichnung,
-    kompetenzen: kb.kompetenzen.map((k) => ({
-      uid: k.uid,
-      code: k.code,
-      bezeichnung: k.bezeichnung,
-      kompetenzstufen: k.kompetenzstufen.length,
-    })),
-  }));
-
-  await upsertLP21Struktur({
-    fachbereichCode: crawlResult.fachbereich.code,
-    fachbereichName: crawlResult.fachbereich.bezeichnung,
-    kanton: KANTON,
-    kompetenzbereiche: strukturKompetenzbereiche,
-    lastSyncedAt: new Date(),
-  });
-
-  const duration = Date.now() - startTime;
-
-  console.log(`   📊 Firestore: ${count} Kompetenzstufen geschrieben, ${orientierungspunkte} OP, Struktur gespeichert`);
-
-  // Optional: JSON-Backup
-  if (SAVE_JSON) {
-    const jsonDir = path.resolve(process.cwd(), "data/lp21");
-    fs.mkdirSync(jsonDir, { recursive: true });
-
-    const jsonFile = path.join(jsonDir, `${KANTON}-${code}.json`);
-    fs.writeFileSync(jsonFile, JSON.stringify({
-      fachbereich: crawlResult.fachbereich,
-      kanton: KANTON,
-      kompetenzbereiche: crawlResult.kompetenzbereiche,
-      totalKompetenzstufen: crawlResult.totalKompetenzstufen,
-      syncedAt: new Date().toISOString(),
-    }, null, 2));
-    console.log(`   💾 JSON-Backup: ${jsonFile}`);
-  }
-
-  return {
-    code: crawlResult.fachbereich.code,
-    bezeichnung: crawlResult.fachbereich.bezeichnung,
-    kompetenzstufen: crawlResult.totalKompetenzstufen,
-    kompetenzbereiche: crawlResult.kompetenzbereiche.length,
-    orientierungspunkte,
-    duration,
-  };
-}
-
-// ============================================
-// Main
-// ============================================
-
-async function main() {
-  console.log("═══════════════════════════════════════════");
-  console.log("  LP21 Sync Script — Lokaler Download");
-  console.log("═══════════════════════════════════════════");
-  console.log(`  Kanton:     ${KANTON}`);
-  console.log(`  Filter:     ${FACHBEREICH_FILTER || "(alle)"}`);
-  console.log(`  JSON:       ${SAVE_JSON ? "Ja" : "Nein"}`);
-
-  const totalStart = Date.now();
-
-  // Fachbereiche laden
-  const fachbereiche = await loadFachbereiche();
 
   if (LIST_ONLY) {
     console.log("\n✅ Fertig (nur Auflistung).");
@@ -245,8 +127,8 @@ async function main() {
 
   // Filter anwenden
   const toSync = FACHBEREICH_FILTER
-    ? fachbereiche.filter((fb) => fb.code === FACHBEREICH_FILTER)
-    : fachbereiche;
+    ? fbList.filter((fb) => fb.code === FACHBEREICH_FILTER)
+    : fbList;
 
   if (toSync.length === 0) {
     console.error(`\n❌ Fachbereich "${FACHBEREICH_FILTER}" nicht gefunden.`);
@@ -255,16 +137,118 @@ async function main() {
 
   console.log(`\n🚀 Starte Sync für ${toSync.length} Fachbereich(e)...\n`);
 
-  const results: Awaited<ReturnType<typeof syncFachbereich>>[] = [];
+  const results: {
+    code: string;
+    bezeichnung: string;
+    kompetenzstufen: number;
+    kompetenzbereiche: number;
+    orientierungspunkte: number;
+    duration: number;
+  }[] = [];
 
   for (let i = 0; i < toSync.length; i++) {
     const fb = toSync[i];
-    console.log(`\n[${ i + 1}/${toSync.length}] ${fb.code} — ${fb.bezeichnung}`);
+    console.log(`\n[${i + 1}/${toSync.length}] ${fb.code} — ${fb.bezeichnung}`);
     console.log("─".repeat(50));
 
     try {
-      const result = await syncFachbereich(fb.code);
-      results.push(result);
+      console.log(`\n🔄 Sync: ${fb.code}...`);
+      const startTime = Date.now();
+
+      // LP21 API crawlen
+      const crawlResult = await crawlFachbereich(fb.code, KANTON, "de", (progress) => {
+        if (progress.phase === "kompetenzbereich" && progress.current > 0) {
+          process.stdout.write(
+            `\r   ${progress.phase}: ${progress.current}/${progress.total} - ${progress.message}`.padEnd(80)
+          );
+        }
+      });
+      process.stdout.write("\r" + " ".repeat(80) + "\r");
+
+      console.log(`   ✅ Crawl: ${crawlResult.totalKompetenzstufen} Kompetenzstufen, ${crawlResult.kompetenzbereiche.length} Kompetenzbereiche in ${formatDuration(crawlResult.duration)}`);
+
+      // Mapping
+      const kompetenzen = mapCrawlResultToKompetenzen(crawlResult);
+
+      // Bestehende Kompetenzen laden für ID-Mapping
+      const existingKompetenzen = await getSystemKompetenzen();
+      const lpCodeToAirtableId = new Map<string, string>();
+      const existingUnterrichtsideen = new Map<string, string[]>();
+
+      existingKompetenzen.forEach((k) => {
+        if (k.lpCode) {
+          lpCodeToAirtableId.set(k.lpCode, k.airtableId);
+        }
+        if (k.lpCode && k.unterrichtsideenIds?.length) {
+          existingUnterrichtsideen.set(k.lpCode, k.unterrichtsideenIds);
+        }
+      });
+
+      // Zu SystemKompetenz konvertieren
+      const systemKompetenzen = mapToSystemKompetenzen(kompetenzen, lpCodeToAirtableId);
+
+      // Bestehende Unterrichtsideen-Verknüpfungen beibehalten
+      for (const sk of systemKompetenzen) {
+        if (sk.lpCode && existingUnterrichtsideen.has(sk.lpCode)) {
+          sk.unterrichtsideenIds = existingUnterrichtsideen.get(sk.lpCode)!;
+        }
+      }
+
+      // In Firestore schreiben
+      const count = await upsertSystemKompetenzen(systemKompetenzen);
+
+      // Orientierungspunkte zählen
+      const orientierungspunkte = kompetenzen.filter((k) => k.orientierungspunkt).length;
+
+      // Struktur speichern
+      const strukturKompetenzbereiche: LP21StrukturKompetenzbereich[] = crawlResult.kompetenzbereiche.map((kb) => ({
+        uid: kb.uid,
+        code: kb.code,
+        bezeichnung: kb.bezeichnung,
+        kompetenzen: kb.kompetenzen.map((k) => ({
+          uid: k.uid,
+          code: k.code,
+          bezeichnung: k.bezeichnung,
+          kompetenzstufen: k.kompetenzstufen.length,
+        })),
+      }));
+
+      await upsertLP21Struktur({
+        fachbereichCode: crawlResult.fachbereich.code,
+        fachbereichName: crawlResult.fachbereich.bezeichnung,
+        kanton: KANTON,
+        kompetenzbereiche: strukturKompetenzbereiche,
+        lastSyncedAt: new Date(),
+      });
+
+      const duration = Date.now() - startTime;
+
+      console.log(`   📊 Firestore: ${count} Kompetenzstufen geschrieben, ${orientierungspunkte} OP, Struktur gespeichert`);
+
+      // Optional: JSON-Backup
+      if (SAVE_JSON) {
+        const jsonDir = path.resolve(process.cwd(), "data/lp21");
+        fs.mkdirSync(jsonDir, { recursive: true });
+
+        const jsonFile = path.join(jsonDir, `${KANTON}-${fb.code}.json`);
+        fs.writeFileSync(jsonFile, JSON.stringify({
+          fachbereich: crawlResult.fachbereich,
+          kanton: KANTON,
+          kompetenzbereiche: crawlResult.kompetenzbereiche,
+          totalKompetenzstufen: crawlResult.totalKompetenzstufen,
+          syncedAt: new Date().toISOString(),
+        }, null, 2));
+        console.log(`   💾 JSON-Backup: ${jsonFile}`);
+      }
+
+      results.push({
+        code: crawlResult.fachbereich.code,
+        bezeichnung: crawlResult.fachbereich.bezeichnung,
+        kompetenzstufen: crawlResult.totalKompetenzstufen,
+        kompetenzbereiche: crawlResult.kompetenzbereiche.length,
+        orientierungspunkte,
+        duration,
+      });
     } catch (error) {
       console.error(`   ❌ Fehler: ${error instanceof Error ? error.message : error}`);
     }
