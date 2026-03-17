@@ -74,21 +74,34 @@ export async function crawlFachbereich(
   let targetFachbereich: LP21GetDataResponse | null = null;
   let targetUid = "";
 
+  // Zuerst exakte Übereinstimmung suchen (z.B. "D" === "D", nicht "DaZ")
   for (const [uid, fb] of fachbereiche) {
-    if (fb.code?.startsWith(fachbereichCode)) {
+    if (fb.code === fachbereichCode) {
       targetFachbereich = fb;
       targetUid = uid;
       break;
     }
   }
 
+  // Fallback: startsWith-Match (z.B. "FS1" findet "FS1F")
   if (!targetFachbereich) {
+    for (const [uid, fb] of fachbereiche) {
+      if (fb.code?.startsWith(fachbereichCode)) {
+        targetFachbereich = fb;
+        targetUid = uid;
+        break;
+      }
+    }
+  }
+
+  if (!targetFachbereich) {
+    const verfuegbar = Array.from(fachbereiche.values()).map((fb) => `${fb.code} (${getBezeichnung(fb)})`).join(", ");
     throw new Error(
-      `Fachbereich "${fachbereichCode}" nicht gefunden. Verfügbare: ${Array.from(fachbereiche.values())
-        .map((fb) => fb.code)
-        .join(", ")}`
+      `Fachbereich "${fachbereichCode}" nicht gefunden. Verfügbare: ${verfuegbar}`
     );
   }
+
+  console.log(`🎯 LP21 Fachbereich: gesucht="${fachbereichCode}" → gefunden="${targetFachbereich.code}" (${getBezeichnung(targetFachbereich)})`);
 
   onProgress?.({
     phase: "fachbereich",
