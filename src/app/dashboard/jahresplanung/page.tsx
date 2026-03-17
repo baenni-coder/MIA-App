@@ -41,7 +41,7 @@ import {
   getAktuellesSchuljahr,
   getSchuljahrListe,
   getSchulwochenFuerSchuljahr,
-  getAlleFachbereiche,
+  getLp21FachbereichFarbe,
 } from "@/lib/data/lp21-data";
 import type { JahresplanEinheit, SchulferienCustom, PlanungsTeam } from "@/types";
 
@@ -84,7 +84,30 @@ export default function JahresplanungPage() {
 
   const schuljahrListe = useMemo(() => getSchuljahrListe(4, 1), []);
   const copySchuljahrListe = useMemo(() => getSchuljahrListe(1, 6), []);
-  const fachbereiche = useMemo(() => getAlleFachbereiche(), []);
+  // Fachbereiche aus LP21 API laden
+  const [fachbereiche, setFachbereiche] = useState<
+    { code: string; name: string; farbe: string }[]
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/kompetenzen/lp21/struktur")
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.fachbereiche?.length > 0) {
+          setFachbereiche(
+            data.fachbereiche.map((fb: { code: string; name: string }) => ({
+              code: fb.code,
+              name: fb.name,
+              farbe: getLp21FachbereichFarbe(fb.code),
+            }))
+          );
+        }
+      })
+      .catch((err) => console.error("Error loading Fachbereiche:", err));
+    return () => { cancelled = true; };
+  }, []);
 
   // Wochen für das Schuljahr berechnen (mit Custom-Ferien wenn vorhanden)
   const schulwochen = useMemo(() => {
@@ -236,11 +259,11 @@ export default function JahresplanungPage() {
 
     return Array.from(verteilung.entries())
       .map(([id, count]) => {
-        const fb = fachbereiche.find((f) => f.id === id);
+        const fb = fachbereiche.find((f) => f.code === id);
         return {
           id,
           name: fb?.name || id,
-          farbe: fb?.farbe || "#6b7280",
+          farbe: fb?.farbe || getLp21FachbereichFarbe(id),
           count,
         };
       })

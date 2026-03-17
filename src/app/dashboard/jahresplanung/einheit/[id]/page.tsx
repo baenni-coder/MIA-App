@@ -31,9 +31,8 @@ import SchoolFileUpload from "@/components/SchoolFileUpload";
 import type { SchoolFile } from "@/types";
 import {
   getAktuellesSchuljahr,
-  getAlleFachbereiche,
-  getFachbereichById,
   getQuartalSchema,
+  getLp21FachbereichFarbe,
 } from "@/lib/data/lp21-data";
 import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema, Beurteilung } from "@/types";
 
@@ -115,12 +114,39 @@ export default function EinheitFormPage() {
   const [filePickerTab, setFilePickerTab] = useState<"browse" | "upload">("browse");
   const [loadingFiles, setLoadingFiles] = useState(false);
 
-  const fachbereiche = useMemo(() => getAlleFachbereiche(), []);
+  // Fachbereiche aus LP21 API laden (synchronisierte Daten)
+  const [fachbereiche, setFachbereiche] = useState<
+    { code: string; name: string; farbe: string }[]
+  >([]);
+  const [loadingFachbereiche, setLoadingFachbereiche] = useState(true);
 
-  // MIA-Themen laden wenn Fachbereich = MI
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/kompetenzen/lp21/struktur")
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.fachbereiche?.length > 0) {
+          setFachbereiche(
+            data.fachbereiche.map((fb: { code: string; name: string }) => ({
+              code: fb.code,
+              name: fb.name,
+              farbe: getLp21FachbereichFarbe(fb.code),
+            }))
+          );
+        }
+      })
+      .catch((err) => console.error("Error loading Fachbereiche:", err))
+      .finally(() => {
+        if (!cancelled) setLoadingFachbereiche(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // MIA-Themen laden wenn Fachbereich = MI oder IB
   useEffect(() => {
     async function fetchMiaThemen() {
-      if (fachbereichId !== "MI") {
+      if (fachbereichId !== "MI" && fachbereichId !== "IB") {
         setMiaThemen([]);
         return;
       }
@@ -325,14 +351,14 @@ export default function EinheitFormPage() {
       setSaving(true);
       const token = await user.getIdToken();
 
-      const fb = getFachbereichById(fachbereichId);
+      const fb = fachbereiche.find((f) => f.code === fachbereichId);
 
       const body: Record<string, unknown> = {
         schuljahr,
         titel,
         fachbereichId,
-        fachbereichName: fb?.name,
-        fachbereichFarbe: fb?.farbe,
+        fachbereichName: fb?.name || fachbereichId,
+        fachbereichFarbe: fb?.farbe || getLp21FachbereichFarbe(fachbereichId),
         lernziele,
         kompetenzenIds,
         kompetenzenNamen,
@@ -343,7 +369,7 @@ export default function EinheitFormPage() {
         beurteilungsNotiz: beurteilungen.length > 0 ? beurteilungen[0].notiz : "",
         materialien,
         istPufferwoche,
-        farbe: fb?.farbe,
+        farbe: fb?.farbe || getLp21FachbereichFarbe(fachbereichId),
       };
 
       // TeamId nur bei neuen Einheiten setzen
@@ -352,7 +378,7 @@ export default function EinheitFormPage() {
       }
 
       // MIA-Thema Verknüpfung hinzufügen (auch leerer String zum Entfernen)
-      if (fachbereichId === "MI") {
+      if ((fachbereichId === "MI" || fachbereichId === "IB")) {
         body.linkedMiaThemeId = linkedMiaThemeId || null;
         body.linkedMiaThemeName = linkedMiaThemeName || null;
       } else {
@@ -516,28 +542,39 @@ export default function EinheitFormPage() {
               {/* Fachbereich */}
               <div>
                 <label className="text-sm font-medium">Fachbereich *</label>
-                <Select value={fachbereichId} onValueChange={setFachbereichId}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Fachbereich wählen..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fachbereiche.map((fb) => (
-                      <SelectItem key={fb.id} value={fb.id}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: fb.farbe }}
-                          />
-                          {fb.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {loadingFachbereiche ? (
+                  <div className="flex items-center gap-2 py-2 text-sm text-gray-500 mt-1">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
+                    Fachbereiche werden geladen...
+                  </div>
+                ) : fachbereiche.length === 0 ? (
+                  <p className="text-sm text-amber-600 mt-1">
+                    Keine LP21-Fachbereiche synchronisiert. Bitte zuerst unter Admin → Daten-Sync synchronisieren.
+                  </p>
+                ) : (
+                  <Select value={fachbereichId} onValueChange={setFachbereichId}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Fachbereich wählen..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {fachbereiche.map((fb) => (
+                        <SelectItem key={fb.code} value={fb.code}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: fb.farbe }}
+                            />
+                            {fb.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               {/* MIA-Thema Verknüpfung (nur bei Informatische Bildung) */}
-              {fachbereichId === "MI" && (
+              {(fachbereichId === "MI" || fachbereichId === "IB") && (
                 <div>
                   <label className="text-sm font-medium flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-indigo-600" />
