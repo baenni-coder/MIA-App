@@ -814,11 +814,14 @@ export interface LP21FachbereichStruktur {
 export async function upsertLP21Struktur(struktur: LP21FachbereichStruktur): Promise<void> {
   try {
     const adminDb = getAdminDb();
-    await adminDb.collection(LP21_STRUKTUR_COLLECTION).doc(struktur.fachbereichCode).set({
+    // Trimme den Code und verwende ihn als Doc-ID
+    const cleanCode = struktur.fachbereichCode.trim();
+    await adminDb.collection(LP21_STRUKTUR_COLLECTION).doc(cleanCode).set({
       ...struktur,
+      fachbereichCode: cleanCode,
       lastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    console.log(`✅ LP21 Struktur gespeichert: ${struktur.fachbereichCode} (${struktur.kompetenzbereiche.length} Kompetenzbereiche)`);
+    console.log(`✅ LP21 Struktur gespeichert: doc='${cleanCode}', fachbereichCode='${struktur.fachbereichCode}' (${struktur.kompetenzbereiche.length} Kompetenzbereiche)`);
   } catch (error) {
     console.error("Error saving LP21 Struktur:", error);
     throw error;
@@ -827,20 +830,65 @@ export async function upsertLP21Struktur(struktur: LP21FachbereichStruktur): Pro
 
 /**
  * LP21 Fachbereich-Struktur laden
+ * Sucht zuerst per Doc-ID, dann per fachbereichCode-Feld,
+ * und schliesslich per Prefix-Match (z.B. "D" findet "D | Deutsch").
  */
 export async function getLP21Struktur(fachbereichCode: string): Promise<LP21FachbereichStruktur | null> {
   try {
     const adminDb = getAdminDb();
+
+    // 1. Exakte Doc-ID
     const doc = await adminDb.collection(LP21_STRUKTUR_COLLECTION).doc(fachbereichCode).get();
-    if (!doc.exists) return null;
-    const data = doc.data()!;
-    return {
-      fachbereichCode: data.fachbereichCode,
-      fachbereichName: data.fachbereichName,
-      kanton: data.kanton,
-      kompetenzbereiche: data.kompetenzbereiche || [],
-      lastSyncedAt: timestampToDate(data.lastSyncedAt),
-    };
+    if (doc.exists) {
+      const data = doc.data()!;
+      return {
+        fachbereichCode: data.fachbereichCode,
+        fachbereichName: data.fachbereichName,
+        kanton: data.kanton,
+        kompetenzbereiche: data.kompetenzbereiche || [],
+        lastSyncedAt: timestampToDate(data.lastSyncedAt),
+      };
+    }
+
+    // 2. Fallback: Suche per fachbereichCode-Feld
+    const querySnapshot = await adminDb
+      .collection(LP21_STRUKTUR_COLLECTION)
+      .where("fachbereichCode", "==", fachbereichCode)
+      .limit(1)
+      .get();
+
+    if (!querySnapshot.empty) {
+      const data = querySnapshot.docs[0].data();
+      return {
+        fachbereichCode: data.fachbereichCode,
+        fachbereichName: data.fachbereichName,
+        kanton: data.kanton,
+        kompetenzbereiche: data.kompetenzbereiche || [],
+        lastSyncedAt: timestampToDate(data.lastSyncedAt),
+      };
+    }
+
+    // 3. Fallback: Prefix-Match (LP21 API gibt manchmal längere Codes zurück)
+    const allDocs = await adminDb.collection(LP21_STRUKTUR_COLLECTION).get();
+    for (const d of allDocs.docs) {
+      const data = d.data();
+      const storedCode = data.fachbereichCode || d.id;
+      if (storedCode.startsWith(fachbereichCode) || fachbereichCode.startsWith(storedCode)) {
+        console.log(`LP21 Struktur: Prefix-Match '${fachbereichCode}' → '${storedCode}' (doc: ${d.id})`);
+        return {
+          fachbereichCode: data.fachbereichCode,
+          fachbereichName: data.fachbereichName,
+          kanton: data.kanton,
+          kompetenzbereiche: data.kompetenzbereiche || [],
+          lastSyncedAt: timestampToDate(data.lastSyncedAt),
+        };
+      }
+    }
+
+    // Nicht gefunden - logge verfügbare Codes
+    const availableCodes = allDocs.docs.map((d) => d.id);
+    console.log(`LP21 Struktur nicht gefunden: '${fachbereichCode}'. Verfügbar: ${availableCodes.join(", ") || "(leer)"}`);
+    return null;
   } catch (error) {
     console.error("Error getting LP21 Struktur:", error);
     return null;
