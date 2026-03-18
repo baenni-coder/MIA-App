@@ -2,6 +2,49 @@
 
 Alle wichtigen Änderungen an der MIA-App werden hier dokumentiert.
 
+## [2026-03] - LP21 KompetenzPicker & Jahresplanung Verbesserungen
+
+### Hinzugefügt
+- **LP21 KompetenzPicker**: Hierarchische Kompetenz-Auswahl für die Jahresplanung
+  - Fachbereich → Kompetenzbereich → Kompetenz → Kompetenzstufe
+  - LP21-API-Daten aus Firestore-Cache
+  - Persistent Cache für Badge-Anzeige über Fachbereich-Wechsel hinweg
+- **LP21 API Sync**: Kompetenzen direkt von der LP21-API synchronisieren
+  - Admin-UI zum Syncing einzelner Fachbereiche pro Kanton
+  - Kompetenzstufen mit Grundanspruch und Orientierungspunkt
+- **DaZ als eigener Fachbereich**: Deutsch als Zweitsprache separat von Deutsch
+- **Anwendungskompetenzen**: MI.3 / IB.3 aus Airtable-Daten integriert
+
+### Geändert
+- **Sprachen aufgeteilt**: SPR → D, DaZ, FS1F, FS2E, FS3I als separate Fachbereiche
+- **Gestalten aufgeteilt**: GES → BG und TTG als separate Fachbereiche
+- **Kanton-Aliase**: MI ↔ IB Mapping für Kanton Solothurn
+- **Dropdown auf schmalen Bildschirmen**: Kompetenz-Auswahl wird nicht mehr abgeschnitten
+- **Fachbereich-Suche**: Fallback-Suche in allen Dokumenten für fehlende Fachbereiche (z.B. TTG)
+
+## [2026-02] - Fächerübergreifende Jahresplanung
+
+### Hinzugefügt
+- **Fächerübergreifende Jahresplanung**: Komplettes Planungstool für alle Fachbereiche
+  - Quartals- und Wochenansicht mit Wochen-Raster
+  - LP21-Fachbereiche und Kompetenzbereiche
+  - Einheiten erstellen, bearbeiten, löschen
+  - Farbige Darstellung nach Fachbereich
+- **Ferienverwaltung**: Manuelle Anpassung der Schulferien pro Schuljahr
+  - Preset-Ferien nach Kanton laden
+  - Individuelle Ferien erstellen/bearbeiten/löschen
+- **MIA-Themen-Verknüpfung**: Einheiten mit MIA-Themen aus dem Jahresplan verknüpfen
+- **Beurteilungen mit KW-Zuordnung**: Mehrere formative/summative Beurteilungen pro Einheit
+- **PDF-Export Jahresplanung**: Quartals-, Wochen- und Jahresplanung als PDF
+  - Name und Klasse der Lehrperson im Header
+  - Fachbereich-Farben und Beurteilungsmarker
+- **Schuljahr kopieren**: Einheiten aus bis zu 6 vergangenen Schuljahren übernehmen
+
+### Geändert
+- **Konfigurierbare Dashboard-Kacheln**: Lehrpersonen wählen ihre Dashboard-Kacheln selbst (12 verfügbare Kacheln)
+- **Jahresplan MIA**: Umbenennung im Menü und Dashboard für Klarheit
+- **Wochennavigation**: Vor/Zurück-Buttons in der Wochenansicht
+
 ## [2026-01] - Kompetenzenpass, Schul-Dateien & FAQ
 
 ### Hinzugefügt

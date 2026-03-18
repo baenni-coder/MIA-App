@@ -11,6 +11,20 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **Erweitertes Profil**: Lehrpersonen können Schule und Kanton im Dashboard ändern
 - **Favicon**: Neues SVG-Icon im Code-Klammern-Design
 
+**🆕 NEU (Februar 2026):**
+- **Fächerübergreifende Jahresplanung**: Quartals- und Wochenansicht mit LP21-Fachbereichen
+- **Ferienverwaltung**: Manuelle Anpassung der Schulferien pro Schuljahr
+- **MIA-Themen-Verknüpfung**: Einheiten mit MIA-Themen verknüpfen
+- **Beurteilungen mit KW-Zuordnung**: Mehrere Beurteilungen pro Einheit, mit Wochen-Zuweisung
+- **PDF-Export Jahresplanung**: Quartals-, Wochen- und Jahresplanung als PDF exportieren
+- **Schuljahr kopieren**: Einheiten aus vergangenen Schuljahren übernehmen
+- **Konfigurierbare Dashboard-Kacheln**: Lehrpersonen wählen ihre Dashboard-Kacheln selbst
+
+**🆕 NEU (März 2026):**
+- **LP21 KompetenzPicker**: Hierarchische Kompetenz-Auswahl (Fachbereich → Kompetenzbereich → Kompetenz → Kompetenzstufe)
+- **LP21 API Sync**: Kompetenzen direkt von der LP21-API laden und in Firestore cachen
+- **Kanton-spezifische Fachbereiche**: IB (Solothurn) ↔ MI Alias-Mapping, DaZ als eigener Fachbereich
+
 ## 🎯 Features
 
 ### Basis-Features
@@ -88,6 +102,33 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
 - **PICTS-Links bearbeiten**
 - **Benutzerübersicht** pro Schule
 
+### 🆕 Fächerübergreifende Jahresplanung (Februar 2026)
+
+#### Übersicht & Navigation
+- **Schuljahr-Auswahl** mit 4 Quartalskarten und Statistiken
+- **Quartalsansicht**: Wochen-Raster mit farbigen Balken nach Fachbereich
+- **Wochenansicht**: Detailansicht mit Status-Verwaltung und Beurteilungen
+- **Ferienverwaltung**: Presets nach Kanton, individuelle Ferien erstellen
+
+#### Einheiten planen
+- **LP21-Fachbereiche**: Alle Fachbereiche und Kompetenzbereiche aus LP21
+- **Beurteilungen**: Formativ und summativ, mit KW-Zuordnung
+- **MIA-Verknüpfung**: Einheiten mit MIA-Themen aus dem Jahresplan verbinden
+- **Schuljahr kopieren**: Einheiten aus vergangenen Schuljahren übernehmen
+
+#### PDF-Export
+- **Quartals-, Wochen- und Jahresplanung** als PDF
+- **Lehrperson und Klasse** im Header
+- **Fachbereich-Farben** und Beurteilungsmarker
+
+### 🆕 LP21 KompetenzPicker (März 2026)
+
+- **Hierarchische Auswahl**: Fachbereich → Kompetenzbereich → Kompetenz → Kompetenzstufe
+- **LP21-API-Sync**: Kompetenzen direkt von der LP21-API laden
+- **Kanton-spezifisch**: Automatische Anpassung je nach Kanton (z.B. IB statt MI für Solothurn)
+- **Sprachen aufgeteilt**: D, DaZ, FS1F, FS2E, FS3I als separate Fachbereiche
+- **Gestalten aufgeteilt**: BG und TTG als separate Fachbereiche
+
 ## 🛠 Tech Stack
 
 - **Framework**: Next.js 15 mit App Router
@@ -103,9 +144,9 @@ Eine Webanwendung für Lehrpersonen zur Verwaltung von Jahresplänen für **Medi
   - @radix-ui/react-select für Dropdown-Menüs
   - @radix-ui/react-accordion für Lektionsplanung
   - Native HTML Checkboxes (ohne Radix UI)
-- **Export**: jsPDF für PDF-Generierung
-- **Drag & Drop**: @dnd-kit (ready to implement)
+- **PDF-Export**: @react-pdf/renderer für Kompetenzenpass- und Jahresplanungs-PDFs
 - **Permissions**: Rollen-basiertes System (teacher, picts_admin, super_admin)
+- **LP21 API**: Integration der Lehrplan21-API für Kompetenz-Synchronisation
 
 ## Voraussetzungen
 
@@ -426,6 +467,23 @@ Die App verwendet **shadcn/ui** - eine moderne, accessible Komponenten-Bibliothe
 - [x] Schulverwaltung für Super-Admins
 - [x] Erweitertes Lehrerprofil (Schule, Kanton)
 - [x] SVG-Favicon
+
+### Fächerübergreifende Jahresplanung (Februar 2026 ✨)
+- [x] Quartals- und Wochenansicht mit Wochen-Raster
+- [x] LP21-Fachbereiche und Kompetenzbereiche
+- [x] Einheiten erstellen, bearbeiten, löschen
+- [x] Manuelle Ferienverwaltung pro Schuljahr
+- [x] Beurteilungen mit KW-Zuordnung
+- [x] MIA-Themen-Verknüpfung
+- [x] PDF-Export (Quartal, Woche, Jahr)
+- [x] Schuljahr kopieren
+- [x] Konfigurierbare Dashboard-Kacheln
+
+### LP21 KompetenzPicker (März 2026 ✨)
+- [x] Hierarchische Kompetenz-Auswahl aus LP21-API
+- [x] Fachbereich-Splitting (SPR → D/DaZ/FS, GES → BG/TTG)
+- [x] Kanton-spezifische Aliase (MI ↔ IB)
+- [x] Anwendungskompetenzen-Integration
 
 ## 🔜 Nächste Schritte
 

@@ -988,23 +988,22 @@ export async function getLP21Struktur(fachbereichCode: string): Promise<LP21Fach
       }
     }
 
-    // 4. Fallback: Sub-Fachbereich-Suche in allen Umbrella-Dokumenten
-    if (!subInfo) {
-      // Check all umbrella docs for matching Kompetenzbereiche
-      for (const d of allDocs.docs) {
-        const data = d.data();
-        const kbs: LP21StrukturKompetenzbereich[] = data.kompetenzbereiche || [];
-        const matching = kbs.filter((kb) => kb.code.startsWith(fachbereichCode + "."));
-        if (matching.length > 0) {
-          console.log(`LP21 Struktur: '${fachbereichCode}' in doc '${d.id}' gefunden (${matching.length} KBs)`);
-          return {
-            fachbereichCode,
-            fachbereichName: fachbereichCode,
-            kanton: data.kanton,
-            kompetenzbereiche: matching,
-            lastSyncedAt: timestampToDate(data.lastSyncedAt),
-          };
-        }
+    // 4. Fallback: Suche in ALLEN Dokumenten nach passenden Kompetenzbereichen
+    // (z.B. TTG.* KBs könnten in einem BG oder GES Dokument enthalten sein)
+    for (const d of allDocs.docs) {
+      const data = d.data();
+      const kbs: LP21StrukturKompetenzbereich[] = data.kompetenzbereiche || [];
+      const matching = kbs.filter((kb) => kb.code.startsWith(fachbereichCode + "."));
+      if (matching.length > 0) {
+        const subName = SUB_FACHBEREICH_MAP[fachbereichCode]?.name || fachbereichCode;
+        console.log(`LP21 Struktur: '${fachbereichCode}' in doc '${d.id}' gefunden (${matching.length} KBs)`);
+        return {
+          fachbereichCode,
+          fachbereichName: subName,
+          kanton: data.kanton,
+          kompetenzbereiche: matching,
+          lastSyncedAt: timestampToDate(data.lastSyncedAt),
+        };
       }
     }
 
