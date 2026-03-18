@@ -430,13 +430,15 @@ const FACHBEREICH_EXCLUDES: Record<string, string[]> = {
 export async function getSystemKompetenzenByFachbereich(fachbereichCode: string): Promise<SystemKompetenz[]> {
   try {
     const alle = await getSystemKompetenzen();
-    const prefixes = [fachbereichCode + "."];
 
-    // Add alias prefixes (MI ↔ IB)
-    const aliases = FACHBEREICH_ALIASES[fachbereichCode];
-    if (aliases) {
-      for (const alias of aliases) {
-        prefixes.push(alias + ".");
+    // Build all prefixes: original + FACHBEREICH_ALIASES (MI↔IB) + CODE_ALIASES (TTG↔TG)
+    const prefixes = getCodePrefixes(fachbereichCode);
+    const fachAliases = FACHBEREICH_ALIASES[fachbereichCode];
+    if (fachAliases) {
+      for (const alias of fachAliases) {
+        for (const p of getCodePrefixes(alias)) {
+          if (!prefixes.includes(p)) prefixes.push(p);
+        }
       }
     }
 
@@ -446,7 +448,6 @@ export async function getSystemKompetenzenByFachbereich(fachbereichCode: string)
       if (!k.lpCode) return false;
       const matchesPrefix = prefixes.some((p) => k.lpCode!.startsWith(p));
       if (!matchesPrefix) return false;
-      // Exclude sub-fachbereiche (e.g., DaZ from D)
       return !excludes.some((ex) => k.lpCode!.startsWith(ex + "."));
     });
   } catch (error) {
@@ -865,7 +866,7 @@ export async function upsertLP21Struktur(struktur: LP21FachbereichStruktur): Pro
 /**
  * Sub-Fachbereich Mapping: Codes die aus Umbrella-Kategorien extrahiert werden.
  * SPR (Sprachen) enthält D, DaZ, FS1F, FS2E, FS3I
- * GES (Gestalten) enthält BG, TTG
+ * GES (Gestalten) enthält BG, TG (in LP21 API als "TG", in der App als "TTG")
  */
 const SUB_FACHBEREICH_MAP: Record<string, { umbrella: string; name: string }> = {
   "D": { umbrella: "SPR", name: "Deutsch" },
@@ -875,21 +876,47 @@ const SUB_FACHBEREICH_MAP: Record<string, { umbrella: string; name: string }> = 
   "FS3I": { umbrella: "SPR", name: "Italienisch (3. Fremdsprache)" },
   "BG": { umbrella: "GES", name: "Bildnerisches Gestalten" },
   "TTG": { umbrella: "GES", name: "Textiles und Technisches Gestalten" },
+  "TG": { umbrella: "GES", name: "Textiles und Technisches Gestalten" },
 };
 
 /**
+ * Code-Aliase: Verschiedene Codes für denselben Fachbereich.
+ * TTG ↔ TG: Die App verwendet "TTG", die LP21-API verwendet "TG".
+ */
+const CODE_ALIASES: Record<string, string[]> = {
+  "TTG": ["TG"],
+  "TG": ["TTG"],
+};
+
+/**
+ * Gibt alle Prefixes zurück, die für einen Fachbereich-Code gelten.
+ * Berücksichtigt Code-Aliase (z.B. TTG → ["TTG.", "TG."])
+ */
+function getCodePrefixes(fachbereichCode: string): string[] {
+  const prefixes = [fachbereichCode + "."];
+  const aliases = CODE_ALIASES[fachbereichCode];
+  if (aliases) {
+    for (const alias of aliases) {
+      prefixes.push(alias + ".");
+    }
+  }
+  return prefixes;
+}
+
+/**
  * Filtert Kompetenzbereiche für einen Fachbereich-Code.
- * Entfernt Sub-Fachbereiche (z.B. DaZ aus D).
+ * Berücksichtigt Code-Aliase (TTG ↔ TG) und entfernt Sub-Fachbereiche (z.B. DaZ aus D).
  */
 function filterKompetenzbereiche(
   kbs: LP21StrukturKompetenzbereich[],
   fachbereichCode: string
 ): LP21StrukturKompetenzbereich[] {
-  const prefix = fachbereichCode + ".";
+  const prefixes = getCodePrefixes(fachbereichCode);
   const excludes = FACHBEREICH_EXCLUDES[fachbereichCode] || [];
 
   return kbs.filter((kb) => {
-    if (!kb.code.startsWith(prefix)) return false;
+    const matchesPrefix = prefixes.some((p) => kb.code.startsWith(p));
+    if (!matchesPrefix) return false;
     // Exclude sub-fachbereiche (e.g., DaZ from D)
     return !excludes.some((ex) => kb.code.startsWith(ex + "."));
   });
@@ -989,14 +1016,15 @@ export async function getLP21Struktur(fachbereichCode: string): Promise<LP21Fach
     }
 
     // 4. Fallback: Suche in ALLEN Dokumenten nach passenden Kompetenzbereichen
-    // (z.B. TTG.* KBs könnten in einem BG oder GES Dokument enthalten sein)
+    // Berücksichtigt Code-Aliase (z.B. TTG ↔ TG)
+    const searchPrefixes = getCodePrefixes(fachbereichCode);
     for (const d of allDocs.docs) {
       const data = d.data();
       const kbs: LP21StrukturKompetenzbereich[] = data.kompetenzbereiche || [];
-      const matching = kbs.filter((kb) => kb.code.startsWith(fachbereichCode + "."));
+      const matching = kbs.filter((kb) => searchPrefixes.some((p) => kb.code.startsWith(p)));
       if (matching.length > 0) {
         const subName = SUB_FACHBEREICH_MAP[fachbereichCode]?.name || fachbereichCode;
-        console.log(`LP21 Struktur: '${fachbereichCode}' in doc '${d.id}' gefunden (${matching.length} KBs)`);
+        console.log(`LP21 Struktur: '${fachbereichCode}' in doc '${d.id}' gefunden (${matching.length} KBs, prefixes: ${searchPrefixes.join(", ")})`);
         return {
           fachbereichCode,
           fachbereichName: subName,
@@ -1059,7 +1087,9 @@ export async function getAllLP21Strukturen(): Promise<LP21FachbereichStruktur[]>
       if (expandConfig) {
         // Expand umbrella into sub-fachbereiche
         for (const sub of expandConfig) {
-          const filteredKB = kbs.filter((kb) => kb.code.startsWith(sub.prefix + "."));
+          // Use code aliases to find KBs (e.g., TTG ↔ TG)
+          const prefixes = getCodePrefixes(sub.prefix);
+          const filteredKB = kbs.filter((kb) => prefixes.some((p) => kb.code.startsWith(p)));
           if (filteredKB.length > 0 && !result.has(sub.prefix)) {
             result.set(sub.prefix, {
               fachbereichCode: sub.prefix,
