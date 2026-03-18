@@ -43,7 +43,19 @@ export async function GET(request: NextRequest) {
       if (/^(MI|IB)\.3/.test(kompetenzbereich)) {
         filtered = kompetenzstufen.filter((k) => k.kompetenzbereich === "Anwendungskompetenzen");
       } else {
-        filtered = kompetenzstufen.filter((k) => k.lpCode?.startsWith(kompetenzbereich + "."));
+        // Check both the kompetenzbereich prefix and any code aliases (e.g., TTG ↔ TG)
+        const kbPrefixes = [kompetenzbereich + "."];
+        // Check if the first part has a code alias (e.g., TTG.1 → also check TG.1)
+        const parts = kompetenzbereich.split(".");
+        const CODE_ALIAS_MAP: Record<string, string> = { "TTG": "TG", "TG": "TTG" };
+        if (parts[0] && CODE_ALIAS_MAP[parts[0]]) {
+          const aliasParts = [...parts];
+          aliasParts[0] = CODE_ALIAS_MAP[parts[0]];
+          kbPrefixes.push(aliasParts.join(".") + ".");
+        }
+        filtered = kompetenzstufen.filter((k) =>
+          kbPrefixes.some((p) => k.lpCode?.startsWith(p))
+        );
       }
     }
 
