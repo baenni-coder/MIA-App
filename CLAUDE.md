@@ -42,6 +42,14 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Jahresplan MIA**: Umbenennung für Klarheit (Menü, Dashboard)
 - **Konfigurierbare Dashboard-Kacheln**: Lehrpersonen wählen ihre Dashboard-Kacheln selbst
 
+**NEU (2026-03)**:
+- **LP21 KompetenzPicker**: Hierarchische Kompetenz-Auswahl (Fachbereich → Kompetenzbereich → Kompetenz → Kompetenzstufe)
+- **LP21 API Sync**: Kompetenzen direkt von der LP21-API laden und in Firestore cachen
+- **Fachbereich-Splitting**: SPR → D, DaZ, FS1F, FS2E, FS3I; GES → BG, TTG
+- **Kanton-Aliase**: MI ↔ IB Mapping für Solothurn
+- **Anwendungskompetenzen**: MI.3 / IB.3 aus Airtable-Daten integriert
+- **Responsive Dropdowns**: Kompetenz-Auswahl auf schmalen Bildschirmen nicht mehr abgeschnitten
+
 ## Tech Stack
 
 - **Framework**: Next.js 15 mit App Router
@@ -100,6 +108,13 @@ src/
 │   │   │   ├── users/           # Benutzerverwaltung
 │   │   │   │   └── [id]/       # PUT, GET einzelner User
 │   │   │   └── sync/            # Sync-Endpunkte
+│   │   │       └── lp21/       # LP21 API Sync (NEU)
+│   │   │           ├── route.ts # POST: Fachbereich synchronisieren
+│   │   │           └── fachbereiche/ # GET: Verfügbare Fachbereiche
+│   │   ├── kompetenzen/         # Kompetenz-Endpunkte (NEU)
+│   │   │   └── lp21/           # LP21-Kompetenzen
+│   │   │       ├── route.ts     # GET: Kompetenzstufen laden
+│   │   │       └── struktur/   # GET: Fachbereich-Struktur
 │   │   ├── upload-image/        # Image Upload zu Firebase Storage
 │   │   ├── schulen/             # Schulen-Endpunkte (öffentlich)
 │   │   ├── teachers/            # Lehrer-Endpunkte (GET, POST, PUT)
@@ -140,6 +155,8 @@ src/
 │   ├── AdminThemeReview.tsx     # Admin Review Dialog
 │   ├── CustomThemeForm.tsx      # Formular für Custom Themes (mit Inline-Lektionen)
 │   ├── JahresplanungPDF.tsx     # PDF-Export: Quartals-, Wochen-, Jahresplanung (NEU)
+│   ├── jahresplanung/           # Jahresplanung-Komponenten (NEU)
+│   │   └── KompetenzPicker.tsx  # LP21 Kompetenz-Auswahl (Hierarchisch)
 │   ├── DashboardLayout.tsx      # Dashboard Layout mit Collapsible Sidebar
 │   ├── InlineLektionEditor.tsx  # Kompakter Lektion-Editor für Akkordeon
 │   ├── KanbanBoard.tsx          # Kanban-Board mit Roboter-Bildern & Search
@@ -173,11 +190,17 @@ src/
 │   │   ├── school-files.ts      # School Files CRUD
 │   │   ├── faq.ts               # FAQ CRUD
 │   │   ├── student-artifacts.ts # Schüler-Artefakte CRUD (NEU)
-│   │   └── jahresplanung.ts    # Jahresplanung CRUD (NEU)
+│   │   ├── jahresplanung.ts    # Jahresplanung CRUD (NEU)
+│   │   └── system-cache.ts     # LP21 Struktur & System-Cache (Alias/Exclude/Fallback)
 │   ├── data/                    # Statische Daten (NEU)
 │   │   ├── lp21-data.ts        # LP21-Fachbereiche, Schulkalender, Ferienpresets
 │   │   ├── schulkalender.json  # Ferien-Daten nach Kanton
 │   │   └── lehrplan21-fachbereiche.json # LP21-Fachbereiche mit Kompetenzbereichen
+│   ├── lp21/                    # LP21 API Integration (NEU)
+│   │   ├── crawler.ts          # LP21 Kompetenzbaum-Crawler
+│   │   ├── client.ts           # LP21 API Client
+│   │   ├── config.ts           # Kanton-Mapping, Fachbereich-Config
+│   │   └── types.ts            # LP21-spezifische TypeScript-Typen
 │   └── storage/                 # Firebase Storage
 │       ├── upload.ts            # Image Upload & Validation
 │       └── school-files.ts      # School Files Storage (NEU)
@@ -918,6 +941,45 @@ Lehrpersonen können ihren gesamten Unterricht über alle Fachbereiche hinweg pl
   - Auswahl aus 6 vergangenen Schuljahren
   - Kopiert alle Einheiten mit KW-Zuordnung
   - Warnung bei bestehenden Einheiten im Ziel-Schuljahr
+
+### 27. LP21 KompetenzPicker (NEU)
+Hierarchische Kompetenz-Auswahl für die Jahresplanung mit LP21-API-Daten.
+
+- **Hierarchie**: Fachbereich → Kompetenzbereich → Kompetenz → Kompetenzstufe
+- **Datenquelle**: LP21-API via Firestore-Cache (`lp21_struktur` Collection)
+- **Fachbereich-Splitting**:
+  - SPR (Sprachen) → D, DaZ, FS1F, FS2E, FS3I
+  - GES (Gestalten) → BG, TTG
+- **Kanton-Aliase**: MI ↔ IB für Solothurn (`FACHBEREICH_ALIASES`)
+- **Exclude-Filter**: DaZ aus D herausfiltern (`FACHBEREICH_EXCLUDES`)
+- **Anwendungskompetenzen**: MI.3 / IB.3 aus `system_kompetenzen` integriert
+- **Persistent Cache**: `kompetenzstufenCacheRef` (useRef) für Badge-Anzeige über Fachbereich-Wechsel hinweg
+- **Responsive**: `max-w-[calc(100vw-2rem)]` auf SelectContent, `whitespace-normal` auf Items
+- **Fallback-Suche**: 4-stufige Lookup-Strategie in `getLP21Struktur()`:
+  1. Exakte Doc-ID + Aliase
+  2. Sub-Fachbereich-Extraktion aus Umbrella-Kategorien
+  3. Prefix-Match in allen Dokumenten
+  4. Suche in allen Dokumenten nach passenden Kompetenzbereichen
+
+**Wichtige Dateien:**
+- `src/components/jahresplanung/KompetenzPicker.tsx` - UI-Komponente
+- `src/lib/firestore/system-cache.ts` - Daten-Adapter mit Alias/Exclude/Fallback-Logik
+- `src/app/api/kompetenzen/lp21/struktur/route.ts` - Struktur-API
+- `src/app/api/kompetenzen/lp21/route.ts` - Kompetenzstufen-API
+- `src/lib/data/lehrplan21-fachbereiche.json` - Statische Fachbereich-Definitionen
+- `src/lib/lp21/crawler.ts` - LP21 API Crawler
+
+### 28. LP21 API Sync
+Kompetenzen direkt von der LP21-API synchronisieren.
+
+- **Admin-UI**: `/dashboard/admin/sync` → "LP21 Lehrplan-API Sync"
+- **Kanton-Auswahl**: Alle Schweizer Kantone
+- **Fachbereich-Auswahl**: Dynamisch von LP21-API oder Fallback-Liste
+- **Crawler**: Traversiert den LP21-Kompetenzbaum (Fachbereich → Fächer → Kompetenzbereiche → Kompetenzen → Kompetenzstufen → Aufzählungspunkte)
+- **Speicherung**:
+  - `lp21_struktur` Collection: Fachbereich-Strukturen (Kompetenzbereiche + Kompetenzen)
+  - `system_kompetenzen` Collection: Einzelne Kompetenzstufen mit LP-Codes
+- **Dauer**: 10-30 Sekunden pro Fachbereich
 
 ## Umgebungsvariablen
 
@@ -1768,6 +1830,22 @@ makeSuperAdmin("deine-email@schule.ch");
   - 12 verfügbare Kacheln
   - Einstellungen in Firestore-Profil gespeichert
   - Standard-Kacheln wiederherstellbar
+
+### ✅ Abgeschlossen (März 2026)
+
+- [x] **LP21 KompetenzPicker** - Hierarchische Kompetenz-Auswahl
+  - Fachbereich → Kompetenzbereich → Kompetenz → Kompetenzstufe
+  - LP21-API-Daten aus Firestore-Cache
+  - Persistent Cache für Badge-Anzeige über Fachbereich-Wechsel
+- [x] **LP21 API Sync** - Kompetenzen direkt von der LP21-API
+  - Admin-UI zum Syncing pro Kanton und Fachbereich
+  - Crawler traversiert LP21-Kompetenzbaum
+- [x] **Fachbereich-Splitting** - SPR → D/DaZ/FS, GES → BG/TTG
+  - DaZ als eigener Fachbereich (aus D herausgefiltert)
+  - TTG und BG als separate Fachbereiche
+- [x] **Kanton-Aliase** - MI ↔ IB Mapping für Solothurn
+- [x] **Anwendungskompetenzen** - MI.3 / IB.3 aus Airtable-Daten
+- [x] **Responsive Dropdowns** - Kompetenz-Auswahl auf schmalen Bildschirmen
 
 ### 🚧 In Arbeit / Geplant
 

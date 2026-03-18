@@ -402,11 +402,13 @@ export default function KompetenzPicker({
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-amber-800">
-                <p className="font-medium">Fachbereich noch nicht synchronisiert</p>
+                <p className="font-medium">Fachbereich &quot;{getFachbereichKuerzel(selectedFachbereich)}&quot; noch nicht synchronisiert</p>
                 <p className="text-xs mt-1">
-                  Dieser Fachbereich wurde noch nicht über die LP21 API geladen.
-                  Bitte zuerst unter <span className="font-medium">Admin → Daten-Sync → LP21 Lehrplan-API Sync</span> den
-                  entsprechenden Fachbereich synchronisieren.
+                  Bitte unter{" "}
+                  <a href="/dashboard/admin/sync" className="font-medium underline hover:text-amber-900">
+                    Admin → Daten-Sync → LP21 Lehrplan-API Sync
+                  </a>{" "}
+                  den Fachbereich <span className="font-mono font-bold">{getFachbereichKuerzel(selectedFachbereich)}</span> synchronisieren.
                 </p>
                 {verfuegbareFachbereiche.length > 0 && (
                   <p className="text-xs mt-1">
@@ -464,13 +466,13 @@ export default function KompetenzPicker({
                 <SelectTrigger>
                   <SelectValue placeholder="Kompetenz wählen..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-w-[calc(100vw-2rem)]">
                   {/* Option: Alle anzeigen */}
                   <SelectItem value="__all__">
                     Alle Kompetenzen ({syncedKompetenzstufen.length} Stufen)
                   </SelectItem>
                   {kompetenzen.map((k) => (
-                    <SelectItem key={k.code} value={k.code}>
+                    <SelectItem key={k.code} value={k.code} className="whitespace-normal">
                       {k.code} – {k.bezeichnung}
                     </SelectItem>
                   ))}
