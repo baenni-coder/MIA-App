@@ -188,7 +188,7 @@ export default function SchoolFileUpload({
       const sanitizedName = sanitizeFilename(customName || file.name);
       const storagePath =
         sharedWith === "school"
-          ? `school-files/${schuleId}/shared/${timestamp}_${sanitizedName}`
+          ? `school-files/${schuleId}/shared/${user.uid}/${timestamp}_${sanitizedName}`
           : `school-files/${schuleId}/users/${user.uid}/${timestamp}_${sanitizedName}`;
 
       // 3. Upload direkt zu Firebase Storage (Client-seitig)
