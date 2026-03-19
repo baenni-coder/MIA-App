@@ -233,6 +233,7 @@ export async function POST(request: NextRequest) {
 
     // Lektionen erstellen (wenn vorhanden)
     let lektionenIds: string[] = [];
+    let lektionenError: string | null = null;
     if (lektionen && lektionen.length > 0) {
       try {
         const lektionenToCreate = lektionen.map((lektion) => ({
@@ -254,9 +255,9 @@ export async function POST(request: NextRequest) {
 
         lektionenIds = await createMultipleCustomLektionen(lektionenToCreate);
         console.log(`Created ${lektionenIds.length} lektionen for theme ${themeId}`);
-      } catch (lektionenError) {
-        console.error("Error creating lektionen:", lektionenError);
-        // Fehler beim Erstellen der Lektionen soll Theme-Erstellung nicht blockieren
+      } catch (err) {
+        console.error("Error creating lektionen:", err);
+        lektionenError = "Lektionen konnten nicht gespeichert werden";
       }
     }
 
@@ -283,6 +284,7 @@ export async function POST(request: NextRequest) {
         themeId,
         status,
         lektionenCount: lektionenIds.length,
+        ...(lektionenError ? { lektionenError } : {}),
       },
       { status: 201 }
     );

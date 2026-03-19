@@ -46,7 +46,7 @@ export async function createCustomLektion(
     const now = new Date();
 
     const lektionData = {
-      ...data,
+      ...removeUndefinedValues(data),
       createdAt: now,
       updatedAt: now,
     };
@@ -272,6 +272,15 @@ export async function deleteCustomLektionenByThemeId(
 }
 
 /**
+ * Entfernt undefined-Werte aus einem Objekt (Firestore akzeptiert kein undefined)
+ */
+function removeUndefinedValues<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
+/**
  * Erstellt mehrere Custom Lektionen auf einmal
  */
 export async function createMultipleCustomLektionen(
@@ -304,7 +313,7 @@ export async function createMultipleCustomLektionen(
       ids.push(docRef.id);
 
       batch.set(docRef, {
-        ...lektion,
+        ...removeUndefinedValues(lektion),
         createdAt: now,
         updatedAt: now,
       });

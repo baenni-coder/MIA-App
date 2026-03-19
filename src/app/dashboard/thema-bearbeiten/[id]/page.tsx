@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardLayout from "@/components/DashboardLayout";
 import CustomThemeForm from "@/components/CustomThemeForm";
-import { CustomTheme } from "@/types";
+import { CustomTheme, TempLektion } from "@/types";
 import { Loader2 } from "lucide-react";
 
 export default function ThemaBearbeitenPage() {
@@ -14,6 +14,7 @@ export default function ThemaBearbeitenPage() {
   const params = useParams();
   const { user } = useAuth();
   const [theme, setTheme] = useState<CustomTheme | null>(null);
+  const [initialLektionen, setInitialLektionen] = useState<TempLektion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +52,41 @@ export default function ThemaBearbeitenPage() {
 
       const data = await response.json();
       setTheme(data.theme);
+
+      // Lade existierende Lektionen
+      try {
+        const lektionenResponse = await fetch(
+          `/api/custom-lektionen?themeId=${themeId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        if (lektionenResponse.ok) {
+          const lektionenData = await lektionenResponse.json();
+          const lektionen = Array.isArray(lektionenData) ? lektionenData : (lektionenData.lektionen || []);
+          // Konvertiere zu TempLektion-Format
+          const tempLektionen: TempLektion[] = lektionen.map((l: Record<string, unknown>, index: number) => ({
+            tempId: (l.id as string) || `temp-${Date.now()}-${index}`,
+            lektion: (l.lektion as string) || `Lektion ${index + 1}`,
+            eindeutigeBezeichnung: (l.eindeutigeBezeichnung as string) || `Lektion ${index + 1}`,
+            aufgaben: l.aufgaben as string | undefined,
+            vorwissen: l.vorwissen as string | undefined,
+            material: (l.material as string[]) || [],
+            websiteTools: (l.websiteTools as Array<{ name: string; link: string }>) || [],
+            einstieg: l.einstieg as string | undefined,
+            hauptteil: l.hauptteil as string | undefined,
+            abschluss: l.abschluss as string | undefined,
+            stolpersteine: l.stolpersteine as string | undefined,
+            kiZusammenfassung: l.kiZusammenfassung as string | undefined,
+            order: (l.order as number) || index + 1,
+          }));
+          setInitialLektionen(tempLektionen);
+        }
+      } catch (lektionenErr) {
+        console.error("Error loading lektionen:", lektionenErr);
+      }
     } catch (error) {
       console.error("Error loading theme:", error);
       setError("Fehler beim Laden des Themas.");
@@ -109,6 +145,7 @@ export default function ThemaBearbeitenPage() {
           <CustomThemeForm
             onSuccess={handleSuccess}
             initialData={theme}
+            initialLektionen={initialLektionen}
             mode="edit"
             themeId={themeId}
           />

@@ -154,6 +154,7 @@ export async function PUT(
 
     // Lektionen aktualisieren (wenn vorhanden)
     // Strategie: Alle alten Lektionen löschen und neue erstellen
+    let lektionenError: string | null = null;
     if (lektionen !== undefined) {
       try {
         // Lösche alle vorhandenen Lektionen für dieses Theme
@@ -181,9 +182,9 @@ export async function PUT(
           await createMultipleCustomLektionen(lektionenToCreate);
           console.log(`Updated ${lektionen.length} lektionen for theme ${themeId}`);
         }
-      } catch (lektionenError) {
-        console.error("Error updating lektionen:", lektionenError);
-        // Fehler beim Aktualisieren der Lektionen soll Theme-Update nicht blockieren
+      } catch (err) {
+        console.error("Error updating lektionen:", err);
+        lektionenError = "Lektionen konnten nicht gespeichert werden";
       }
     }
 
@@ -206,7 +207,13 @@ export async function PUT(
       }
     }
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json(
+      {
+        success: true,
+        ...(lektionenError ? { lektionenError } : {}),
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Error in PUT /api/custom-themes/[id]:", error);
 
