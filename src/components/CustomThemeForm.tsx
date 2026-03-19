@@ -381,7 +381,10 @@ export default function CustomThemeForm({
         setInitialLinkedFileIds([...linkedFileIds]);
       }
 
-      if (submitForReview) {
+      // Warnung wenn Lektionen nicht gespeichert werden konnten
+      if (data.lektionenError) {
+        alert(`Thema wurde gespeichert, aber: ${data.lektionenError}. Bitte versuchen Sie die Lektionen erneut zu speichern.`);
+      } else if (submitForReview) {
         alert("Thema wurde zur Prüfung eingereicht!");
       } else {
         alert(
