@@ -234,6 +234,7 @@ export async function POST(request: NextRequest) {
     // Lektionen erstellen (wenn vorhanden)
     let lektionenIds: string[] = [];
     let lektionenError: string | null = null;
+    console.log(`[custom-themes POST] lektionen received: ${lektionen ? lektionen.length : 'undefined'}, themeId: ${themeId}`);
     if (lektionen && lektionen.length > 0) {
       try {
         const lektionenToCreate = lektionen.map((lektion) => ({
@@ -253,12 +254,15 @@ export async function POST(request: NextRequest) {
           order: lektion.order,
         }));
 
+        console.log(`[custom-themes POST] Creating ${lektionenToCreate.length} lektionen, first: ${JSON.stringify({ themeId: lektionenToCreate[0]?.themeId, lektion: lektionenToCreate[0]?.lektion })}`);
         lektionenIds = await createMultipleCustomLektionen(lektionenToCreate);
-        console.log(`Created ${lektionenIds.length} lektionen for theme ${themeId}`);
+        console.log(`[custom-themes POST] Successfully created ${lektionenIds.length} lektionen: ${JSON.stringify(lektionenIds)}`);
       } catch (err) {
-        console.error("Error creating lektionen:", err);
+        console.error("[custom-themes POST] Error creating lektionen:", err);
         lektionenError = "Lektionen konnten nicht gespeichert werden";
       }
+    } else {
+      console.log(`[custom-themes POST] No lektionen to create (lektionen=${JSON.stringify(lektionen)})`);
     }
 
     // Bei Submission: Benachrichtige PICTS-Admins

@@ -117,13 +117,25 @@ export async function getCustomLektionenByThemeId(
 ): Promise<CustomLektion[]> {
   try {
     const adminDb = getAdminDb();
-    const snapshot = await adminDb
-      .collection(CUSTOM_LEKTIONEN_COLLECTION)
-      .where("themeId", "==", themeId)
-      .orderBy("order", "asc")
-      .get();
+    let snapshot;
+    try {
+      // Compound query benötigt Composite Index (themeId + order)
+      snapshot = await adminDb
+        .collection(CUSTOM_LEKTIONEN_COLLECTION)
+        .where("themeId", "==", themeId)
+        .orderBy("order", "asc")
+        .get();
+    } catch (indexError: unknown) {
+      // Fallback: Query ohne orderBy, sortiere in-memory
+      // (falls Composite Index noch nicht deployed ist)
+      console.warn("Composite index missing for custom_lektionen (themeId + order), using fallback:", (indexError as Error).message);
+      snapshot = await adminDb
+        .collection(CUSTOM_LEKTIONEN_COLLECTION)
+        .where("themeId", "==", themeId)
+        .get();
+    }
 
-    return snapshot.docs.map((doc) => {
+    const results = snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -149,6 +161,9 @@ export async function getCustomLektionenByThemeId(
         order: data.order,
       };
     });
+
+    // Sortiere nach order (nötig für Fallback ohne Composite Index)
+    return results.sort((a, b) => (a.order || 0) - (b.order || 0));
   } catch (error) {
     console.error("Error fetching custom lektionen by theme:", error);
     return [];

@@ -19,6 +19,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "themeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "custom_lektionen",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "systemThemeName",
           "order": "ASCENDING"
         },
