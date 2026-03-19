@@ -37,6 +37,9 @@ const initializeAdmin = () => {
       storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     });
 
+    // Firestore: undefined-Werte ignorieren statt Fehler zu werfen
+    admin.firestore().settings({ ignoreUndefinedProperties: true });
+
     initialized = true;
   }
 };

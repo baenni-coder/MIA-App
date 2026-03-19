@@ -155,6 +155,7 @@ export async function PUT(
     // Lektionen aktualisieren (wenn vorhanden)
     // Strategie: Alle alten Lektionen löschen und neue erstellen
     let lektionenError: string | null = null;
+    console.log(`[custom-themes PUT] lektionen in body: ${lektionen === undefined ? 'undefined' : `array[${lektionen.length}]`}, themeId: ${themeId}`);
     if (lektionen !== undefined) {
       try {
         // Lösche alle vorhandenen Lektionen für dieses Theme
