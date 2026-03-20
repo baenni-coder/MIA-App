@@ -26,6 +26,7 @@ import { Stufe, Zeitraum, TempLektion } from "@/types";
 import { Upload, Loader2, Plus, BookOpen, FileText, Paperclip } from "lucide-react";
 import InlineLektionEditor from "./InlineLektionEditor";
 import FileSelector from "./FileSelector";
+import KompetenzSelector from "./KompetenzSelector";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -556,6 +557,23 @@ export default function CustomThemeForm({
               </SelectContent>
             </Select>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Kompetenzen */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Lehrplan-Kompetenzen</CardTitle>
+          <CardDescription>
+            Wählen Sie die Kompetenzen aus dem Lehrplan, die mit diesem Thema abgedeckt werden
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <KompetenzSelector
+            selectedIds={kompetenzenIds}
+            onChange={setKompetenzenIds}
+            disabled={loading}
+          />
         </CardContent>
       </Card>
 
