@@ -264,7 +264,7 @@ export default function KompetenzSelector({
                                 )}
                               </div>
                               <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
-                                {k.kompetenzstufe || k.kompetenz || k.name}
+                                {k.kompetenzstufe || (k.name !== k.lpCode ? k.name : k.kompetenz) || k.name}
                               </p>
                             </div>
                           </label>
