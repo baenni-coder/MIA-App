@@ -38,6 +38,8 @@ const ALLOWED_FILE_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  // HTML
+  "text/html",
 ];
 
 /**
@@ -56,7 +58,7 @@ export function validateSchoolFile(
   if (!ALLOWED_FILE_TYPES.includes(contentType)) {
     return {
       valid: false,
-      error: `Ungültiges Dateiformat. Erlaubt sind: PDF, Word, PowerPoint, Excel, JPEG, PNG, WEBP`,
+      error: `Ungültiges Dateiformat. Erlaubt sind: PDF, Word, PowerPoint, Excel, Bilder, HTML`,
     };
   }
 

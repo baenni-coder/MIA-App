@@ -48,6 +48,7 @@ const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  "text/html",
 ];
 
 const MAX_SIZE_MB = 50;
@@ -89,7 +90,7 @@ export default function SchoolFileUpload({
 
   const validateFile = (f: File): string | null => {
     if (!ALLOWED_TYPES.includes(f.type)) {
-      return "Ungültiges Dateiformat. Erlaubt sind: PDF, Word, PowerPoint, Excel, JPEG, PNG, WEBP";
+      return "Ungültiges Dateiformat. Erlaubt sind: PDF, Word, PowerPoint, Excel, Bilder, HTML";
     }
     if (f.size > MAX_SIZE_BYTES) {
       return `Datei ist zu groß. Maximum: ${MAX_SIZE_MB}MB`;
@@ -324,7 +325,7 @@ export default function SchoolFileUpload({
             Datei hierher ziehen oder klicken zum Auswählen
           </p>
           <p className="text-xs text-muted-foreground">
-            PDF, Word, PowerPoint, Excel, Bilder (max. {MAX_SIZE_MB}MB)
+            PDF, Word, PowerPoint, Excel, Bilder, HTML (max. {MAX_SIZE_MB}MB)
           </p>
           <Input
             type="file"
