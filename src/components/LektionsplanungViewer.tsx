@@ -34,6 +34,7 @@ import {
 interface LektionsplanungViewerProps {
   themaName: string;
   themaId?: string; // Airtable Record ID for system themes
+  customThemeId?: string; // Firestore ID for custom themes
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -41,6 +42,7 @@ interface LektionsplanungViewerProps {
 export default function LektionsplanungViewer({
   themaName,
   themaId,
+  customThemeId,
   open,
   onOpenChange
 }: LektionsplanungViewerProps) {
@@ -94,14 +96,19 @@ export default function LektionsplanungViewer({
   };
 
   const loadCustomLektionen = async () => {
-    if (!themaName) return;
+    if (!themaName && !customThemeId) return;
 
     try {
       const token = await getAuthToken();
       if (!token) return;
 
+      // For custom themes, query by themeId; for system themes, query by systemThemeName
+      const queryParam = customThemeId
+        ? `themeId=${encodeURIComponent(customThemeId)}`
+        : `systemThemeName=${encodeURIComponent(themaName)}`;
+
       const response = await fetch(
-        `/api/custom-lektionen?systemThemeName=${encodeURIComponent(themaName)}`,
+        `/api/custom-lektionen?${queryParam}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
