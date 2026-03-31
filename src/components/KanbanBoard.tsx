@@ -43,6 +43,7 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
   const [lektionsplanungOpen, setLektionsplanungOpen] = useState(false);
   const [lektionsplanungThema, setLektionsplanungThema] = useState<string>("");
   const [lektionsplanungThemaId, setLektionsplanungThemaId] = useState<string | undefined>(undefined);
+  const [lektionsplanungCustomThemeId, setLektionsplanungCustomThemeId] = useState<string | undefined>(undefined);
   const [searchHandled, setSearchHandled] = useState(false);
   const [searchResult, setSearchResult] = useState<{ found: boolean; themeName?: string } | null>(null);
 
@@ -389,8 +390,10 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                       e.stopPropagation();
                       if (selectedThema?.thema) {
                         setLektionsplanungThema(selectedThema.thema);
-                        // Only pass themaId for non-custom themes (Airtable/System themes)
+                        // For system themes: pass themaId (Airtable ID)
+                        // For custom themes: pass customThemeId (Firestore ID)
                         setLektionsplanungThemaId(selectedThema.isCustom ? undefined : selectedThema.id);
+                        setLektionsplanungCustomThemeId(selectedThema.isCustom ? selectedThema.id : undefined);
                         setLektionsplanungOpen(true);
                       }
                     }}
@@ -617,6 +620,7 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
       <LektionsplanungViewer
         themaName={lektionsplanungThema}
         themaId={lektionsplanungThemaId}
+        customThemeId={lektionsplanungCustomThemeId}
         open={lektionsplanungOpen}
         onOpenChange={setLektionsplanungOpen}
       />
