@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workshopplanung – MIA-App Weiterbildung</title>
+  <style>
+    :root {
+      --primary: #1E5F8C;
+      --secondary: #4CAF50;
+      --accent: #F39C12;
+      --bg: #f5f7fa;
+      --card-bg: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --highlight: #fef3c7;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, #2980b9 100%);
+      color: white;
+      padding: 40px 24px;
+      border-radius: 12px;
+      margin-bottom: 32px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    header .logo {
+      display: inline-block;
+      font-family: monospace;
+      font-size: 1.4rem;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 6px 14px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+
+    header h1 {
+      margin: 0 0 8px 0;
+      font-size: 2.2rem;
+    }
+
+    header p {
+      margin: 0;
+      opacity: 0.95;
+      font-size: 1.1rem;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .meta-card {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 14px 18px;
+      border-radius: 8px;
+      backdrop-filter: blur(6px);
+    }
+
+    .meta-card .label {
+      display: block;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.8;
+      margin-bottom: 4px;
+    }
+
+    .meta-card .value {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    section {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    h2 {
+      color: var(--primary);
+      border-bottom: 3px solid var(--primary);
+      padding-bottom: 8px;
+      margin-top: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2 .icon {
+      width: 36px;
+      height: 36px;
+      background: var(--primary);
+      color: white;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    h3 {
+      color: var(--primary);
+      margin-top: 24px;
+    }
+
+    .ziele {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .ziel-card {
+      background: var(--bg);
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid var(--secondary);
+    }
+
+    .ziel-card strong {
+      color: var(--primary);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    th {
+      background: var(--primary);
+      color: white;
+      padding: 14px 12px;
+      text-align: left;
+      font-size: 0.95rem;
+    }
+
+    td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      font-size: 0.95rem;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    tr:hover td { background: #fafbfc; }
+
+    .zeit {
+      font-weight: 600;
+      color: var(--primary);
+      white-space: nowrap;
+      font-family: monospace;
+    }
+
+    .phase {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .phase-einstieg { background: #dbeafe; color: #1e40af; }
+    .phase-input    { background: #d1fae5; color: #065f46; }
+    .phase-praxis   { background: #fef3c7; color: #92400e; }
+    .phase-pause    { background: #f3f4f6; color: #374151; }
+    .phase-reflexion{ background: #fce7f3; color: #9d174d; }
+
+    .sozialform {
+      display: inline-block;
+      padding: 2px 8px;
+      background: var(--bg);
+      border-radius: 4px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-right: 4px;
+    }
+
+    .material-list {
+      list-style: none;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 10px;
+    }
+
+    .material-list li {
+      background: var(--bg);
+      padding: 10px 14px;
+      border-radius: 6px;
+      border-left: 3px solid var(--accent);
+      font-size: 0.95rem;
+    }
+
+    .info-box {
+      background: var(--highlight);
+      border-left: 4px solid var(--accent);
+      padding: 14px 18px;
+      border-radius: 6px;
+      margin: 16px 0;
+    }
+
+    .info-box strong { color: var(--primary); }
+
+    .checkliste {
+      list-style: none;
+      padding: 0;
+    }
+
+    .checkliste li {
+      padding: 8px 0 8px 32px;
+      position: relative;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .checkliste li::before {
+      content: "☐";
+      position: absolute;
+      left: 0;
+      top: 6px;
+      font-size: 1.4rem;
+      color: var(--primary);
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .badge {
+      background: var(--primary);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+    }
+
+    .badge.green  { background: var(--secondary); }
+    .badge.orange { background: var(--accent); }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 32px;
+    }
+
+    @media print {
+      body { background: white; }
+      header, section { box-shadow: none; page-break-inside: avoid; }
+      header { background: var(--primary) !important; -webkit-print-color-adjust: exact; }
+      .container { padding: 12px; max-width: 100%; }
+      table { font-size: 0.85rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <span class="logo">&lt;/&gt; MIA-App</span>
+      <h1>Workshopplanung – Weiterbildung MIA-App</h1>
+      <p>Digitale Jahresplanung für Medien, Informatik und Anwendungskompetenzen</p>
+
+      <div class="meta-grid">
+        <div class="meta-card">
+          <span class="label">Zielgruppe</span>
+          <span class="value">Lehrpersonen Zyklus 1–3</span>
+        </div>
+        <div class="meta-card">
+          <span class="label">Dauer</span>
+          <span class="value">3.5 Stunden (Halbtag)</span>
+        </div>
+        <div class="meta-card">
+          <span class="label">Gruppengrösse</span>
+          <span class="value">8–16 Personen</span>
+        </div>
+        <div class="meta-card">
+          <span class="label">Format</span>
+          <span class="value">Präsenz mit Hands-on</span>
+        </div>
+      </div>
+    </header>
+
+    <section>
+      <h2><span class="icon">1</span> Ziele des Workshops</h2>
+      <div class="ziele">
+        <div class="ziel-card">
+          <strong>Orientierung:</strong> Die Teilnehmenden kennen den Aufbau der MIA-App und finden sich eigenständig zurecht.
+        </div>
+        <div class="ziel-card">
+          <strong>Profil:</strong> Sie richten ihr Lehrerprofil ein und konfigurieren ihre Dashboard-Kacheln individuell.
+        </div>
+        <div class="ziel-card">
+          <strong>Jahresplan MIA:</strong> Sie nutzen das Kanban-Board zur Planung ihres MIA-Unterrichts.
+        </div>
+        <div class="ziel-card">
+          <strong>Kompetenzen:</strong> Sie finden passende LP21-Kompetenzen und verknüpfte Unterrichtsideen.
+        </div>
+        <div class="ziel-card">
+          <strong>Eigene Themen:</strong> Sie erstellen ein eigenes Thema mit Lektionsplanung.
+        </div>
+        <div class="ziel-card">
+          <strong>Zusammenarbeit:</strong> Sie teilen Materialien rechtssicher schulintern.
+        </div>
+        <div class="ziel-card">
+          <strong>Jahresplanung:</strong> Sie planen fächerübergreifend mit Quartals- und Wochenansicht.
+        </div>
+        <div class="ziel-card">
+          <strong>Ausblick Kompetenzenpass:</strong> Sie kennen die Grundzüge der Schüler-Selbstbewertung.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="icon">2</span> Ablauf</h2>
+
+      <div class="badges">
+        <span class="badge">Einstieg</span>
+        <span class="badge green">Input &amp; Demo</span>
+        <span class="badge orange">Hands-on</span>
+        <span class="badge">Pause</span>
+        <span class="badge green">Reflexion</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:90px">Zeit</th>
+            <th style="width:100px">Phase</th>
+            <th>Inhalt</th>
+            <th style="width:160px">Sozialform / Material</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="zeit">00:00<br>00:15</td>
+            <td><span class="phase phase-einstieg">Einstieg</span></td>
+            <td>
+              <strong>Begrüssung &amp; Einstieg</strong>
+              <ul>
+                <li>Vorstellung der Kursleitung</li>
+                <li>Ziele &amp; Ablauf des Workshops</li>
+                <li>Kurze Vorstellungsrunde: «Welche Frage bringst du mit?»</li>
+              </ul>
+            </td>
+            <td>
+              <span class="sozialform">Plenum</span>
+              <span class="sozialform">Beamer</span>
+              <span class="sozialform">Flipchart</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="zeit">00:15<br>00:35</td>
+            <td><span class="phase phase-input">Input</span></td>
+            <td>
+              <strong>Überblick MIA-App</strong>
+              <ul>
+                <li>Wozu dient die App? Warum entstand sie?</li>
+                <li>Hybrid-Architektur kurz erklärt (Airtable + Firestore)</li>
+                <li>Live-Tour: Login, Dashboard, Sidebar, Profil</li>
+                <li>Konfigurierbare Dashboard-Kacheln</li>
+              </ul>
+            </td>
+            <td>
+              <span class="sozialform">Plenum</span>
+              <span class="sozialform">Demo-Account</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="zeit">00:35<br>00:55</td>
+            <td><span class="phase phase-praxis">Hands-on</span></td>
+            <td>
+              <strong>Eigenes Profil einrichten</strong>
+              <ul>
+                <li>Account-Login prüfen, Schule/Kanton/Stufe ergänzen</li>
+                <li>Dashboard-Kacheln nach eigenen Bedürfnissen anpassen</li>
+                <li>Erste Erkundung im Jahresplan MIA der eigenen Stufe</li>
+              </ul>
+            </td>
+            <td>
+              <span class="sozialform">Einzelarbeit</span>
+              <span class="sozialform">Notebook</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="zeit">00:55<br>01:25</td>
+            <td><span class="phase phase-input">Input</span></td>
+            <td>
+              <strong>Jahresplan MIA &amp; Lehrplan-Kompetenzen</strong>
+              <ul>
+                <li>Kanban-Board mit 6 Spalten erkunden</li>
+                <li>Themen-Detailansicht: Lehrmittel, Kompetenzen, Lektionsplanung</li>
+                <li>Kompetenz-Dialog mit klickbaren Unterrichtsideen</li>
+                <li>Lehrplan-Seite mit Kachel-Layout</li>
+                <li>Hierarchischer LP21 KompetenzPicker</li>
+              </ul>
+            </td>
+            <td>
+              <span class="sozialform">Plenum</span>
+              <span class="sozialform">Beamer</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="zeit">01:25<br>01:45</td>
+            <td><span class="phase phase-pause">Pause</span></td>
+            <td>
+              <strong>Kaffeepause</strong>
+              <p style="margin: 4px 0; color: var(--muted);">Austausch in der Gruppe, Fragen sammeln, Stretching.</p>
+            </td>
+            <td>
+              <span class="sozialform">informell</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="zeit">01:45<br>02:30</td>
+            <td><span class="phase phase-praxis">Hands-on</span></td>
+            <td>
+              <strong>Eigenes Thema erstellen</strong>
+              <ul>
+                <li>Custom-Thema anlegen: Titel, Beschreibung, Lehrmittel, Bild</li>
+                <li>Klassenstufen, Zeitraum und Kompetenzen wählen</li>
+                <li>Inline-Lektion mit 3-Phasen-Modell erfassen</li>
+                <li>Workflow: Entwurf vs. Einreichung zur Prüfung</li>
+              </ul>
+              <div class="info-box" style="margin-top:8px;">
+                <strong>Tipp:</strong> Arbeitet zu zweit – eine Person erstellt, die andere gibt direkt Feedback.
+              </div>
+            </td>
+            <td>
+              <span class="sozialform">Partnerarbeit</span>
+              <span class="sozialform">Notebook</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="zeit">02:30<br>02:50</td>
+            <td><span class="phase phase-input">Input</span></td>
+            <td>
+              <strong>Schul-Dateien &amp; Zusammenarbeit</strong>
+              <ul>
+                <li>Datei-Upload mit Verknüpfung zu Themen</li>
+                <li>Sichtbarkeit: privat vs. schulweit</li>
+                <li>Verknüpfte Dateien im Themen-Dialog ansehen</li>
+                <li>Demo: Datei hochladen und mit Thema verknüpfen</li>
+              </ul>
+            </td>
+            <td>
+              <span class="sozialform">Plenum</span>
+              <span class="sozialform">Demo</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="zeit">02:50<br>03:10</td>
+            <td><span class="phase phase-praxis">Hands-on</span></td>
+            <td>
+              <strong>Fächerübergreifende Jahresplanung</strong>
+              <ul>
+                <li>Quartals- und Wochenansicht erkunden</li>
+                <li>Eine Einheit mit LP21-Kompetenz erstellen</li>
+                <li>Beurteilung mit KW-Zuordnung hinzufügen</li>
+                <li>Ferien anpassen, PDF-Export ausprobieren</li>
+              </ul>
+            </td>
+            <td>
+              <span class="sozialform">Einzel-/Partnerarbeit</span>
+              <span class="sozialform">Notebook</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="zeit">03:10<br>03:30</td>
+            <td><span class="phase phase-reflexion">Reflexion</span></td>
+            <td>
+              <strong>Reflexion, Ausblick &amp; Abschluss</strong>
+              <ul>
+                <li>Kurzer Ausblick: Kompetenzenpass für Schüler:innen</li>
+                <li>Reflexion in Murmelgruppen: Wo setze ich die App ab morgen ein?</li>
+                <li>Sammlung offener Fragen → FAQ-Seite, Support-Kanäle</li>
+                <li>Feedback-Runde &amp; Verabschiedung</li>
+              </ul>
+            </td>
+            <td>
+              <span class="sozialform">Murmelgruppe</span>
+              <span class="sozialform">Plenum</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2><span class="icon">3</span> Differenzierung nach Zyklus</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Zyklus</th>
+            <th>Schwerpunkte im Workshop</th>
+            <th>Empfohlene Beispiele</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Zyklus 1</strong><br>(KiGa – 2. Klasse)</td>
+            <td>Anwendungskompetenzen, einfache Themen, geringe Lektionenzahl, Roboter-Bezug</td>
+            <td>«Mitten in der Medienwelt», erste Tablet-Nutzung, Bilderbuch-Apps</td>
+          </tr>
+          <tr>
+            <td><strong>Zyklus 2</strong><br>(3. – 6. Klasse)</td>
+            <td>Vollständiger Jahresplan, Lehrmittel «Connected», eigene Themen erstellen</td>
+            <td>Programmieren mit Scratch, Recherche im Web, Medienkompetenz</td>
+          </tr>
+          <tr>
+            <td><strong>Zyklus 3</strong><br>(7. – 9. Klasse)</td>
+            <td>Komplexe Themen, fächerübergreifende Jahresplanung, Kompetenzenpass mit Artefakten</td>
+            <td>Datenschutz, KI im Unterricht, Projektarbeiten mit Belegen</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2><span class="icon">4</span> Material &amp; Vorbereitungen</h2>
+
+      <h3>Für die Teilnehmenden</h3>
+      <ul class="material-list">
+        <li>Eigenes Notebook oder Tablet mit aktuellem Browser</li>
+        <li>Schul-WLAN-Zugang (oder Hotspot)</li>
+        <li>MIA-App-Account (vorab erstellt)</li>
+        <li>Schulische E-Mail-Adresse + Passwort</li>
+        <li>Persönlicher Stundenplan / Jahresübersicht</li>
+        <li>Optional: vorhandene Lektionsplanung zum Hochladen</li>
+        <li>Notizmaterial (digital oder analog)</li>
+      </ul>
+
+      <h3>Für die Kursleitung</h3>
+      <ul class="material-list">
+        <li>Beamer / Grossbildschirm mit HDMI</li>
+        <li>Notebook mit Admin-Account in der MIA-App</li>
+        <li>Demo-Account für Live-Vorführungen</li>
+        <li>Vorbereitete Beispiel-Themen in Demo-Umgebung</li>
+        <li>Diese Workshopplanung (digital + ausgedruckt)</li>
+        <li>Handout mit URL und Login-Hinweisen</li>
+        <li>Whiteboard / Flipchart für Fragen</li>
+        <li>Timer für Zeitmanagement</li>
+      </ul>
+
+      <h3>Vorab-Aufgaben (1 Woche vor dem Workshop)</h3>
+      <ul class="checkliste">
+        <li>Account auf der MIA-App erstellen (Registrierung)</li>
+        <li>Profil vervollständigen (Kanton, Stufe, Schule)</li>
+        <li>Jahresplan MIA der eigenen Stufe einmal aufrufen</li>
+        <li>Mindestens eine konkrete Frage oder ein Wunsch-Szenario notieren</li>
+      </ul>
+
+      <div class="info-box">
+        <strong>Hinweis zum Raum:</strong> Tischgruppen für 4–6 Personen, stabile Steckdosen-Infrastruktur, ausreichend Platz für Hands-on-Arbeit und Plenumsdiskussion.
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="icon">5</span> Checkliste für die Kursleitung</h2>
+      <h3>1 Woche vorher</h3>
+      <ul class="checkliste">
+        <li>Einladung mit Vorab-Aufgaben verschickt</li>
+        <li>Demo-Account mit Beispiel-Themen vorbereitet</li>
+        <li>Beispiel-Bilder für Lehrmittel-Upload bereitgelegt</li>
+        <li>FAQ-Einträge auf Aktualität geprüft</li>
+        <li>Raum reserviert, Beamer und WLAN getestet</li>
+      </ul>
+
+      <h3>Am Workshop-Tag</h3>
+      <ul class="checkliste">
+        <li>Raum 30 Minuten vorher öffnen</li>
+        <li>Beamer-Verbindung und Browser-Tabs vorbereiten</li>
+        <li>Begrüssungsfolie / Workshopplanung an Beamer</li>
+        <li>Verpflegung &amp; Pause organisiert</li>
+        <li>Feedback-Bogen oder -Tool bereitstellen</li>
+      </ul>
+
+      <h3>Nach dem Workshop</h3>
+      <ul class="checkliste">
+        <li>Feedback auswerten</li>
+        <li>Offene Fragen sammeln und in FAQ aufnehmen</li>
+        <li>Folge-Termin / Sprechstunde anbieten</li>
+        <li>Eingereichte Custom-Themes der Teilnehmenden reviewen (PICTS-Admin)</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>Workshopplanung – Weiterbildung MIA-App | Erstellt für Lehrpersonen Zyklus 1–3</p>
+    </footer>
+
+  </div>
+</body>
+</html>
