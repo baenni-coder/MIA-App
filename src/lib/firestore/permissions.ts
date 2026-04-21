@@ -163,3 +163,21 @@ export async function canReviewCustomTheme(
 ): Promise<boolean> {
   return isPICTSAdminOfSchule(userId, schuleId);
 }
+
+/**
+ * Prüft, ob ein User den schulinternen Jahresplan einer Schule verwalten darf:
+ * - Themen zuordnen/entfernen
+ * - Overrides setzen
+ * - jahresplanMode umstellen
+ *
+ * Erlaubt für:
+ * - Super-Admins (für alle Schulen)
+ * - PICTS-Admins der jeweiligen Schule
+ */
+export async function canManageSchoolJahresplan(
+  userId: string,
+  schuleId: string
+): Promise<boolean> {
+  if (await isSuperAdmin(userId)) return true;
+  return isPICTSAdminOfSchule(userId, schuleId);
+}

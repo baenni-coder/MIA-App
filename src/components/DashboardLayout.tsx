@@ -31,6 +31,7 @@ import {
   Award,
   BarChart3,
   Lightbulb,
+  ListChecks,
 } from "lucide-react";
 import { Kanton } from "@/types";
 
@@ -230,6 +231,12 @@ export default function DashboardLayout({
           label: "Themen-Prüfung",
           icon: <Shield className="h-5 w-5" />,
           path: "/dashboard/admin",
+          adminOnly: true,
+        },
+        {
+          label: "Jahresplan-Pool",
+          icon: <ListChecks className="h-5 w-5" />,
+          path: "/dashboard/admin/jahresplan-pool",
           adminOnly: true,
         },
         {

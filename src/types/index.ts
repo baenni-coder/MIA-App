@@ -76,7 +76,18 @@ export interface Thema {
   // Custom Theme Felder (wenn aus Firestore)
   isCustom?: boolean;
   customThemeId?: string;
+  // School-Jahresplan Felder (wenn Thema im kuratierten Pool einer Schule zugeordnet ist)
+  assignmentId?: string; // ID des SchoolJahresplanAssignment
+  isSchoolOverridden?: boolean; // true wenn mindestens ein Override-Feld gesetzt ist
+  schulMaterialien?: string[]; // zusätzliche Materialien von der Schule
+  schulNotizen?: string;
+  schulUnterlagen?: string;
 }
+
+// Modus für den schulinternen Jahresplan MIA
+// "open": Lehrpersonen sehen alle Themen (System + approved Custom) – bestehendes Verhalten
+// "curated": Lehrpersonen sehen nur Themen, die der PICTS-Admin der Schule zugeordnet hat
+export type JahresplanMode = "open" | "curated";
 
 // Schule
 export interface Schule {
@@ -84,6 +95,7 @@ export interface Schule {
   name: string;
   ort?: string;
   pictsBuchen?: string;
+  jahresplanMode?: JahresplanMode; // Default: "open" (Abwärtskompatibilität)
   createdAt: Date;
 }
 
@@ -249,6 +261,52 @@ export interface CustomLektion {
 
   // Reihenfolge
   order: number; // Für Sortierung
+}
+
+// ============================================
+// School Jahresplan Assignments (Themen-Pool → Schul-Jahresplan)
+// ============================================
+
+// Quelle eines zugeordneten Themas
+export type SchoolJahresplanSourceType = "system" | "custom";
+
+// Zuordnung eines Themas zum schulinternen Jahresplan MIA
+// Override-Pattern: nur abweichende Felder werden gespeichert,
+// Original-Thema bleibt die Source of Truth.
+export interface SchoolJahresplanAssignment {
+  id: string;
+
+  // Zuordnung
+  schuleId: string; // Schule, für die das Thema zugeordnet ist
+  sourceThemeId: string; // Airtable recId (system) oder Firestore doc id (custom)
+  sourceType: SchoolJahresplanSourceType;
+
+  // Overrides (nur gesetzt wenn abweichend vom Original)
+  zeitraumOverride?: Zeitraum;
+  stufeOverride?: Stufe[];
+  themaOverride?: string;
+  beschreibungOverride?: string;
+  lehrmittelOverride?: string;
+  bildLehrmittelOverride?: string;
+  anzahlLektionenOverride?: number;
+  fileRougeOverride?: string;
+  unterlagenOverride?: string;
+
+  // Schulspezifische Ergänzungen (additiv, nicht ersetzend)
+  schulMaterialien?: string[]; // zusätzliche Materialien
+  schulNotizen?: string; // freie Notizen der Schule
+  schulUnterlagen?: string; // URL zu schulinternen Unterlagen
+
+  // Zuordnungs-Metadaten
+  assignedBy: string; // User ID (PICTS-Admin / Super-Admin)
+  assignedByName: string;
+  assignedAt: Date;
+  lastModifiedBy?: string;
+  lastModifiedByName?: string;
+  lastModifiedAt?: Date;
+
+  isActive: boolean; // Soft-Delete; inaktive Assignments werden Lehrpersonen nicht angezeigt
+  sortOrder?: number; // optionale Sortierung innerhalb eines Zeitraums
 }
 
 // Notification Typen

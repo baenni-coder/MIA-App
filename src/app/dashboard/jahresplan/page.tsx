@@ -69,13 +69,20 @@ function JahresplanContent() {
 
         // Wenn allStufen=true (von Lehrplan-Link), lade ALLE Themen
         // Sonst nur Themen für die aktuelle Stufe
-        let themenUrl: string;
-        if (allStufenParam && searchQuery) {
-          // Lade alle Themen ohne Stufen-Filter
-          themenUrl = `/api/themen?grouped=true`;
-        } else {
-          themenUrl = `/api/themen?stufe=${encodeURIComponent(currentStufe)}&grouped=true`;
+        // Bei vorhandener schuleId wird curated=true angehängt; die API
+        // liefert den kuratierten Schul-Jahresplan nur, wenn die Schule auch
+        // wirklich im curated-Modus ist, sonst fällt sie automatisch auf das
+        // bisherige (offene) Verhalten zurück.
+        const params = new URLSearchParams();
+        params.set("grouped", "true");
+        if (!(allStufenParam && searchQuery)) {
+          params.set("stufe", currentStufe);
         }
+        if (data.schuleId) {
+          params.set("schuleId", data.schuleId);
+          params.set("curated", "true");
+        }
+        const themenUrl = `/api/themen?${params.toString()}`;
 
         const themenRes = await fetch(themenUrl);
         const themenData = await themenRes.json();
