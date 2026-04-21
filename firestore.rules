@@ -435,5 +435,35 @@ service cloud.firestore {
       allow delete: if isAuthenticated() &&
         resource.data.teacherId == request.auth.uid;
     }
+
+    // ============================================
+    // School Jahresplan Assignments Collection
+    // (Zuordnung von Pool-Themen zum Schul-Jahresplan inkl. Overrides)
+    // ============================================
+
+    match /school_jahresplan_assignments/{assignmentId} {
+      // Lesen: Alle authentifizierten User (Lehrer sehen den kuratierten Jahresplan
+      // ihrer Schule; die Filterung auf die eigene Schule erfolgt auf API-Ebene).
+      allow read: if isAuthenticated();
+
+      // Schreiben (Create/Update/Delete): Nur Super-Admin oder PICTS-Admin der
+      // betreffenden Schule. Client-seitige Writes sind optional – der
+      // Haupt-Workflow läuft über die API (Admin SDK umgeht Rules ohnehin),
+      // diese Rules dienen als Sicherheitsnetz.
+      allow create: if isAuthenticated() && (
+        isSuperAdmin(request.auth.uid) ||
+        isPICTSAdminOfSchule(request.auth.uid, request.resource.data.schuleId)
+      );
+
+      allow update: if isAuthenticated() && (
+        isSuperAdmin(request.auth.uid) ||
+        isPICTSAdminOfSchule(request.auth.uid, resource.data.schuleId)
+      );
+
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin(request.auth.uid) ||
+        isPICTSAdminOfSchule(request.auth.uid, resource.data.schuleId)
+      );
+    }
   }
 }

@@ -1,19 +1,35 @@
 import { NextResponse } from "next/server";
-import { getThemes, getThemesByStufe, getThemesGroupedByZeitraum } from "@/lib/data-sources/themes-adapter";
-import { getCustomThemesByStufe } from "@/lib/firestore/custom-themes";
+import { getThemes, getThemesByStufe } from "@/lib/data-sources/themes-adapter";
+import {
+  getCustomThemesByStufe,
+  getCustomThemes,
+} from "@/lib/firestore/custom-themes";
 import { getSystemKompetenzenByIds } from "@/lib/firestore/system-cache";
-import { Stufe, Thema, Zeitraum, CustomTheme, Kompetenz } from "@/types";
+import { getAssignmentsBySchule } from "@/lib/firestore/school-jahresplan";
+import { getAdminDb } from "@/lib/firebase/admin";
+import {
+  Stufe,
+  Thema,
+  Zeitraum,
+  CustomTheme,
+  Kompetenz,
+  SchoolJahresplanAssignment,
+  JahresplanMode,
+} from "@/types";
 
 /**
  * Konvertiert CustomTheme zu Thema-Format
  * Nutzt Firestore-Cache für Kompetenzen statt direkte Airtable-Aufrufe
  */
-async function convertCustomThemeToThema(customTheme: CustomTheme): Promise<Thema> {
-  // Kompetenzen auflösen falls noch nicht geschehen
+async function convertCustomThemeToThema(
+  customTheme: CustomTheme
+): Promise<Thema> {
   let kompetenzen = customTheme.kompetenzen;
   if (!kompetenzen && customTheme.kompetenzenIds.length > 0) {
     try {
-      const systemKompetenzenMap = await getSystemKompetenzenByIds(customTheme.kompetenzenIds);
+      const systemKompetenzenMap = await getSystemKompetenzenByIds(
+        customTheme.kompetenzenIds
+      );
       kompetenzen = customTheme.kompetenzenIds
         .map((id) => {
           const sk = systemKompetenzenMap.get(id);
@@ -39,7 +55,6 @@ async function convertCustomThemeToThema(customTheme: CustomTheme): Promise<Them
     }
   }
 
-  // String-Repräsentation für Anzeige
   const kompetenzenString = kompetenzen
     ?.map((k) => k.lpCode || k.name)
     .join(", ");
@@ -57,7 +72,6 @@ async function convertCustomThemeToThema(customTheme: CustomTheme): Promise<Them
     unterlagen: customTheme.unterlagen,
     schuljahr: customTheme.schuljahr,
     zeitraum: customTheme.zeitraum,
-    // Custom Theme Felder
     isCustom: true,
     customThemeId: customTheme.id,
   };
@@ -67,69 +81,174 @@ async function convertCustomThemeToThema(customTheme: CustomTheme): Promise<Them
  * Kombiniert System Themen (Airtable/Firestore Cache) und Custom Themes
  */
 async function getCombinedThemenByStufe(stufe: Stufe): Promise<Thema[]> {
-  // Lade beide Quellen parallel
-  // getThemesByStufe verwendet automatisch Firestore Cache wenn aktiviert
   const [systemThemen, customThemes] = await Promise.all([
     getThemesByStufe(stufe),
     getCustomThemesByStufe(stufe),
   ]);
 
-  // Konvertiere Custom Themes zu Thema-Format
-  const customThemenPromises = customThemes.map((ct) => convertCustomThemeToThema(ct));
+  const customThemenPromises = customThemes.map((ct) =>
+    convertCustomThemeToThema(ct)
+  );
   const customThemenConverted = await Promise.all(customThemenPromises);
 
-  // Kombiniere beide Listen
   return [...systemThemen, ...customThemenConverted];
 }
 
 /**
- * Gruppiert kombinierte Themen nach Zeitraum
+ * Gruppiert Themen in die 6 Zeitraum-Spalten
  */
-async function getCombinedThemenGroupedByZeitraum(
-  stufe: Stufe
-): Promise<Record<Zeitraum, Thema[]>> {
-  const themen = await getCombinedThemenByStufe(stufe);
-
+function groupByZeitraum(themen: Thema[]): Record<Zeitraum, Thema[]> {
   const grouped: Record<Zeitraum, Thema[]> = {
     "Sommerferien-Herbstferien": [],
     "Herbstferien-Weihnachtsferien": [],
     "Weihnachtsferien-Winterferien": [],
     "Winterferien-Frühlingsferien": [],
     "Frühlingsferien-Sommerferien": [],
-    "Zusatz": [],
+    Zusatz: [],
   };
-
   themen.forEach((thema) => {
     if (thema.zeitraum && grouped[thema.zeitraum]) {
       grouped[thema.zeitraum].push(thema);
     }
   });
-
   return grouped;
 }
 
 /**
- * Gruppiert ALLE Themen nach Zeitraum (ohne Stufen-Filter)
+ * Wendet die Schul-Overrides eines Assignments auf das Original-Thema an.
+ * Gibt ein neues Thema-Objekt zurück (immutable).
  */
-async function getAllThemenGroupedByZeitraum(): Promise<Record<Zeitraum, Thema[]>> {
-  const allThemen = await getThemes();
-
-  const grouped: Record<Zeitraum, Thema[]> = {
-    "Sommerferien-Herbstferien": [],
-    "Herbstferien-Weihnachtsferien": [],
-    "Weihnachtsferien-Winterferien": [],
-    "Winterferien-Frühlingsferien": [],
-    "Frühlingsferien-Sommerferien": [],
-    "Zusatz": [],
+function applyAssignmentOverrides(
+  original: Thema,
+  assignment: SchoolJahresplanAssignment
+): Thema {
+  const merged: Thema = {
+    ...original,
+    thema: assignment.themaOverride ?? original.thema,
+    beschreibung: assignment.beschreibungOverride ?? original.beschreibung,
+    lehrmittel: assignment.lehrmittelOverride ?? original.lehrmittel,
+    bildLehrmittel:
+      assignment.bildLehrmittelOverride ?? original.bildLehrmittel,
+    anzahlLektionen:
+      assignment.anzahlLektionenOverride ?? original.anzahlLektionen,
+    zeitraum: assignment.zeitraumOverride ?? original.zeitraum,
+    schuljahr:
+      assignment.stufeOverride && assignment.stufeOverride.length > 0
+        ? assignment.stufeOverride
+        : original.schuljahr,
+    fileRouge: assignment.fileRougeOverride ?? original.fileRouge,
+    unterlagen: assignment.unterlagenOverride ?? original.unterlagen,
+    schulMaterialien: assignment.schulMaterialien,
+    schulNotizen: assignment.schulNotizen,
+    schulUnterlagen: assignment.schulUnterlagen,
+    assignmentId: assignment.id,
+    isSchoolOverridden: hasAnyOverride(assignment),
   };
+  return merged;
+}
 
-  allThemen.forEach((thema) => {
-    if (thema.zeitraum && grouped[thema.zeitraum]) {
-      grouped[thema.zeitraum].push(thema);
-    }
+function hasAnyOverride(a: SchoolJahresplanAssignment): boolean {
+  return (
+    a.themaOverride !== undefined ||
+    a.beschreibungOverride !== undefined ||
+    a.lehrmittelOverride !== undefined ||
+    a.bildLehrmittelOverride !== undefined ||
+    a.anzahlLektionenOverride !== undefined ||
+    a.zeitraumOverride !== undefined ||
+    (a.stufeOverride !== undefined && a.stufeOverride.length > 0) ||
+    a.fileRougeOverride !== undefined ||
+    a.unterlagenOverride !== undefined ||
+    (a.schulMaterialien !== undefined && a.schulMaterialien.length > 0) ||
+    (a.schulNotizen !== undefined && a.schulNotizen.length > 0) ||
+    a.schulUnterlagen !== undefined
+  );
+}
+
+/**
+ * Liest den Jahresplan-Modus einer Schule. Fallback: "open".
+ */
+async function getSchuleJahresplanMode(
+  schuleId: string
+): Promise<JahresplanMode> {
+  try {
+    const adminDb = getAdminDb();
+    const doc = await adminDb.collection("system_schulen").doc(schuleId).get();
+    const data = doc.data() || {};
+    return data.jahresplanMode === "curated" ? "curated" : "open";
+  } catch (error) {
+    console.error("Error reading jahresplanMode:", error);
+    return "open";
+  }
+}
+
+/**
+ * Lädt den kuratierten Jahresplan einer Schule:
+ * Alle aktiven Assignments werden mit ihrem Original-Thema gemerged.
+ * Fehlt ein Original-Thema (z.B. wurde gelöscht), wird das Assignment übersprungen.
+ * Stufen-Filter wird *nach* dem Merge angewandt, damit Stufen-Overrides wirken.
+ */
+async function getCuratedThemen(
+  schuleId: string,
+  stufe?: Stufe | null
+): Promise<Thema[]> {
+  const assignments = await getAssignmentsBySchule(schuleId);
+  if (assignments.length === 0) return [];
+
+  // IDs pro Quelle sammeln
+  const systemIds = new Set<string>();
+  const customIds = new Set<string>();
+  assignments.forEach((a) => {
+    if (a.sourceType === "system") systemIds.add(a.sourceThemeId);
+    else customIds.add(a.sourceThemeId);
   });
 
-  return grouped;
+  // Alle Original-Themen parallel laden
+  const [allSystemThemen, allCustomThemesRaw] = await Promise.all([
+    getThemes(),
+    getCustomThemes({ isSystemWide: true }),
+  ]);
+
+  const systemById = new Map<string, Thema>();
+  allSystemThemen.forEach((t) => {
+    if (t.id) systemById.set(t.id, t);
+  });
+
+  const customById = new Map<string, CustomTheme>();
+  allCustomThemesRaw.forEach((t) => {
+    if (t.id) customById.set(t.id, t);
+  });
+
+  // Custom Themes in Thema-Format konvertieren (nur die, die tatsächlich zugeordnet sind)
+  const customThemaEntries = await Promise.all(
+    Array.from(customIds)
+      .map((id) => customById.get(id))
+      .filter((ct): ct is CustomTheme => ct !== undefined)
+      .map(async (ct) => [ct.id, await convertCustomThemeToThema(ct)] as const)
+  );
+  const customThemaById = new Map<string, Thema>(customThemaEntries);
+
+  // Assignments mit Originalen mergen
+  const merged: Thema[] = [];
+  for (const a of assignments) {
+    const original =
+      a.sourceType === "system"
+        ? systemById.get(a.sourceThemeId)
+        : customThemaById.get(a.sourceThemeId);
+    if (!original) {
+      // Orphan-Assignment: Original existiert nicht mehr → überspringen.
+      // Cleanup passiert separat im Admin-UI (Hinweis).
+      continue;
+    }
+    merged.push(applyAssignmentOverrides(original, a));
+  }
+
+  // Nach Stufe filtern (nach Merge, damit Stufen-Override greift)
+  if (stufe) {
+    return merged.filter(
+      (t) => Array.isArray(t.schuljahr) && t.schuljahr.includes(stufe)
+    );
+  }
+  return merged;
 }
 
 export async function GET(request: Request) {
@@ -137,52 +256,57 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const stufe = searchParams.get("stufe") as Stufe | null;
     const grouped = searchParams.get("grouped") === "true";
+    const schuleId = searchParams.get("schuleId");
+    const curated = searchParams.get("curated") === "true";
 
-    // Debug: Check if Firestore cache is enabled
     const cacheEnabled = process.env.ENABLE_FIRESTORE_CACHE === "true";
     const dataSource = cacheEnabled ? "firestore-cache" : "airtable-direct";
+    const baseHeaders: Record<string, string> = {
+      "X-Data-Source": dataSource,
+      "X-Cache-Enabled": cacheEnabled.toString(),
+    };
 
+    // ──────────────────────────────────────────────
+    // Curated Modus: Schul-Jahresplan statt globaler Pool
+    // ──────────────────────────────────────────────
+    if (curated && schuleId) {
+      const mode = await getSchuleJahresplanMode(schuleId);
+      // Falls Modus nicht curated ist, zurückfallen auf bestehendes Verhalten
+      if (mode === "curated") {
+        const themen = await getCuratedThemen(schuleId, stufe);
+        const payload = grouped ? groupByZeitraum(themen) : themen;
+        return NextResponse.json(payload, {
+          headers: {
+            ...baseHeaders,
+            "X-Jahresplan-Mode": "curated",
+          },
+        });
+      }
+      // mode === "open" → fallthrough zum Standard-Verhalten
+    }
+
+    // ──────────────────────────────────────────────
+    // Standard (open) Modus: bisheriges Verhalten
+    // ──────────────────────────────────────────────
     if (stufe && grouped) {
-      // Verwende kombinierte Funktion statt nur Airtable
-      const themenGrouped = await getCombinedThemenGroupedByZeitraum(stufe);
-      return NextResponse.json(themenGrouped, {
-        headers: {
-          "X-Data-Source": dataSource,
-          "X-Cache-Enabled": cacheEnabled.toString(),
-        },
-      });
+      const themen = await getCombinedThemenByStufe(stufe);
+      return NextResponse.json(groupByZeitraum(themen), { headers: baseHeaders });
     }
 
     if (grouped) {
-      // Gruppiert ohne Stufen-Filter (für allStufen-Modus)
-      const themenGrouped = await getAllThemenGroupedByZeitraum();
-      return NextResponse.json(themenGrouped, {
-        headers: {
-          "X-Data-Source": dataSource,
-          "X-Cache-Enabled": cacheEnabled.toString(),
-        },
+      const allThemen = await getThemes();
+      return NextResponse.json(groupByZeitraum(allThemen), {
+        headers: baseHeaders,
       });
     }
 
     if (stufe) {
-      // Verwende kombinierte Funktion statt nur Airtable
       const themen = await getCombinedThemenByStufe(stufe);
-      return NextResponse.json(themen, {
-        headers: {
-          "X-Data-Source": dataSource,
-          "X-Cache-Enabled": cacheEnabled.toString(),
-        },
-      });
+      return NextResponse.json(themen, { headers: baseHeaders });
     }
 
-    // Ohne Stufe: alle System Themen (Firestore Cache oder Airtable)
     const allThemen = await getThemes();
-    return NextResponse.json(allThemen, {
-      headers: {
-        "X-Data-Source": dataSource,
-        "X-Cache-Enabled": cacheEnabled.toString(),
-      },
-    });
+    return NextResponse.json(allThemen, { headers: baseHeaders });
   } catch (error) {
     console.error("Error fetching Themen:", error);
     return NextResponse.json(
