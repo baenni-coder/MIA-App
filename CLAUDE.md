@@ -50,6 +50,14 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Anwendungskompetenzen**: MI.3 / IB.3 aus Airtable-Daten integriert
 - **Responsive Dropdowns**: Kompetenz-Auswahl auf schmalen Bildschirmen nicht mehr abgeschnitten
 
+**NEU (2026-04)**:
+- **Jahresplan-Pool**: System-Themen + systemweit freigegebene Custom Themes bilden einen gemeinsamen Pool
+- **Kuratierter Schul-Jahresplan**: PICTS-/Super-Admin ordnet Pool-Themen per Checkbox der eigenen Schule zu
+- **Override-Pattern**: Schul-Anpassungen (Thema, Beschreibung, Lehrmittel, Zeitraum, Stufe, Materialien, Notizen, Unterlagen) werden als Overrides gespeichert; System-Updates propagieren automatisch
+- **Modus-Umschaltung pro Schule**: `open` (bisheriges Verhalten, Default) oder `curated` (nur zugeordnete Themen sichtbar)
+- **Initial-Befüllung**: Ein-Klick-Zuordnung aller Pool-Themen inkl. nachträglicher Entfernungsmöglichkeit
+- **Abwärtskompatibel**: Schulen ohne gesetzten Modus bleiben auf `open`; Lehrer-Jahresplan funktioniert unverändert
+
 ## Tech Stack
 
 - **Framework**: Next.js 15 mit App Router
@@ -104,6 +112,7 @@ src/
 │   │   ├── admin/               # Admin-Endpunkte
 │   │   │   ├── schools/         # Schulverwaltung
 │   │   │   │   ├── [id]/       # PUT, DELETE einzelne Schule
+│   │   │   │   │   └── jahresplan-mode/ # GET, PUT Modus open|curated (NEU)
 │   │   │   │   └── route.ts     # GET, POST alle Schulen
 │   │   │   ├── users/           # Benutzerverwaltung
 │   │   │   │   └── [id]/       # PUT, GET einzelner User
@@ -111,6 +120,10 @@ src/
 │   │   │       └── lp21/       # LP21 API Sync (NEU)
 │   │   │           ├── route.ts # POST: Fachbereich synchronisieren
 │   │   │           └── fachbereiche/ # GET: Verfügbare Fachbereiche
+│   │   ├── school-jahresplan/   # Schul-Jahresplan Assignments (NEU)
+│   │   │   ├── [id]/           # PUT (Overrides), DELETE (Soft-Delete)
+│   │   │   ├── initial-populate/ # POST: Alle Pool-Themen zuordnen
+│   │   │   └── route.ts         # GET/POST Assignments (bulk-fähig)
 │   │   ├── kompetenzen/         # Kompetenz-Endpunkte (NEU)
 │   │   │   └── lp21/           # LP21-Kompetenzen
 │   │   │       ├── route.ts     # GET: Kompetenzstufen laden
@@ -126,6 +139,7 @@ src/
 │   ├── dashboard/                # Dashboard-Seiten
 │   │   ├── admin/               # Admin Dashboard (Review Workflow)
 │   │   │   ├── schools/         # Schulverwaltung (Super-Admin) (NEU)
+│   │   │   ├── jahresplan-pool/ # Jahresplan-Pool Verwaltung (NEU)
 │   │   │   └── sync/            # Daten-Synchronisation
 │   │   ├── jahresplan/          # Jahresplan MIA mit Stufe-Auswahl & Search
 │   │   ├── jahresplanung/       # Fächerübergreifende Jahresplanung (NEU)
@@ -191,6 +205,7 @@ src/
 │   │   ├── faq.ts               # FAQ CRUD
 │   │   ├── student-artifacts.ts # Schüler-Artefakte CRUD (NEU)
 │   │   ├── jahresplanung.ts    # Jahresplanung CRUD (NEU)
+│   │   ├── school-jahresplan.ts # Schul-Jahresplan Assignments CRUD (NEU)
 │   │   └── system-cache.ts     # LP21 Struktur & System-Cache (Alias/Exclude/Fallback)
 │   ├── data/                    # Statische Daten (NEU)
 │   │   ├── lp21-data.ts        # LP21-Fachbereiche, Schulkalender, Ferienpresets
@@ -981,6 +996,80 @@ Kompetenzen direkt von der LP21-API synchronisieren.
   - `system_kompetenzen` Collection: Einzelne Kompetenzstufen mit LP-Codes
 - **Dauer**: 10-30 Sekunden pro Fachbereich
 
+### 29. Jahresplan-Pool & kuratierter Schul-Jahresplan (NEU)
+System-Themen (Airtable) und systemweit freigegebene Custom Themes bilden einen gemeinsamen Pool. PICTS-Admins (für ihre Schule) bzw. Super-Admins (für beliebige Schulen) ordnen daraus den Schul-Jahresplan per Checkbox zusammen und können einzelne Themen schulspezifisch anpassen.
+
+**Konzept: Override-Pattern**
+- Keine Kopie des Themas – es wird nur ein Assignment mit den geänderten Feldern gespeichert
+- System-Updates (z.B. neue Version in Airtable) propagieren automatisch, sofern kein Override gesetzt ist
+- Orphan-Assignments (Original gelöscht) werden beim Laden still übersprungen
+
+**Modus pro Schule** (`jahresplanMode` auf `system_schulen`-Dokument):
+- `open` (Default): Bisheriges Verhalten – alle Pool-Themen sichtbar (volle Abwärtskompatibilität)
+- `curated`: Nur explizit zugeordnete Themen erscheinen im Jahresplan; Overrides wirken
+
+**Admin-UI** (`/dashboard/admin/jahresplan-pool`):
+- Super-Admin: Schul-Auswahl per Dropdown; PICTS-Admin sieht nur eigene Schule
+- Mode-Toggle mit Bestätigungsdialog
+- "Alle Pool-Themen zuordnen" (Initial-Populate mit Bulk-Upsert, Chunk-Size 450)
+- Suche + Zeitraum-Filter über den Pool
+- Pool gruppiert nach Zeitraum; Checkbox pro Thema zum (De-)Aktivieren
+- Edit-Dialog für Overrides (Thema, Beschreibung, Lehrmittel, Anzahl Lektionen, Zeitraum, Stufe, File rouge, Unterlagen) und schulspezifische Ergänzungen (Materialien, Notizen, Unterlagen)
+- "Anpassungen zurücksetzen" setzt alle Overrides auf `null` (FieldValue.delete())
+
+**Lehrer-Sicht** (`/dashboard/jahresplan`):
+- API fügt bei vorhandener `schuleId` automatisch `curated=true` hinzu
+- Server prüft den Schul-Modus; bei `curated` wird der kuratierte Plan geliefert, sonst Fallback auf `open`
+- Stufen-Filter wird NACH dem Merge angewandt, damit `stufeOverride` greift
+- Response-Header `X-Jahresplan-Mode: curated` zum Debugging
+
+**Wichtige Dateien:**
+- `src/types/index.ts` – `JahresplanMode`, `SchoolJahresplanAssignment`, erweiterte `Thema`/`Schule`
+- `src/lib/firestore/school-jahresplan.ts` – CRUD für Collection `school_jahresplan_assignments`
+- `src/lib/firestore/permissions.ts` – `canManageSchoolJahresplan(userId, schuleId)`
+- `src/app/api/school-jahresplan/route.ts` – List + Bulk-Upsert
+- `src/app/api/school-jahresplan/[id]/route.ts` – PUT (Overrides, Validation gegen Zeitraum/Stufe-Enums) + DELETE (Soft-Delete via `isActive`)
+- `src/app/api/school-jahresplan/initial-populate/route.ts` – Auto-Assign aller System-Themen + approved Custom Themes
+- `src/app/api/admin/schools/[id]/jahresplan-mode/route.ts` – Modus lesen/setzen (Audit: changedBy/At)
+- `src/app/api/themen/route.ts` – `applyAssignmentOverrides()`, `getCuratedThemen()`, Mode-Check, Orphan-Handling
+- `src/app/dashboard/admin/jahresplan-pool/page.tsx` – Admin-UI inkl. `AssignmentEditDialog`
+
+**Firestore-Collection `school_jahresplan_assignments`:**
+```typescript
+{
+  schuleId: string
+  sourceType: "system" | "custom"
+  sourceThemeId: string          // Airtable-ID oder Firestore-ID des Custom Themes
+  // Override-Felder (alle optional; undefined = vom Original übernehmen)
+  themaOverride?: string
+  beschreibungOverride?: string
+  lehrmittelOverride?: string
+  bildLehrmittelOverride?: string
+  anzahlLektionenOverride?: number
+  zeitraumOverride?: Zeitraum
+  stufeOverride?: Stufe[]
+  fileRougeOverride?: string
+  unterlagenOverride?: string
+  // Schulspezifische Ergänzungen (additiv zum Original)
+  schulMaterialien?: string[]
+  schulNotizen?: string
+  schulUnterlagen?: string
+  // Metadaten
+  assignedBy: string
+  assignedByName: string
+  assignedAt: Date
+  lastModifiedBy?: string
+  lastModifiedByName?: string
+  lastModifiedAt?: Date
+  isActive: boolean              // Soft-Delete erhält Overrides bei Re-Aktivierung
+  sortOrder?: number             // für zukünftige Reihenfolge-Steuerung
+}
+```
+
+**Firestore-Rules:**
+- Read: alle authentifizierten User (Filter auf eigene Schule auf API-Ebene)
+- Write (Create/Update/Delete): Super-Admin oder PICTS-Admin der Schule
+
 ## Umgebungsvariablen
 
 Kopiere `.env.example` zu `.env.local` und fülle folgende Werte:
@@ -1652,6 +1741,67 @@ Fügt Lehrer-Kommentar hinzu (nur Lehrer)
 ### DELETE `/api/student-artifacts/[id]/comment`
 Entfernt Lehrer-Kommentar (nur eigene Kommentare oder Admins)
 
+### GET `/api/themen?schuleId={id}&curated=true&stufe={stufe}&grouped=true`
+Erweiterte Themen-API mit curated-Modus für Schul-Jahresplan
+
+**Query Parameters:**
+- `schuleId` - Firestore-ID der Schule (Pflicht für curated-Modus)
+- `curated` - `true` aktiviert den Schul-Jahresplan (nur wirksam, wenn Schule im Modus `curated` ist; sonst Fallback auf bisheriges Verhalten)
+- `stufe`, `grouped` - wie bisher
+
+**Response-Header:**
+- `X-Jahresplan-Mode: curated` (nur bei aktivem curated-Modus)
+
+### GET `/api/school-jahresplan?schuleId={id}&includeInactive={bool}`
+Lädt alle aktiven Assignments einer Schule (Admin: inkl. deaktivierter)
+
+### POST `/api/school-jahresplan`
+Erstellt oder aktualisiert Assignments (Single oder Bulk)
+
+**Request Body (Single):**
+```json
+{
+  "schuleId": "firestore-id",
+  "sourceType": "system" | "custom",
+  "sourceThemeId": "recXXX" | "firestore-id",
+  "themaOverride": "Optional",
+  ...
+}
+```
+
+**Request Body (Bulk):**
+```json
+{
+  "schuleId": "firestore-id",
+  "assignments": [{ "sourceType": "...", "sourceThemeId": "..." }, ...]
+}
+```
+
+### PUT `/api/school-jahresplan/[id]`
+Aktualisiert Overrides eines Assignments. `null` als Wert löscht das Override-Feld (FieldValue.delete()) und stellt das Original wieder her. Zeitraum und Stufe werden gegen die bekannten Enums validiert.
+
+### DELETE `/api/school-jahresplan/[id]`
+Soft-Delete (setzt `isActive=false`, erhält Overrides für Re-Aktivierung)
+
+### POST `/api/school-jahresplan/initial-populate`
+Weist alle System-Themen + approved Custom Themes (isSystemWide=true) der Schule zu (Bulk-Upsert, Chunk-Size 450)
+
+**Request Body:**
+```json
+{ "schuleId": "firestore-id" }
+```
+
+### GET `/api/admin/schools/[id]/jahresplan-mode`
+Liest aktuellen Modus (Default: `open`)
+
+### PUT `/api/admin/schools/[id]/jahresplan-mode`
+Setzt den Modus (Super-Admin oder PICTS-Admin der Schule)
+
+**Request Body:**
+```json
+{ "mode": "open" | "curated" }
+```
+
 ## Tipps für weitere Entwicklung
 
 ### Neue Airtable-Tabelle hinzufügen
@@ -1847,7 +1997,31 @@ makeSuperAdmin("deine-email@schule.ch");
 - [x] **Anwendungskompetenzen** - MI.3 / IB.3 aus Airtable-Daten
 - [x] **Responsive Dropdowns** - Kompetenz-Auswahl auf schmalen Bildschirmen
 
+### ✅ Abgeschlossen (April 2026)
+
+- [x] **Jahresplan-Pool & kuratierter Schul-Jahresplan** - Schul-interne Zuordnung
+  - Gemeinsamer Pool aus System-Themen + systemweit freigegebenen Custom Themes
+  - Override-Pattern statt Kopie (System-Updates propagieren automatisch)
+  - Schul-Modus `open` (Default, abwärtskompatibel) oder `curated`
+  - Admin-UI `/dashboard/admin/jahresplan-pool` mit Checkbox-Zuordnung und Edit-Dialog
+  - Bulk-Upsert für Initial-Befüllung (Chunk-Size 450)
+  - Soft-Delete via `isActive`-Flag
+  - Orphan-Handling (gelöschte Originale werden still übersprungen)
+  - Validierung von Zeitraum/Stufe gegen bekannte Enums
+  - Firestore-Rules für neue Collection `school_jahresplan_assignments`
+
 ### 🚧 In Arbeit / Geplant
+
+#### Jahresplan-Pool Phase 2
+
+- [ ] **Auto-Assignment bei Theme-Approval** - Neu freigegebene Custom Themes automatisch in Pool der Schul-Jahrespläne einordnen
+- [ ] **Orphan-Cleanup-UI** - Hinweis im Pool, wenn Assignment auf gelöschtes Original zeigt
+- [ ] **Override-Badge im KanbanBoard** - Visuelle Kennzeichnung `isSchoolOverridden=true`
+- [ ] **Reihenfolge-Steuerung** - `sortOrder`-Feld zur UI hinzufügen
+- [ ] **Kompetenzen-Override** - aktuell kommen Kompetenzen immer vom Original
+- [ ] **Datei-Upload für schulUnterlagen/schulMaterialien** - statt nur Text/URLs
+- [ ] **Audit-Log-Ansicht** - `lastModifiedBy/At` im UI anzeigen
+- [ ] **Notifications** bei Plan-Umstrukturierung an Schul-Lehrer
 
 #### Infrastructure & Performance
 
