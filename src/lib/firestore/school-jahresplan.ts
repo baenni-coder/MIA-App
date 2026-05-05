@@ -4,6 +4,7 @@ import {
   SchoolJahresplanSourceType,
   Stufe,
   Zeitraum,
+  Fachbereich,
 } from "@/types";
 import * as admin from "firebase-admin";
 
@@ -41,6 +42,8 @@ const mapDoc = (
     anzahlLektionenOverride: data.anzahlLektionenOverride,
     fileRougeOverride: data.fileRougeOverride,
     unterlagenOverride: data.unterlagenOverride,
+    empfohleneIntegrationsfaecherOverride:
+      data.empfohleneIntegrationsfaecherOverride,
     schulMaterialien: data.schulMaterialien,
     schulNotizen: data.schulNotizen,
     schulUnterlagen: data.schulUnterlagen,
@@ -247,6 +250,7 @@ export async function updateAssignment(
     anzahlLektionenOverride?: number | null;
     fileRougeOverride?: string | null;
     unterlagenOverride?: string | null;
+    empfohleneIntegrationsfaecherOverride?: Fachbereich[] | null;
     schulMaterialien?: string[];
     schulNotizen?: string;
     schulUnterlagen?: string;

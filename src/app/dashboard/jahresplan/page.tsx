@@ -9,8 +9,8 @@ import KanbanBoard from "@/components/KanbanBoard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Thema, Zeitraum, Teacher, Stufe } from "@/types";
-import { Search, X } from "lucide-react";
+import { Thema, Zeitraum, Teacher, Stufe, Fachbereich, FACHBEREICHE } from "@/types";
+import { Search, X, Layers } from "lucide-react";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -36,6 +36,7 @@ function JahresplanContent() {
   const [loading, setLoading] = useState(true);
   const [selectedStufe, setSelectedStufe] = useState<Stufe | null>(null);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery || "");
+  const [integrationFilter, setIntegrationFilter] = useState<Fachbereich | "all">("all");
 
   useEffect(() => {
     const loadData = async () => {
@@ -181,6 +182,36 @@ function JahresplanContent() {
                   </span>
                 )}
               </div>
+
+              {/* Integrationsfach-Filter */}
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-muted-foreground" />
+                <label className="text-sm font-medium">Integrationsfach:</label>
+                <Select
+                  value={integrationFilter}
+                  onValueChange={(value) =>
+                    setIntegrationFilter(value as Fachbereich | "all")
+                  }
+                >
+                  <SelectTrigger className="w-52">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle Themen</SelectItem>
+                    {FACHBEREICHE.map((fb) => (
+                      <SelectItem key={fb.value} value={fb.value}>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: fb.farbe }}
+                          />
+                          <span>{fb.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
 
@@ -197,6 +228,9 @@ function JahresplanContent() {
               schulePictsBuchen={teacherData?.schule?.pictsBuchen}
               searchQuery={searchQuery || undefined}
               filterQuery={localSearchQuery}
+              integrationFilter={
+                integrationFilter === "all" ? null : integrationFilter
+              }
               userStufe={teacherData?.stufe}
             />
           ) : (

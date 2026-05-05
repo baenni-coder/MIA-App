@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { Thema, Zeitraum, Kompetenz, Stufe } from "@/types";
+import { Thema, Zeitraum, Kompetenz, Stufe, Fachbereich, FACHBEREICHE } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { ExternalLink, BookOpen, Clock, FileText, Info, Paperclip, Target } from "lucide-react";
+import { ExternalLink, BookOpen, Clock, FileText, Info, Paperclip, Target, Layers } from "lucide-react";
 import LektionsplanungViewer from "./LektionsplanungViewer";
 import LinkedFilesViewer from "./LinkedFilesViewer";
 
@@ -16,6 +16,7 @@ interface KanbanBoardProps {
   schulePictsBuchen?: string;
   searchQuery?: string;
   filterQuery?: string; // Real-time filter as user types
+  integrationFilter?: Fachbereich | null; // Filter nach empfohlenem Integrationsfach
   userStufe?: Stufe;
 }
 
@@ -37,7 +38,7 @@ const ZEITRAUM_IMAGES: Record<Zeitraum, string | null> = {
   "Zusatz": null,
 };
 
-export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQuery, filterQuery, userStufe }: KanbanBoardProps) {
+export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQuery, filterQuery, integrationFilter, userStufe }: KanbanBoardProps) {
   const [selectedThema, setSelectedThema] = useState<Thema | null>(null);
   const [selectedKompetenz, setSelectedKompetenz] = useState<Kompetenz | null>(null);
   const [lektionsplanungOpen, setLektionsplanungOpen] = useState(false);
@@ -61,19 +62,34 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
     return Object.values(themenGrouped).flat();
   }, [themenGrouped]);
 
-  // Real-time filtering based on filterQuery
+  // Real-time filtering based on filterQuery + integrationFilter
   const filteredThemenGrouped = useMemo(() => {
-    if (!filterQuery || filterQuery.trim() === "") {
+    const hasTextFilter = filterQuery && filterQuery.trim() !== "";
+    const hasIntegrationFilter = !!integrationFilter;
+
+    if (!hasTextFilter && !hasIntegrationFilter) {
       return themenGrouped;
     }
 
-    const normalizedQuery = filterQuery.toLowerCase().trim();
-    const queryWords = normalizedQuery.split(/\s+/);
+    const normalizedQuery = hasTextFilter
+      ? filterQuery!.toLowerCase().trim()
+      : "";
+    const queryWords = normalizedQuery ? normalizedQuery.split(/\s+/) : [];
 
     const filtered: Record<Zeitraum, Thema[]> = {} as Record<Zeitraum, Thema[]>;
 
     for (const zeitraum of Object.keys(themenGrouped) as Zeitraum[]) {
       filtered[zeitraum] = themenGrouped[zeitraum].filter((thema) => {
+        // Integrationsfach-Filter (nur Themen mit der Empfehlung anzeigen)
+        if (hasIntegrationFilter) {
+          const empf = thema.empfohleneIntegrationsfaecher || [];
+          if (!empf.includes(integrationFilter)) {
+            return false;
+          }
+        }
+
+        if (!hasTextFilter) return true;
+
         const themaName = thema.thema.toLowerCase();
         const lehrmittel = (thema.lehrmittel || "").toLowerCase();
         const beschreibung = (thema.beschreibung || "").toLowerCase();
@@ -94,7 +110,7 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
     }
 
     return filtered;
-  }, [themenGrouped, filterQuery]);
+  }, [themenGrouped, filterQuery, integrationFilter]);
 
   // Count total filtered results
   const filteredCount = useMemo(() => {
@@ -149,18 +165,24 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
   return (
     <>
       {/* Filter Result Indicator */}
-      {filterQuery && filterQuery.trim() !== "" && (
+      {(filterQuery && filterQuery.trim() !== "") || integrationFilter ? (
         <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800">
           <p className="text-sm">
-            <span className="font-medium">Filter aktiv:</span> {filteredCount} von {totalCount} Themen werden angezeigt für &quot;{filterQuery}&quot;
+            <span className="font-medium">Filter aktiv:</span> {filteredCount} von {totalCount} Themen
+            {filterQuery && filterQuery.trim() !== "" && (
+              <> für &quot;{filterQuery}&quot;</>
+            )}
+            {integrationFilter && (
+              <> · Integrationsfach: <span className="font-medium">{FACHBEREICHE.find((f) => f.value === integrationFilter)?.label || integrationFilter}</span></>
+            )}
             {filteredCount === 0 && (
               <span className="text-blue-600 ml-1">
-                – Versuche einen anderen Suchbegriff
+                – Keine passenden Themen
               </span>
             )}
           </p>
         </div>
-      )}
+      ) : null}
 
       {/* Search Result Feedback (when Enter pressed) */}
       {searchQuery && searchResult && !filterQuery && (
@@ -200,9 +222,11 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
                 {filteredThemenGrouped[zeitraum]?.length || 0} Themen
-                {filterQuery && filterQuery.trim() !== "" && filteredThemenGrouped[zeitraum]?.length !== themenGrouped[zeitraum]?.length && (
-                  <span className="text-blue-600"> (gefiltert)</span>
-                )}
+                {((filterQuery && filterQuery.trim() !== "") || integrationFilter) &&
+                  filteredThemenGrouped[zeitraum]?.length !==
+                    themenGrouped[zeitraum]?.length && (
+                    <span className="text-blue-600"> (gefiltert)</span>
+                  )}
               </p>
             </div>
 
@@ -261,13 +285,38 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                         {thema.anzahlLektionen} Lektionen
                       </Badge>
                     )}
+
+                    {/* Empfohlene Integrationsfächer */}
+                    {thema.empfohleneIntegrationsfaecher && thema.empfohleneIntegrationsfaecher.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {thema.empfohleneIntegrationsfaecher.map((fb) => {
+                          const meta = FACHBEREICHE.find((f) => f.value === fb);
+                          return (
+                            <Badge
+                              key={fb}
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 flex items-center gap-1"
+                              style={{
+                                borderColor: `${meta?.farbe}60`,
+                                color: meta?.farbe,
+                              }}
+                            >
+                              <Layers className="h-2.5 w-2.5" />
+                              {meta?.label?.split(",")[0] || fb}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
 
               {(filteredThemenGrouped[zeitraum]?.length || 0) === 0 && (
                 <div className="text-center py-8 text-sm text-muted-foreground">
-                  {filterQuery && filterQuery.trim() !== "" ? "Keine passenden Themen" : "Keine Themen"}
+                  {(filterQuery && filterQuery.trim() !== "") || integrationFilter
+                    ? "Keine passenden Themen"
+                    : "Keine Themen"}
                 </div>
               )}
             </div>
@@ -379,6 +428,41 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
                     <p className="text-sm text-muted-foreground">
                       {ZEITRAUM_LABELS[selectedThema.zeitraum]}
                     </p>
+                  </div>
+                )}
+
+                {/* Empfohlene Integrationsfächer */}
+                {selectedThema.empfohleneIntegrationsfaecher && selectedThema.empfohleneIntegrationsfaecher.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2 flex items-center gap-2">
+                      <Layers className="h-4 w-4" />
+                      Empfohlene Integrationsfächer
+                    </h4>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Dieses Thema lässt sich integrativ in folgenden Fächern unterrichten:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedThema.empfohleneIntegrationsfaecher.map((fb) => {
+                        const meta = FACHBEREICHE.find((f) => f.value === fb);
+                        return (
+                          <Badge
+                            key={fb}
+                            variant="outline"
+                            className="text-xs flex items-center gap-1.5"
+                            style={{
+                              borderColor: `${meta?.farbe}60`,
+                              color: meta?.farbe,
+                            }}
+                          >
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: meta?.farbe }}
+                            />
+                            {meta?.label || fb}
+                          </Badge>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 

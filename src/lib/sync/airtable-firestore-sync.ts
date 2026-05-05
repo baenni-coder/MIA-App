@@ -335,6 +335,7 @@ async function syncThemen(): Promise<{ added: number; updated: number; deleted: 
         startdatum: thema.startdatum,
         uebersichtPICTS: thema.uebersichtPICTS,
         pictsBuchen: thema.pictsBuchen,
+        empfohleneIntegrationsfaecher: thema.empfohleneIntegrationsfaecher,
         isActive: true,
         lastSyncedAt: new Date(),
       };

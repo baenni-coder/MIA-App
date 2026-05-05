@@ -22,11 +22,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { Stufe, Zeitraum, TempLektion } from "@/types";
-import { Upload, Loader2, Plus, BookOpen, FileText, Paperclip } from "lucide-react";
+import { Stufe, Zeitraum, TempLektion, Fachbereich } from "@/types";
+import { Upload, Loader2, Plus, BookOpen, FileText, Paperclip, Layers } from "lucide-react";
 import InlineLektionEditor from "./InlineLektionEditor";
 import FileSelector from "./FileSelector";
 import KompetenzSelector from "./KompetenzSelector";
+import IntegrationsfaecherMultiSelect from "./IntegrationsfaecherMultiSelect";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -99,6 +100,8 @@ export default function CustomThemeForm({
   );
   const [fileRouge, setFileRouge] = useState(initialData?.fileRouge || "");
   const [unterlagen, setUnterlagen] = useState(initialData?.unterlagen || "");
+  const [empfohleneIntegrationsfaecher, setEmpfohleneIntegrationsfaecher] =
+    useState<Fachbereich[]>(initialData?.empfohleneIntegrationsfaecher || []);
 
   // Lektionen State
   const [lektionen, setLektionen] = useState<TempLektion[]>(
@@ -346,6 +349,7 @@ export default function CustomThemeForm({
         kompetenzenIds,
         fileRouge,
         unterlagen,
+        empfohleneIntegrationsfaecher,
         submitForReview,
         // Lektionen mitsenden (ohne tempId)
         lektionen: lektionen.map(({ tempId, ...rest }) => rest),
@@ -572,6 +576,28 @@ export default function CustomThemeForm({
           <KompetenzSelector
             selectedIds={kompetenzenIds}
             onChange={setKompetenzenIds}
+            disabled={loading}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Empfohlene Integrationsfächer */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Layers className="h-5 w-5" />
+            Empfohlene Integrationsfächer
+          </CardTitle>
+          <CardDescription>
+            In welchen Fächern lässt sich dieses Thema integrativ unterrichten?
+            Hilft Lehrpersonen, MI/IB-Inhalte in andere Fächer einzubauen
+            (z.B. wenn das Fach Informatische Bildung wegfällt).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <IntegrationsfaecherMultiSelect
+            value={empfohleneIntegrationsfaecher}
+            onChange={setEmpfohleneIntegrationsfaecher}
             disabled={loading}
           />
         </CardContent>

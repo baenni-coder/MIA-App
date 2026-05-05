@@ -1,8 +1,34 @@
 import getBase from "./config";
-import { Thema, Stufe, Zeitraum } from "@/types";
+import { Thema, Stufe, Zeitraum, Fachbereich, FACHBEREICHE } from "@/types";
 import { getKompetenzenByIds } from "./kompetenzen";
 
 const THEMEN_TABLE = process.env.AIRTABLE_THEMEN_TABLE || "Themen";
+const INTEGRATIONSFAECHER_FIELD =
+  process.env.AIRTABLE_THEMEN_FIELD_INTEGRATIONSFAECHER ||
+  "Empfohlene Integrationsfächer";
+
+const FACHBEREICH_VALUES = new Set<Fachbereich>(
+  FACHBEREICHE.map((f) => f.value)
+);
+
+// Helper: Parse Integrationsfächer aus Airtable Multi-Select (Array oder CSV-String)
+const parseIntegrationsfaecher = (
+  raw: unknown
+): Fachbereich[] | undefined => {
+  if (!raw) return undefined;
+  let arr: string[] = [];
+  if (Array.isArray(raw)) {
+    arr = raw.filter((v): v is string => typeof v === "string");
+  } else if (typeof raw === "string") {
+    arr = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  } else {
+    return undefined;
+  }
+  const valid = arr.filter((v): v is Fachbereich =>
+    FACHBEREICH_VALUES.has(v as Fachbereich)
+  );
+  return valid.length > 0 ? valid : undefined;
+};
 
 // Helper: Parse Stufen aus CSV-String oder Array
 const parseStufen = (stufen: string | string[] | undefined): Stufe[] => {
@@ -86,6 +112,9 @@ export const getAllThemen = async (): Promise<Thema[]> => {
         startdatum: record.get("Startdatum") as string | undefined,
         uebersichtPICTS: record.get("Übersicht PICTS Buchungen") as string | undefined,
         pictsBuchen: record.get("PICTS buchen") as string | undefined,
+        empfohleneIntegrationsfaecher: parseIntegrationsfaecher(
+          record.get(INTEGRATIONSFAECHER_FIELD)
+        ),
       };
     });
   } catch (error) {
