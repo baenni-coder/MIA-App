@@ -16,7 +16,11 @@ import {
 } from "@/lib/firestore/permissions";
 import { notifyThemeSubmitted } from "@/lib/firestore/notifications";
 import { getTeacherProfile } from "@/lib/firestore/permissions";
-import { WebsiteTool } from "@/types";
+import { WebsiteTool, Fachbereich, FACHBEREICHE } from "@/types";
+
+const FACHBEREICH_VALUES = new Set<Fachbereich>(
+  FACHBEREICHE.map((f) => f.value)
+);
 
 // Interface für Lektionen aus dem Request Body
 interface LektionInput {
@@ -147,6 +151,20 @@ export async function PUT(
     // Berechne tatsächliche Anzahl Lektionen
     if (lektionen && lektionen.length > 0) {
       updates.anzahlLektionen = lektionen.length;
+    }
+
+    // Sanitize empfohleneIntegrationsfaecher (nur valide Enum-Werte zulassen)
+    if (updates.empfohleneIntegrationsfaecher !== undefined) {
+      if (Array.isArray(updates.empfohleneIntegrationsfaecher)) {
+        const valid = updates.empfohleneIntegrationsfaecher.filter(
+          (v: unknown): v is Fachbereich =>
+            typeof v === "string" &&
+            FACHBEREICH_VALUES.has(v as Fachbereich)
+        );
+        updates.empfohleneIntegrationsfaecher = valid;
+      } else {
+        delete updates.empfohleneIntegrationsfaecher;
+      }
     }
 
     // Aktualisiere Theme

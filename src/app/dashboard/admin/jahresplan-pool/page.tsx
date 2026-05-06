@@ -40,7 +40,9 @@ import {
   Stufe,
   SchoolJahresplanAssignment,
   JahresplanMode,
+  Fachbereich,
 } from "@/types";
+import IntegrationsfaecherMultiSelect from "@/components/IntegrationsfaecherMultiSelect";
 import {
   Loader2,
   Search,
@@ -88,6 +90,7 @@ interface PoolEntry {
   anzahlLektionen?: number;
   schuljahr: Stufe[];
   zeitraum?: Zeitraum;
+  empfohleneIntegrationsfaecher?: Fachbereich[];
   isCustom?: boolean;
   sourceType: "system" | "custom";
 }
@@ -243,6 +246,7 @@ export default function JahresplanPoolPage() {
         anzahlLektionen: t.anzahlLektionen,
         schuljahr: t.schuljahr || [],
         zeitraum: t.zeitraum,
+        empfohleneIntegrationsfaecher: t.empfohleneIntegrationsfaecher,
         isCustom: t.isCustom,
         sourceType: t.isCustom ? "custom" : "system",
       }));
@@ -594,6 +598,10 @@ export default function JahresplanPoolPage() {
                             assignment.anzahlLektionenOverride !== undefined ||
                             assignment.fileRougeOverride !== undefined ||
                             assignment.unterlagenOverride !== undefined ||
+                            (assignment.empfohleneIntegrationsfaecherOverride !==
+                              undefined &&
+                              assignment.empfohleneIntegrationsfaecherOverride
+                                .length > 0) ||
                             (assignment.schulMaterialien !== undefined &&
                               assignment.schulMaterialien.length > 0) ||
                             (assignment.schulNotizen !== undefined &&
@@ -728,6 +736,12 @@ function AssignmentEditDialog({
       ? assignment.stufeOverride
       : original.schuljahr
   );
+  const [integrationsfaecher, setIntegrationsfaecher] = useState<Fachbereich[]>(
+    assignment.empfohleneIntegrationsfaecherOverride &&
+      assignment.empfohleneIntegrationsfaecherOverride.length > 0
+      ? assignment.empfohleneIntegrationsfaecherOverride
+      : original.empfohleneIntegrationsfaecher || []
+  );
   const [schulMaterialien, setSchulMaterialien] = useState<string>(
     (assignment.schulMaterialien || []).join("\n")
   );
@@ -775,6 +789,14 @@ function AssignmentEditDialog({
       stufen.length === original.schuljahr.length &&
       stufen.every((s) => original.schuljahr.includes(s));
     u.stufeOverride = sameStufen ? null : stufen;
+
+    const originalIntegration = original.empfohleneIntegrationsfaecher || [];
+    const sameIntegration =
+      integrationsfaecher.length === originalIntegration.length &&
+      integrationsfaecher.every((f) => originalIntegration.includes(f));
+    u.empfohleneIntegrationsfaecherOverride = sameIntegration
+      ? null
+      : integrationsfaecher;
 
     u.schulMaterialien = schulMaterialien
       .split("\n")
@@ -839,6 +861,7 @@ function AssignmentEditDialog({
           fileRougeOverride: null,
           unterlagenOverride: null,
           bildLehrmittelOverride: null,
+          empfohleneIntegrationsfaecherOverride: null,
         }),
       });
       if (!res.ok) throw new Error("Zurücksetzen fehlgeschlagen");
@@ -940,6 +963,17 @@ function AssignmentEditDialog({
                 </label>
               ))}
             </div>
+          </div>
+          <div>
+            <Label>Empfohlene Integrationsfächer</Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-2">
+              In welchen Fächern soll dieses Thema in eurer Schule integrativ
+              durchgeführt werden? Überschreibt die Empfehlung des Originals.
+            </p>
+            <IntegrationsfaecherMultiSelect
+              value={integrationsfaecher}
+              onChange={setIntegrationsfaecher}
+            />
           </div>
           <div>
             <Label>Zusätzliche Schul-Materialien (eine pro Zeile)</Label>

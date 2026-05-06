@@ -9,7 +9,29 @@ import { createMultipleCustomLektionen } from "@/lib/firestore/custom-lektionen"
 import { getTeacherProfile } from "@/lib/firestore/permissions";
 import { notifyThemeSubmitted } from "@/lib/firestore/notifications";
 import { validateCustomThemeInput } from "@/lib/validation/input";
-import { ThemeStatus, Stufe, Zeitraum, WebsiteTool } from "@/types";
+import {
+  ThemeStatus,
+  Stufe,
+  Zeitraum,
+  WebsiteTool,
+  Fachbereich,
+  FACHBEREICHE,
+} from "@/types";
+
+const FACHBEREICH_VALUES = new Set<Fachbereich>(
+  FACHBEREICHE.map((f) => f.value)
+);
+
+const sanitizeIntegrationsfaecher = (
+  raw: unknown
+): Fachbereich[] | undefined => {
+  if (!Array.isArray(raw)) return undefined;
+  const valid = raw.filter(
+    (v): v is Fachbereich =>
+      typeof v === "string" && FACHBEREICH_VALUES.has(v as Fachbereich)
+  );
+  return valid.length > 0 ? valid : undefined;
+};
 
 // Interface für Lektionen aus dem Request Body
 interface LektionInput {
@@ -161,6 +183,7 @@ export async function POST(request: NextRequest) {
       kompetenzenIds,
       fileRouge,
       unterlagen,
+      empfohleneIntegrationsfaecher,
       submitForReview,
       lektionen, // NEU: Array von Lektionen
     } = body as {
@@ -174,6 +197,7 @@ export async function POST(request: NextRequest) {
       kompetenzenIds?: string[];
       fileRouge?: string;
       unterlagen?: string;
+      empfohleneIntegrationsfaecher?: Fachbereich[];
       submitForReview?: boolean;
       lektionen?: LektionInput[];
     };
@@ -225,6 +249,9 @@ export async function POST(request: NextRequest) {
       kompetenzenIds: kompetenzenIds || [],
       fileRouge,
       unterlagen,
+      empfohleneIntegrationsfaecher: sanitizeIntegrationsfaecher(
+        empfohleneIntegrationsfaecher
+      ),
       createdBy: userId,
       createdByName: teacher.name,
       schuleId: teacher.schuleId,

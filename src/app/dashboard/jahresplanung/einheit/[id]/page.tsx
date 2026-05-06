@@ -27,6 +27,7 @@ import {
 import { ArrowLeft, Save, Trash2, Plus, X, BookOpen, LinkIcon, Circle, Diamond, Paperclip, FileText, Upload, ExternalLink, Users } from "lucide-react";
 import Link from "next/link";
 import KompetenzPicker from "@/components/jahresplanung/KompetenzPicker";
+import MiaThemePickerDialog from "@/components/jahresplanung/MiaThemePickerDialog";
 import SchoolFileUpload from "@/components/SchoolFileUpload";
 import type { SchoolFile } from "@/types";
 import {
@@ -104,8 +105,10 @@ export default function EinheitFormPage() {
   // MIA-Thema Verknüpfung
   const [linkedMiaThemeId, setLinkedMiaThemeId] = useState<string>("");
   const [linkedMiaThemeName, setLinkedMiaThemeName] = useState<string>("");
-  const [miaThemen, setMiaThemen] = useState<Thema[]>([]);
-  const [loadingMiaThemen, setLoadingMiaThemen] = useState(false);
+  const [showMiaPicker, setShowMiaPicker] = useState(false);
+  const [teacherSchuleId, setTeacherSchuleId] = useState<string | undefined>(
+    undefined
+  );
 
   // Schul-Dateien Verknüpfung
   const [linkedFileIds, setLinkedFileIds] = useState<string[]>([]);
@@ -126,58 +129,32 @@ export default function EinheitFormPage() {
   }, []);
   const loadingFachbereiche = false;
 
-  // MIA-Themen laden wenn Fachbereich = MI oder IB
+  // Schul-ID des Teachers laden (für curated-Themen-API)
   useEffect(() => {
-    async function fetchMiaThemen() {
-      if (fachbereichId !== "MI" && fachbereichId !== "IB") {
-        setMiaThemen([]);
-        return;
-      }
-
+    async function loadTeacher() {
+      if (!user) return;
       try {
-        setLoadingMiaThemen(true);
-        const response = await fetch("/api/themen?grouped=true");
-        if (response.ok) {
-          const data = await response.json();
-          // Alle Themen aus allen Zeiträumen sammeln
-          const alleThemen: Thema[] = [];
-          for (const zeitraum of Object.values(data)) {
-            if (Array.isArray(zeitraum)) {
-              alleThemen.push(...(zeitraum as Thema[]));
-            }
-          }
-          // Duplikate entfernen (nach ID) und sortieren
-          const unique = alleThemen.filter(
-            (t, i, arr) => arr.findIndex((a) => a.id === t.id) === i
-          );
-          unique.sort((a, b) => a.thema.localeCompare(b.thema, "de"));
-          setMiaThemen(unique);
+        const token = await user.getIdToken();
+        const res = await fetch(`/api/teachers?userId=${user.uid}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.schuleId) setTeacherSchuleId(data.schuleId);
         }
       } catch (error) {
-        console.error("Error fetching MIA themen:", error);
-      } finally {
-        setLoadingMiaThemen(false);
+        console.error("Error loading teacher schuleId:", error);
       }
     }
+    loadTeacher();
+  }, [user]);
 
-    fetchMiaThemen();
-  }, [fachbereichId]);
-
-  // MIA-Thema auswählen und Felder vorbefüllen
-  const handleMiaThemeSelect = (themeId: string) => {
-    if (!themeId || themeId === "none") {
-      setLinkedMiaThemeId("");
-      setLinkedMiaThemeName("");
-      return;
-    }
-
-    const theme = miaThemen.find((t) => t.id === themeId);
-    if (!theme) return;
-
+  // MIA-Thema-Auswahl: Felder vorbefüllen
+  const handleMiaThemeSelect = (theme: Thema) => {
     setLinkedMiaThemeId(theme.id);
     setLinkedMiaThemeName(theme.thema);
 
-    // Felder vorbefüllen (nur wenn noch leer)
+    // Titel vorbefüllen (nur wenn noch leer)
     if (!titel) {
       setTitel(theme.thema);
     }
@@ -195,10 +172,24 @@ export default function EinheitFormPage() {
       setKompetenzenNamen(namen);
     }
 
-    // Materialien aus Unterlagen-Link
+    // Materialien aus Unterlagen-Link (nur wenn leer)
     if (theme.unterlagen && materialien.length === 0) {
       setMaterialien([theme.unterlagen]);
     }
+
+    // Wochenanzahl als Heuristik für zeitraumEnde (Annahme: 2 Lektionen pro Woche)
+    if (theme.anzahlLektionen && theme.anzahlLektionen > 0) {
+      const expectedEnde =
+        zeitraumStart + Math.max(0, Math.ceil(theme.anzahlLektionen / 2) - 1);
+      if (zeitraumEnde < expectedEnde && expectedEnde <= 52) {
+        setZeitraumEnde(expectedEnde);
+      }
+    }
+  };
+
+  const clearMiaTheme = () => {
+    setLinkedMiaThemeId("");
+    setLinkedMiaThemeName("");
   };
 
   // Schul-Dateien laden
@@ -362,14 +353,10 @@ export default function EinheitFormPage() {
         body.teamId = teamId;
       }
 
-      // MIA-Thema Verknüpfung hinzufügen (auch leerer String zum Entfernen)
-      if ((fachbereichId === "MI" || fachbereichId === "IB")) {
-        body.linkedMiaThemeId = linkedMiaThemeId || null;
-        body.linkedMiaThemeName = linkedMiaThemeName || null;
-      } else {
-        body.linkedMiaThemeId = null;
-        body.linkedMiaThemeName = null;
-      }
+      // MIA-Thema Verknüpfung (für alle Fachbereiche – integrative Umsetzung
+      // der MIA-Kompetenzen ist auch in anderen Fächern möglich)
+      body.linkedMiaThemeId = linkedMiaThemeId || null;
+      body.linkedMiaThemeName = linkedMiaThemeName || null;
 
       // Schul-Dateien Verknüpfung
       body.linkedFileIds = linkedFileIds;
@@ -554,66 +541,62 @@ export default function EinheitFormPage() {
                 )}
               </div>
 
-              {/* MIA-Thema Verknüpfung (nur bei Informatische Bildung) */}
-              {(fachbereichId === "MI" || fachbereichId === "IB") && (
+              {/* MIA-Thema als Vorlage (für alle Fachbereiche – integrative MIA-Umsetzung) */}
+              {fachbereichId && (
                 <div>
                   <label className="text-sm font-medium flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-indigo-600" />
                     MIA-Thema als Vorlage
                   </label>
-                  <p className="text-xs text-gray-500 mt-0.5 mb-1">
-                    Wählen Sie ein bestehendes MIA-Thema, um Titel, Beschreibung und Kompetenzen zu übernehmen.
+                  <p className="text-xs text-gray-500 mt-0.5 mb-2">
+                    Übernehmen Sie ein MIA-Thema als Grundlage. Titel, Lernziele
+                    und Kompetenzen werden vorbefüllt – ideal, um MI/IB-Inhalte
+                    integrativ einzubauen.
                   </p>
-                  {loadingMiaThemen ? (
-                    <div className="flex items-center gap-2 py-2 text-sm text-gray-500">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600" />
-                      Themen werden geladen...
-                    </div>
-                  ) : (
-                    <Select
-                      value={linkedMiaThemeId}
-                      onValueChange={handleMiaThemeSelect}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="MIA-Thema auswählen (optional)..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">
-                          Kein Thema verknüpfen
-                        </SelectItem>
-                        {miaThemen.map((thema) => (
-                          <SelectItem key={thema.id} value={thema.id}>
-                            <div className="flex items-center gap-2">
-                              <span className="truncate">{thema.thema}</span>
-                              {thema.lehrmittel && (
-                                <span className="text-xs text-gray-400 flex-shrink-0">
-                                  ({thema.lehrmittel})
-                                </span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {linkedMiaThemeId && linkedMiaThemeName && (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-indigo-600">
-                      <LinkIcon className="h-3.5 w-3.5" />
-                      <span>Verknüpft mit: {linkedMiaThemeName}</span>
+                  {linkedMiaThemeId && linkedMiaThemeName ? (
+                    <div className="flex items-center gap-2 p-2 rounded-md border border-indigo-200 bg-indigo-50 text-sm text-indigo-700">
+                      <LinkIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate flex-1">
+                        Verknüpft mit: <strong>{linkedMiaThemeName}</strong>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowMiaPicker(true)}
+                      >
+                        Ändern
+                      </Button>
                       <button
                         type="button"
-                        onClick={() => {
-                          setLinkedMiaThemeId("");
-                          setLinkedMiaThemeName("");
-                        }}
-                        className="ml-auto text-gray-400 hover:text-gray-600"
+                        onClick={clearMiaTheme}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                        aria-label="Verknüpfung entfernen"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowMiaPicker(true)}
+                      className="w-full sm:w-auto"
+                    >
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      MIA-Thema auswählen
+                    </Button>
                   )}
                 </div>
               )}
+
+              <MiaThemePickerDialog
+                open={showMiaPicker}
+                onOpenChange={setShowMiaPicker}
+                fachbereichId={fachbereichId}
+                schuleId={teacherSchuleId}
+                onSelect={handleMiaThemeSelect}
+              />
 
               {/* Zeitraum */}
               <div className="grid grid-cols-2 gap-4">

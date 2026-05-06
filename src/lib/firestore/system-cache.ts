@@ -95,6 +95,7 @@ export async function getSystemThemes(stufe?: Stufe): Promise<SystemTheme[]> {
         startdatum: data.startdatum,
         uebersichtPICTS: data.uebersichtPICTS,
         pictsBuchen: data.pictsBuchen,
+        empfohleneIntegrationsfaecher: data.empfohleneIntegrationsfaecher,
         lastSyncedAt: timestampToDate(data.lastSyncedAt),
         isActive: data.isActive,
       } as SystemTheme;
@@ -142,6 +143,7 @@ export async function getSystemThemeByAirtableId(airtableId: string): Promise<Sy
       startdatum: data.startdatum,
       uebersichtPICTS: data.uebersichtPICTS,
       pictsBuchen: data.pictsBuchen,
+      empfohleneIntegrationsfaecher: data.empfohleneIntegrationsfaecher,
       lastSyncedAt: timestampToDate(data.lastSyncedAt),
       isActive: data.isActive,
     } as SystemTheme;

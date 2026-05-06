@@ -1,5 +1,5 @@
 import { getAdminDb } from "@/lib/firebase/admin";
-import { CustomTheme, ThemeStatus, Stufe, Zeitraum } from "@/types";
+import { CustomTheme, ThemeStatus, Stufe, Zeitraum, Fachbereich } from "@/types";
 import { getKompetenzenByIds } from "@/lib/airtable/kompetenzen";
 import * as admin from "firebase-admin";
 
@@ -33,6 +33,7 @@ export async function createCustomTheme(
     kompetenzenIds: string[];
     fileRouge?: string;
     unterlagen?: string;
+    empfohleneIntegrationsfaecher?: Fachbereich[];
     createdBy: string;
     createdByName: string;
     schuleId: string;
@@ -43,8 +44,13 @@ export async function createCustomTheme(
     const adminDb = getAdminDb();
     const now = new Date();
 
+    // Entferne undefined-Felder, da Firestore diese nicht akzeptiert
+    const cleanedData = Object.fromEntries(
+      Object.entries(data).filter(([, v]) => v !== undefined)
+    );
+
     const themeData = {
-      ...data,
+      ...cleanedData,
       status: data.status || "draft",
       isSystemWide: false,
       createdAt: now,
@@ -93,6 +99,7 @@ export async function getCustomThemeById(
       kompetenzenIds: data.kompetenzenIds || [],
       fileRouge: data.fileRouge,
       unterlagen: data.unterlagen,
+      empfohleneIntegrationsfaecher: data.empfohleneIntegrationsfaecher,
       createdBy: data.createdBy,
       createdByName: data.createdByName,
       schuleId: data.schuleId,
