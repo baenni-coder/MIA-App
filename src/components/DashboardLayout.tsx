@@ -32,6 +32,7 @@ import {
   BarChart3,
   Lightbulb,
   ListChecks,
+  Target,
 } from "lucide-react";
 import { Kanton } from "@/types";
 
@@ -139,6 +140,11 @@ export default function DashboardLayout({
           label: "Jahresplanung",
           icon: <CalendarDays className="h-5 w-5" />,
           path: "/dashboard/jahresplanung",
+        },
+        {
+          label: "MIA-Abdeckung",
+          icon: <Target className="h-5 w-5" />,
+          path: "/dashboard/jahresplanung/mia-abdeckung",
         },
       ],
     },

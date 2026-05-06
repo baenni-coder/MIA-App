@@ -1210,3 +1210,55 @@ export interface JahresplanFilter {
   fachbereichId?: string;
   status?: JahresplanStatus;
 }
+
+// ============================================
+// MIA-Abdeckung (Coverage-Tracker für MI/IB-Kompetenzen)
+// ============================================
+
+// Bereich-Klassifizierung für die MIA-Abdeckungs-Ansicht
+export type MiaBereich = "medien" | "informatik" | "anwendungskompetenzen";
+
+// Eine einzelne Einheit, die eine Kompetenz abdeckt
+export interface MiaCoverageEinheit {
+  einheitId: string;
+  titel: string;
+  fachbereichId: string;
+  fachbereichName?: string;
+  fachbereichFarbe?: string;
+  zeitraumStart: number; // KW
+  zeitraumEnde: number; // KW
+  // true = Abdeckung kommt nicht aus den direkt gewählten Kompetenzen,
+  // sondern über das verknüpfte MIA-Thema (linkedMiaThemeId).
+  linkedViaMiaTheme: boolean;
+}
+
+// Pro Kompetenzstufe (z.B. MI.1.2.b oder IB.1.2.b) ein Coverage-Resultat
+export interface MiaCoverageResult {
+  // Kanonischer LP-Code (mit MI.-Prefix unabhängig vom Kanton, damit
+  // MI/IB-Duplikate als eine Kompetenz behandelt werden).
+  canonicalCode: string;
+  // Kanton-spezifischer Anzeigecode (IB für SO, sonst MI).
+  displayCode: string;
+  // Kompetenz-Name (z.B. "Datenstrukturen") und detaillierte Beschreibung
+  competencyName: string;
+  competencyDescription?: string;
+  kompetenzstufe?: string;
+  // Bereich für Gruppierung in der UI
+  bereich: MiaBereich;
+  // Kompetenzbereich-Name aus LP21 (z.B. "Medien.Leben in der Mediengesellschaft")
+  kompetenzbereich?: string;
+  // Zyklus/Klassenstufe-Filter
+  zyklus?: string[];
+  klassenstufe?: string[];
+  // Coverage-Status
+  isCovered: boolean;
+  coveringEinheiten: MiaCoverageEinheit[];
+}
+
+// Aggregierte Statistiken für die Abdeckungs-Übersicht
+export interface MiaCoverageStats {
+  total: number;
+  covered: number;
+  uncovered: number;
+  byBereich: Record<MiaBereich, { total: number; covered: number }>;
+}
