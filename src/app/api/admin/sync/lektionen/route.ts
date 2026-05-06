@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth } from "@/lib/firebase/admin";
 import { getTeacherProfile } from "@/lib/firestore/permissions";
-import { getAllThemen } from "@/lib/airtable/themen";
-import { getLektionsplanungByThemaName } from "@/lib/airtable/lektionsplanung";
+import { getAllLektionsplanung } from "@/lib/airtable/lektionsplanung";
 import {
   upsertSystemLektionen,
-  getSystemLektionenByThemaName,
+  getAllSystemLektionen,
   deactivateSystemLektionen,
 } from "@/lib/firestore/system-cache";
 import { SystemLektion } from "@/types";
+
+// Vercel: 120s Funktion-Timeout (Lektionen können viele sein)
+export const maxDuration = 120;
 
 /**
  * POST /api/admin/sync/lektionen
@@ -42,64 +44,51 @@ export async function POST(req: NextRequest) {
     let deleted = 0;
     const errors: string[] = [];
 
-    // 3. Lade alle Themen (um zu wissen, welche Lektionen wir laden müssen)
-    const airtableThemen = await getAllThemen();
+    // 3. OPTIMIERUNG: Lade ALLE Lektionen auf einmal (1 API-Call statt N).
+    // Vorher wurde pro Thema ein eigener Airtable-Call gemacht (~90 Calls
+    // bei 90 Themen, was bei 5 req/sec rund 18s dauert).
+    const airtableLektionen = await getAllLektionsplanung();
+    const allAirtableIds = new Set(airtableLektionen.map((l) => l.id));
 
-    const allLektionen: Omit<SystemLektion, "id">[] = [];
-    const allAirtableIds = new Set<string>();
+    // 4. Lade ALLE Lektionen aus Firestore auf einmal
+    const firestoreLektionen = await getAllSystemLektionen();
+    const firestoreIds = new Set(firestoreLektionen.map((l) => l.airtableId));
 
-    // 4. Für jedes Thema: Lade Lektionen
-    for (const thema of airtableThemen) {
-      try {
-        const lektionen = await getLektionsplanungByThemaName(thema.thema);
-
-        lektionen.forEach((lektion) => {
-          allAirtableIds.add(lektion.id);
-          allLektionen.push({
-            airtableId: lektion.id,
-            eindeutigeBezeichnung: lektion.eindeutigeBezeichnung,
-            lektion: lektion.lektion,
-            themaId: lektion.themaId,
-            themaName: lektion.themaName,
-            aufgaben: lektion.aufgaben,
-            vorwissen: lektion.vorwissen,
-            material: lektion.material,
-            websiteTools: lektion.websiteTools,
-            einstieg: lektion.einstieg,
-            hauptteil: lektion.hauptteil,
-            abschluss: lektion.abschluss,
-            stolpersteine: lektion.stolpersteine,
-            kiZusammenfassung: lektion.kiZusammenfassung,
-            isActive: true,
-            lastSyncedAt: new Date(),
-          });
-        });
-      } catch (error) {
-        const errorMessage = `Error loading Lektionen for Thema "${thema.thema}": ${error instanceof Error ? error.message : "Unknown error"}`;
-        errors.push(errorMessage);
-        console.warn(errorMessage);
-      }
+    // SAFETY: Nicht alle Lektionen deaktivieren, wenn Airtable leer ist
+    if (airtableLektionen.length === 0 && firestoreLektionen.length > 0) {
+      throw new Error(
+        "Airtable lieferte 0 Lektionen, aber Firestore enthält Daten – Sync abgebrochen, um Datenverlust zu vermeiden."
+      );
     }
 
-    // 5. Lade alle Lektionen aus Firestore (um Deleted zu identifizieren)
-    const firestoreIds = new Set<string>();
-    for (const thema of airtableThemen) {
-      try {
-        const firestoreLektionen = await getSystemLektionenByThemaName(thema.thema);
-        firestoreLektionen.forEach((l) => firestoreIds.add(l.airtableId));
-      } catch (error) {
-        console.warn(`Could not load Firestore Lektionen for ${thema.thema}:`, error);
+    // 5. Konvertiere Airtable-Lektionen zu SystemLektion-Format
+    const allLektionen: Omit<SystemLektion, "id">[] = airtableLektionen.map(
+      (lektion) => {
+        if (!firestoreIds.has(lektion.id)) {
+          added++;
+        } else {
+          updated++;
+        }
+        return {
+          airtableId: lektion.id,
+          eindeutigeBezeichnung: lektion.eindeutigeBezeichnung,
+          lektion: lektion.lektion,
+          themaId: lektion.themaId,
+          themaName: lektion.themaName,
+          aufgaben: lektion.aufgaben,
+          vorwissen: lektion.vorwissen,
+          material: lektion.material,
+          websiteTools: lektion.websiteTools,
+          einstieg: lektion.einstieg,
+          hauptteil: lektion.hauptteil,
+          abschluss: lektion.abschluss,
+          stolpersteine: lektion.stolpersteine,
+          kiZusammenfassung: lektion.kiZusammenfassung,
+          isActive: true,
+          lastSyncedAt: new Date(),
+        };
       }
-    }
-
-    // 6. Zähle Neue vs. Updates
-    allLektionen.forEach((lektion) => {
-      if (!firestoreIds.has(lektion.airtableId)) {
-        added++;
-      } else {
-        updated++;
-      }
-    });
+    );
 
     // 7. Upsert in Firestore
     if (allLektionen.length > 0) {
@@ -110,7 +99,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 8. Identifiziere gelöschte Lektionen
-    const toDeactivate = Array.from(firestoreIds).filter((id) => !allAirtableIds.has(id));
+    const toDeactivate = Array.from(firestoreIds).filter(
+      (id) => !allAirtableIds.has(id)
+    );
 
     if (toDeactivate.length > 0) {
       await deactivateSystemLektionen(toDeactivate);
