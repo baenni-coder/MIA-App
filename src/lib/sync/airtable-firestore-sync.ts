@@ -90,13 +90,39 @@ export async function syncAirtableToFirestore(triggeredBy?: string): Promise<Syn
     // Kompetenzen das 8s-Timeout sprengte.
     console.log("📥 Loading source data from Airtable...");
     const sourceLoadStart = Date.now();
-    const [airtableThemen, airtableSchulen] = await withTimeout(
-      Promise.all([getAllThemen(), getAllSchulen()]),
-      90000, // 90s – grosszügig, da Airtable manchmal langsam ist
-      "Airtable load timeout after 90 seconds"
-    );
+    let airtableThemen: Thema[];
+    let airtableSchulen: Schule[];
+    try {
+      [airtableThemen, airtableSchulen] = await withTimeout(
+        Promise.all([getAllThemen(), getAllSchulen()]),
+        90000, // 90s – grosszügig, da Airtable manchmal langsam ist
+        "Airtable load timeout after 90 seconds"
+      );
+    } catch (loadError) {
+      const msg =
+        loadError instanceof Error ? loadError.message : String(loadError);
+      throw new Error(`Airtable-Load fehlgeschlagen: ${msg}`);
+    }
+    const sourceLoadDuration = Date.now() - sourceLoadStart;
     console.log(
-      `   Loaded ${airtableThemen.length} themen, ${airtableSchulen.length} schulen in ${Date.now() - sourceLoadStart}ms`
+      `   Loaded ${airtableThemen.length} themen, ${airtableSchulen.length} schulen in ${sourceLoadDuration}ms`
+    );
+
+    // SAFETY: Wenn Airtable leer zurückkommt, ist meist ein Verbindungs-/
+    // Konfigurationsfehler die Ursache. Sync abbrechen, statt versehentlich
+    // ALLE Cache-Einträge zu deaktivieren.
+    if (airtableThemen.length === 0 && airtableSchulen.length === 0) {
+      throw new Error(
+        "Airtable lieferte 0 Themen UND 0 Schulen – wahrscheinlich Verbindungs- oder Auth-Problem. Sync abgebrochen, um Datenverlust zu vermeiden."
+      );
+    }
+
+    // Zähle Themen mit empfohleneIntegrationsfaecher (für Debug-Sichtbarkeit)
+    const themenWithIntegrationField = airtableThemen.filter(
+      (t) => t.empfohleneIntegrationsfaecher && t.empfohleneIntegrationsfaecher.length > 0
+    ).length;
+    console.log(
+      `   ${themenWithIntegrationField}/${airtableThemen.length} themen haben empfohleneIntegrationsfaecher gesetzt`
     );
 
     // Kompetenzen-Map aus den bereits geladenen Themen extrahieren
@@ -115,6 +141,7 @@ export async function syncAirtableToFirestore(triggeredBy?: string): Promise<Syn
     // OPTIMIERUNG: Firestore-Upserts parallel ausführen (keine Airtable-Calls
     // mehr in Phase 1, daher ist Parallelisierung sicher und schnell).
     console.log("⚡ Running parallel Firestore upserts...");
+    const phase1Start = Date.now();
     const [schulenResult, themenResult, kompetenzenResult] = await withTimeout(
       Promise.all([
         syncSchulen(airtableSchulen).catch((error) => {
@@ -134,7 +161,9 @@ export async function syncAirtableToFirestore(triggeredBy?: string): Promise<Syn
       "Sync Phase 1 timeout after 60 seconds"
     );
 
-    console.log("✅ Phase 1 (parallel Firestore upserts) completed");
+    console.log(
+      `✅ Phase 1 (parallel Firestore upserts) completed in ${Date.now() - phase1Start}ms`
+    );
 
     result.recordsProcessed.schulen = schulenResult;
     result.recordsProcessed.themes = themenResult;
