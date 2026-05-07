@@ -88,6 +88,8 @@ interface PoolEntry {
   anzahlLektionen?: number;
   schuljahr: Stufe[];
   zeitraum?: Zeitraum;
+  fileRouge?: string;
+  unterlagen?: string;
   isCustom?: boolean;
   sourceType: "system" | "custom";
 }
@@ -243,6 +245,8 @@ export default function JahresplanPoolPage() {
         anzahlLektionen: t.anzahlLektionen,
         schuljahr: t.schuljahr || [],
         zeitraum: t.zeitraum,
+        fileRouge: t.fileRouge,
+        unterlagen: t.unterlagen,
         isCustom: t.isCustom,
         sourceType: t.isCustom ? "custom" : "system",
       }));
@@ -728,14 +732,17 @@ function AssignmentEditDialog({
       ? assignment.stufeOverride
       : original.schuljahr
   );
+  const [fileRouge, setFileRouge] = useState<string>(
+    assignment.fileRougeOverride ?? original.fileRouge ?? ""
+  );
+  const [unterlagen, setUnterlagen] = useState<string>(
+    assignment.unterlagenOverride ?? original.unterlagen ?? ""
+  );
   const [schulMaterialien, setSchulMaterialien] = useState<string>(
     (assignment.schulMaterialien || []).join("\n")
   );
   const [schulNotizen, setSchulNotizen] = useState<string>(
     assignment.schulNotizen ?? ""
-  );
-  const [schulUnterlagen, setSchulUnterlagen] = useState<string>(
-    assignment.schulUnterlagen ?? ""
   );
 
   const toggleStufe = (s: Stufe) => {
@@ -776,12 +783,25 @@ function AssignmentEditDialog({
       stufen.every((s) => original.schuljahr.includes(s));
     u.stufeOverride = sameStufen ? null : stufen;
 
+    const originalFileRouge = original.fileRouge || "";
+    const trimmedFileRouge = fileRouge.trim();
+    u.fileRougeOverride =
+      trimmedFileRouge === "" || trimmedFileRouge === originalFileRouge
+        ? null
+        : trimmedFileRouge;
+
+    const originalUnterlagen = original.unterlagen || "";
+    const trimmedUnterlagen = unterlagen.trim();
+    u.unterlagenOverride =
+      trimmedUnterlagen === "" || trimmedUnterlagen === originalUnterlagen
+        ? null
+        : trimmedUnterlagen;
+
     u.schulMaterialien = schulMaterialien
       .split("\n")
       .map((x) => x.trim())
       .filter(Boolean);
     u.schulNotizen = schulNotizen;
-    u.schulUnterlagen = schulUnterlagen;
     return u;
   };
 
@@ -941,6 +961,30 @@ function AssignmentEditDialog({
               ))}
             </div>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>File rouge (URL)</Label>
+              <Input
+                value={fileRouge}
+                onChange={(e) => setFileRouge(e.target.value)}
+                placeholder={original.fileRouge || "https://..."}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Leer = Original behalten. Erscheint im Jahresplan unter Links &amp; Materialien.
+              </p>
+            </div>
+            <div>
+              <Label>Unterlagen (URL)</Label>
+              <Input
+                value={unterlagen}
+                onChange={(e) => setUnterlagen(e.target.value)}
+                placeholder={original.unterlagen || "https://..."}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Leer = Original behalten. Erscheint im Jahresplan unter Links &amp; Materialien.
+              </p>
+            </div>
+          </div>
           <div>
             <Label>Zusätzliche Schul-Materialien (eine pro Zeile)</Label>
             <Textarea
@@ -956,14 +1000,6 @@ function AssignmentEditDialog({
               value={schulNotizen}
               onChange={(e) => setSchulNotizen(e.target.value)}
               rows={3}
-            />
-          </div>
-          <div>
-            <Label>Schul-Unterlagen (URL)</Label>
-            <Input
-              value={schulUnterlagen}
-              onChange={(e) => setSchulUnterlagen(e.target.value)}
-              placeholder="https://..."
             />
           </div>
 
