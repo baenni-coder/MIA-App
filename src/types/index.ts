@@ -55,6 +55,43 @@ export type Zeitraum =
   | "Frühlingsferien-Sommerferien"
   | "Zusatz";
 
+// LP21-Fachbereiche (Top-Level-IDs aus lehrplan21-fachbereiche.json)
+// Wird verwendet, um MIA-Themen auf empfohlene Integrationsfächer zu mappen,
+// damit Lehrpersonen MI/IB-Inhalte in andere Fächer integrieren können
+// (relevant z.B. für Kanton Solothurn ab 2027/28, wo IB als eigenes Fach wegfällt).
+export type Fachbereich =
+  | "D"     // Deutsch
+  | "DaZ"   // Deutsch als Zweitsprache
+  | "FS1"   // Französisch (1. Fremdsprache)
+  | "FS2"   // Englisch (2. Fremdsprache)
+  | "MA"    // Mathematik
+  | "NMG"   // Natur, Mensch, Gesellschaft
+  | "BG"    // Bildnerisches Gestalten
+  | "TTG"   // Textiles und Technisches Gestalten
+  | "MU"    // Musik
+  | "BS"    // Bewegung und Sport
+  | "MI"    // Medien und Informatik (LP21)
+  | "PK"    // Personale Kompetenzen
+  | "SK"    // Soziale Kompetenzen
+  | "MK";   // Methodische Kompetenzen
+
+export const FACHBEREICHE: { value: Fachbereich; label: string; farbe: string }[] = [
+  { value: "D", label: "Deutsch", farbe: "#2563EB" },
+  { value: "DaZ", label: "Deutsch als Zweitsprache", farbe: "#1E40AF" },
+  { value: "FS1", label: "Französisch", farbe: "#7C3AED" },
+  { value: "FS2", label: "Englisch", farbe: "#9333EA" },
+  { value: "MA", label: "Mathematik", farbe: "#DC2626" },
+  { value: "NMG", label: "Natur, Mensch, Gesellschaft", farbe: "#16A34A" },
+  { value: "BG", label: "Bildnerisches Gestalten", farbe: "#F59E0B" },
+  { value: "TTG", label: "Textiles und Technisches Gestalten", farbe: "#EA580C" },
+  { value: "MU", label: "Musik", farbe: "#EC4899" },
+  { value: "BS", label: "Bewegung und Sport", farbe: "#0891B2" },
+  { value: "MI", label: "Medien und Informatik", farbe: "#6366F1" },
+  { value: "PK", label: "Personale Kompetenzen", farbe: "#64748B" },
+  { value: "SK", label: "Soziale Kompetenzen", farbe: "#64748B" },
+  { value: "MK", label: "Methodische Kompetenzen", farbe: "#64748B" },
+];
+
 // Airtable Thema aus CSV
 export interface Thema {
   id: string;
@@ -73,6 +110,8 @@ export interface Thema {
   startdatum?: string;
   uebersichtPICTS?: string;
   pictsBuchen?: string;
+  // Empfohlene Integrationsfächer (für integrative Umsetzung der MIA-Kompetenzen)
+  empfohleneIntegrationsfaecher?: Fachbereich[];
   // Custom Theme Felder (wenn aus Firestore)
   isCustom?: boolean;
   customThemeId?: string;
@@ -211,6 +250,9 @@ export interface CustomTheme {
   fileRouge?: string;
   unterlagen?: string;
 
+  // Empfohlene Integrationsfächer (für integrative Umsetzung)
+  empfohleneIntegrationsfaecher?: Fachbereich[];
+
   // Metadata
   createdBy: string; // Teacher userId
   createdByName: string; // Teacher Name für Anzeige
@@ -291,6 +333,7 @@ export interface SchoolJahresplanAssignment {
   anzahlLektionenOverride?: number;
   fileRougeOverride?: string;
   unterlagenOverride?: string;
+  empfohleneIntegrationsfaecherOverride?: Fachbereich[];
 
   // Schulspezifische Ergänzungen (additiv, nicht ersetzend)
   schulMaterialien?: string[]; // zusätzliche Materialien
@@ -426,6 +469,9 @@ export interface SystemTheme {
   startdatum?: string;
   uebersichtPICTS?: string;
   pictsBuchen?: string;
+
+  // Empfohlene Integrationsfächer (für integrative Umsetzung)
+  empfohleneIntegrationsfaecher?: Fachbereich[];
 
   // Sync Metadata
   lastSyncedAt: Date;
@@ -1163,4 +1209,56 @@ export interface JahresplanFilter {
   quartal?: number;
   fachbereichId?: string;
   status?: JahresplanStatus;
+}
+
+// ============================================
+// MIA-Abdeckung (Coverage-Tracker für MI/IB-Kompetenzen)
+// ============================================
+
+// Bereich-Klassifizierung für die MIA-Abdeckungs-Ansicht
+export type MiaBereich = "medien" | "informatik" | "anwendungskompetenzen";
+
+// Eine einzelne Einheit, die eine Kompetenz abdeckt
+export interface MiaCoverageEinheit {
+  einheitId: string;
+  titel: string;
+  fachbereichId: string;
+  fachbereichName?: string;
+  fachbereichFarbe?: string;
+  zeitraumStart: number; // KW
+  zeitraumEnde: number; // KW
+  // true = Abdeckung kommt nicht aus den direkt gewählten Kompetenzen,
+  // sondern über das verknüpfte MIA-Thema (linkedMiaThemeId).
+  linkedViaMiaTheme: boolean;
+}
+
+// Pro Kompetenzstufe (z.B. MI.1.2.b oder IB.1.2.b) ein Coverage-Resultat
+export interface MiaCoverageResult {
+  // Kanonischer LP-Code (mit MI.-Prefix unabhängig vom Kanton, damit
+  // MI/IB-Duplikate als eine Kompetenz behandelt werden).
+  canonicalCode: string;
+  // Kanton-spezifischer Anzeigecode (IB für SO, sonst MI).
+  displayCode: string;
+  // Kompetenz-Name (z.B. "Datenstrukturen") und detaillierte Beschreibung
+  competencyName: string;
+  competencyDescription?: string;
+  kompetenzstufe?: string;
+  // Bereich für Gruppierung in der UI
+  bereich: MiaBereich;
+  // Kompetenzbereich-Name aus LP21 (z.B. "Medien.Leben in der Mediengesellschaft")
+  kompetenzbereich?: string;
+  // Zyklus/Klassenstufe-Filter
+  zyklus?: string[];
+  klassenstufe?: string[];
+  // Coverage-Status
+  isCovered: boolean;
+  coveringEinheiten: MiaCoverageEinheit[];
+}
+
+// Aggregierte Statistiken für die Abdeckungs-Übersicht
+export interface MiaCoverageStats {
+  total: number;
+  covered: number;
+  uncovered: number;
+  byBereich: Record<MiaBereich, { total: number; covered: number }>;
 }

@@ -72,6 +72,7 @@ async function convertCustomThemeToThema(
     unterlagen: customTheme.unterlagen,
     schuljahr: customTheme.schuljahr,
     zeitraum: customTheme.zeitraum,
+    empfohleneIntegrationsfaecher: customTheme.empfohleneIntegrationsfaecher,
     isCustom: true,
     customThemeId: customTheme.id,
   };
@@ -138,6 +139,11 @@ function applyAssignmentOverrides(
         : original.schuljahr,
     fileRouge: assignment.fileRougeOverride ?? original.fileRouge,
     unterlagen: assignment.unterlagenOverride ?? original.unterlagen,
+    empfohleneIntegrationsfaecher:
+      assignment.empfohleneIntegrationsfaecherOverride &&
+      assignment.empfohleneIntegrationsfaecherOverride.length > 0
+        ? assignment.empfohleneIntegrationsfaecherOverride
+        : original.empfohleneIntegrationsfaecher,
     schulMaterialien: assignment.schulMaterialien,
     schulNotizen: assignment.schulNotizen,
     schulUnterlagen: assignment.schulUnterlagen,
@@ -158,6 +164,8 @@ function hasAnyOverride(a: SchoolJahresplanAssignment): boolean {
     (a.stufeOverride !== undefined && a.stufeOverride.length > 0) ||
     a.fileRougeOverride !== undefined ||
     a.unterlagenOverride !== undefined ||
+    (a.empfohleneIntegrationsfaecherOverride !== undefined &&
+      a.empfohleneIntegrationsfaecherOverride.length > 0) ||
     (a.schulMaterialien !== undefined && a.schulMaterialien.length > 0) ||
     (a.schulNotizen !== undefined && a.schulNotizen.length > 0) ||
     a.schulUnterlagen !== undefined

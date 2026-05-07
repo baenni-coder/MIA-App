@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth } from "@/lib/firebase/admin";
 import { getTeacherProfile } from "@/lib/firestore/permissions";
 import { getAllThemen } from "@/lib/airtable/themen";
-import { getKompetenzenByIds } from "@/lib/airtable/kompetenzen";
 import {
   upsertSystemKompetenzen,
   getSystemKompetenzen,
   deactivateSystemKompetenzen,
 } from "@/lib/firestore/system-cache";
-import { SystemKompetenz } from "@/types";
+import { SystemKompetenz, Kompetenz } from "@/types";
+
+// Vercel: 60s Funktion-Timeout (Default ist 10s auf Hobby, hier explizit 60s)
+export const maxDuration = 60;
 
 /**
  * POST /api/admin/sync/kompetenzen
@@ -42,17 +44,22 @@ export async function POST(req: NextRequest) {
     let deleted = 0;
     const errors: string[] = [];
 
-    // 3. Sammle alle Kompetenzen-IDs aus den Themen
+    // 3. Lade Themen aus Airtable (resolved Kompetenzen sind bereits enthalten!)
+    // OPTIMIERUNG: Vorher wurde hier nochmal getKompetenzenByIds aufgerufen,
+    // was die Kompetenzen ein zweites Mal aus Airtable lud. Da getAllThemen()
+    // die Kompetenzen bereits vollständig auflöst, extrahieren wir sie direkt.
     const airtableThemen = await getAllThemen();
-    const allKompetenzIds = new Set<string>();
+    const kompetenzenMap = new Map<string, Kompetenz>();
 
     airtableThemen.forEach((thema) => {
-      if (thema.kompetenzen) {
-        thema.kompetenzen.forEach((k) => allKompetenzIds.add(k.id));
-      }
+      thema.kompetenzen?.forEach((k) => {
+        if (!kompetenzenMap.has(k.id)) {
+          kompetenzenMap.set(k.id, k);
+        }
+      });
     });
 
-    if (allKompetenzIds.size === 0) {
+    if (kompetenzenMap.size === 0) {
       return NextResponse.json({
         success: true,
         added: 0,
@@ -62,13 +69,18 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4. Lade alle Kompetenzen aus Airtable
-    const kompetenzenMap = await getKompetenzenByIds(Array.from(allKompetenzIds));
     const airtableIds = new Set(kompetenzenMap.keys());
 
     // 5. Lade alle Kompetenzen aus Firestore
     const firestoreKompetenzen = await getSystemKompetenzen();
     const firestoreIds = new Set(firestoreKompetenzen.map((k) => k.airtableId));
+
+    // SAFETY: Nicht alle Kompetenzen deaktivieren, wenn Airtable leer ist
+    if (airtableThemen.length === 0 && firestoreKompetenzen.length > 0) {
+      throw new Error(
+        "Airtable lieferte 0 Themen, aber Firestore enthält Kompetenzen – Sync abgebrochen, um Datenverlust zu vermeiden."
+      );
+    }
 
     // 6. Identifiziere neue und zu aktualisierende Kompetenzen
     const toUpsert: Omit<SystemKompetenz, "id">[] = [];

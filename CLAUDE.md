@@ -58,6 +58,16 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Initial-Befüllung**: Ein-Klick-Zuordnung aller Pool-Themen inkl. nachträglicher Entfernungsmöglichkeit
 - **Abwärtskompatibel**: Schulen ohne gesetzten Modus bleiben auf `open`; Lehrer-Jahresplan funktioniert unverändert
 
+**NEU (2026-05)** – Integrative MIA-Umsetzung (relevant für SO ab SJ 2027/28):
+- **Empfohlene Integrationsfächer pro MIA-Thema**: Pflegbar in Airtable (Multi-Select) und Custom-Themen-Formular; via Override auch schulspezifisch anpassbar
+- **Filter im Jahresplan MIA**: Lehrpersonen filtern Themen nach Integrationsfach (z.B. „Welche MIA-Themen kann ich in Mathe einbauen?")
+- **MIA-Thema als Vorlage in jedem Fach**: Beim Erstellen einer Jahresplanungs-Einheit kann ein MIA-Thema als Vorlage übernommen werden – Titel, Lernziele und Kompetenzen werden vorbefüllt; ideal für integrative Umsetzung. Vorher nur bei Fachbereich MI/IB.
+- **MIA-Abdeckungs-Ansicht** (`/dashboard/jahresplanung/mia-abdeckung`): Coverage-Tracker pro MI/IB-Kompetenzstufe – abgedeckt durch direkte Kompetenzzuweisung **oder** verknüpftes MIA-Thema. Gruppiert nach Medien/Informatik/Anwendungskompetenzen mit Stats und PDF-Export.
+- **Kanton-SO-Hinweisbanner**: Im Jahresplan MIA ab Schuljahr 2027/28 für SO-Lehrpersonen sichtbar, mit Direktlink zur MIA-Abdeckung; lokal ausblendbar
+- **Sync-Optimierungen**: Doppelte Airtable-Loads in den Sync-Routen entfernt, `maxDuration` explizit pro Route gesetzt, Safety-Checks gegen Massen-Deaktivierung bei leerer Airtable-Antwort
+- **Sync-Status-Page-Fix**: `/api/admin/sync/finalize` schreibt nach UI-Sync `sync_metadata` (lastFullSync, errorMessage clearen) + `sync_logs`-Eintrag
+
+
 ## Tech Stack
 
 - **Framework**: Next.js 15 mit App Router
@@ -1070,6 +1080,92 @@ System-Themen (Airtable) und systemweit freigegebene Custom Themes bilden einen 
 - Read: alle authentifizierten User (Filter auf eigene Schule auf API-Ebene)
 - Write (Create/Update/Delete): Super-Admin oder PICTS-Admin der Schule
 
+### 30. Empfohlene Integrationsfächer & MIA-Thema als Vorlage (NEU)
+Antwort auf den Wegfall des Faches Informatische Bildung (IB) im Kanton SO ab Sommer 2027: MIA-Themen können integrativ in andere Fächer eingebaut werden. Ohne diese Brücke müssten Lehrpersonen MI/IB manuell mit ihrer Fachplanung abgleichen.
+
+**Konzept**:
+- Jedes MIA-Thema (Airtable + Custom Themes) bekommt ein optionales Multi-Select `empfohleneIntegrationsfaecher: Fachbereich[]` mit den LP21-Fachbereich-Codes (D, MA, NMG, BG, TTG, MU, BS, MI, …).
+- Im Schul-Jahresplan-Pool kann der PICTS-Admin diese Empfehlung über `empfohleneIntegrationsfaecherOverride` schulspezifisch anpassen (Override-Pattern wie bisher).
+- Jahresplanungs-Einheiten in beliebigen Fachbereichen können ein MIA-Thema als Vorlage übernehmen (`linkedMiaThemeId`); Titel, Lernziele und Kompetenzen werden vorbefüllt. Vorher nur bei `fachbereichId === MI || IB`.
+
+**Wichtige Dateien:**
+- `src/types/index.ts` – Typ `Fachbereich` + `FACHBEREICHE`-Konstante (mit Farben), `empfohleneIntegrationsfaecher` auf Thema/CustomTheme/SystemTheme, `empfohleneIntegrationsfaecherOverride` auf SchoolJahresplanAssignment
+- `src/lib/airtable/themen.ts` – liest neues Multi-Select-Feld; konfigurierbar via ENV-Var `AIRTABLE_THEMEN_FIELD_INTEGRATIONSFAECHER` (Default „Empfohlene Integrationsfächer")
+- `src/lib/sync/airtable-firestore-sync.ts` + `src/app/api/admin/sync/themen/route.ts` – propagieren Feld nach Firestore
+- `src/lib/firestore/system-cache.ts` – persistiert Feld in `system_themes`
+- `src/lib/data-sources/themes-adapter.ts` + `src/app/api/themen/route.ts` – exposen Feld + Override-Logik in `applyAssignmentOverrides`
+- `src/components/IntegrationsfaecherMultiSelect.tsx` – wiederverwendbarer Multi-Select mit Farbpunkten
+- `src/components/CustomThemeForm.tsx` – Multi-Select-Karte zwischen Kompetenzen und Lektionen
+- `src/app/dashboard/admin/jahresplan-pool/page.tsx` – Override-Editor inkl. „Anpassungen zurücksetzen"
+- `src/components/KanbanBoard.tsx` + `src/app/dashboard/jahresplan/page.tsx` – Filter-Dropdown + Badges auf Karten und im Detail-Dialog
+- `src/components/jahresplanung/MiaThemePickerDialog.tsx` – Modaler Dialog mit Suche, Empfehlungs-Filter, „Empfohlen"-Badge und Toggle „Auch ohne Empfehlung anzeigen"
+- `src/app/dashboard/jahresplanung/einheit/[id]/page.tsx` – Constraint MI/IB entfernt; nutzt MiaThemePickerDialog für alle Fachbereiche; Wochen-Heuristik (`anzahlLektionen / 2 → zeitraumEnde`)
+
+**ENV-Var-Beispiel (`.env.example`):**
+```bash
+# Optional: Feldname für empfohlene Integrationsfächer (Multi-Select in Airtable)
+# Default: "Empfohlene Integrationsfächer"
+# AIRTABLE_THEMEN_FIELD_INTEGRATIONSFAECHER=Empfohlene Integrationsfächer
+```
+
+### 31. MIA-Abdeckungs-Ansicht & Kanton-SO-Hinweisbanner (NEU)
+Coverage-Tracker, der Lehrpersonen zeigt, welche MI/IB-Kompetenzen im laufenden Schuljahr durch ihre Jahresplanungs-Einheiten abgedeckt sind. Besonders relevant, wenn IB integrativ in andere Fächer einfliesst und niemand mehr automatisch „zuständig" ist.
+
+**Coverage-Algorithmus** (`src/lib/firestore/mia-coverage.ts`):
+1. Lade alle Jahresplanungs-Einheiten der Lehrperson für `schuljahr`.
+2. Lade alle MI/IB-Kompetenzen aus `system_kompetenzen` (Quelle Airtable + LP21).
+3. **Dedupe MI./IB.-Duplikate** über `canonicalLpCode` (`IB.x.y.z` → `MI.x.y.z`); Anzeige je nach Kanton (SO → IB, sonst MI).
+4. Optionaler Zyklus-Filter aus `teacher.stufe` (KiGa/1./2. → Z1, 3.–6. → Z2, 7.–9. → Z3).
+5. Pro Einheit:
+   - **Direkte Abdeckung**: Eigene `kompetenzenIds` der Einheit gegen MI/IB-Kompetenzen matchen.
+   - **Indirekte Abdeckung**: Falls `linkedMiaThemeId` gesetzt – lade die Kompetenzen des Themas (System oder Custom) und werte deren MI/IB-Anteil mit aus. Orphan-Themen (gelöscht/inaktiv) werden still übersprungen.
+6. Aggregation: Pro `canonicalCode` Liste der abdeckenden Einheiten (Fachbereich, KW, Titel, „via MIA-Thema"-Flag).
+
+**UI** (`/dashboard/jahresplanung/mia-abdeckung`):
+- Header mit Gesamt-Abdeckung in % und Stats pro Bereich (Medien, Informatik, Anwendungskompetenzen).
+- Filter: Schuljahr (Default aktuell), Stufe (Default die Stufe der Lehrperson; „Alle Stufen" deaktiviert den Zyklus-Filter).
+- Accordion pro Bereich, Listenzeile pro Kompetenzstufe mit Status-Badge (grün „Abgedeckt" / grau „Nicht abgedeckt"); klickbare abdeckende Einheiten verlinken zur Einheit-Bearbeitung.
+- PDF-Export via `@react-pdf/renderer` (`src/components/MiaAbdeckungPDF.tsx`).
+- Über Sidebar (Übersicht → MIA-Abdeckung) und als Dashboard-Kachel erreichbar.
+
+**Kanton-SO-Hinweisbanner** (`src/components/SoIntegrationHinweis.tsx`):
+- Erscheint im Jahresplan MIA, wenn `teacher.kanton === "SO"` UND Schuljahr ≥ `2027/2028` (`SO_IB_END_SCHULJAHR`).
+- Erklärt die IB-Umstellung, Direktlink zur MIA-Abdeckung.
+- Lokal ausblendbar via `localStorage` (`so-integration-hinweis-dismissed`).
+- Keine Verhaltensänderung für Nicht-SO-Kantone.
+
+**API:**
+- `GET /api/jahresplanung/mia-abdeckung?schuljahr={sj}&stufe={stufe|all}` – liefert `{ schuljahr, stufe, kanton, results, stats }`. Kanton wird automatisch aus dem Lehrer-Profil gezogen, daher kein eigener Query-Parameter.
+
+**Wichtige Dateien:**
+- `src/lib/firestore/mia-coverage.ts` – Algorithmus + `calculateMiaCoverageStats`
+- `src/app/api/jahresplanung/mia-abdeckung/route.ts` – API-Endpoint (`maxDuration = 60`)
+- `src/app/dashboard/jahresplanung/mia-abdeckung/page.tsx` – UI-Seite
+- `src/components/MiaAbdeckungPDF.tsx` – PDF-Komponente
+- `src/components/SoIntegrationHinweis.tsx` – Banner
+
+### 32. Sync-Optimierungen & Sync-Status-Finalize (NEU)
+Mehrere Probleme im Sync-Pipeline behoben, die mit der Datenmenge ab Frühjahr 2026 sichtbar wurden.
+
+**Probleme & Fixes:**
+- **Doppelte Airtable-Loads**: Sowohl `syncThemen()` als auch `syncKompetenzen()` haben parallel `getAllThemen()` aufgerufen, was bei 90 Themen × 200 Kompetenzen das 8s-Phase-1-Timeout sprengte. → Daten werden nun **einmal** geladen und an die Sync-Funktionen durchgereicht; Phase-1-Timeout auf 60s erhöht.
+- **N+1-Loop in der Lektionen-Route**: Statt einem `getAllLektionsplanung()`-Call wurde pro Theme einzeln aus Airtable gelesen (~90 Calls). → ein einziger Bulk-Load.
+- **Fehlendes neues Feld**: Die individuelle Themen-Sync-Route schrieb `empfohleneIntegrationsfaecher` nicht nach Firestore. → Feld wird jetzt im Upsert mit übergeben.
+- **Massen-Deaktivierung bei leerer Airtable-Antwort**: Wenn Airtable einen Verbindungsfehler hat und 0 Records liefert, hätte die Sync-Logik alle bestehenden Cache-Einträge deaktiviert. → Safety-Check in allen vier Routen.
+- **Funktion-Timeouts auf Vercel**: Default 10s reicht nicht. → Explizite `maxDuration`: schulen 30s, themen/kompetenzen 60s, lektionen 120s.
+
+**Sync-Status-Page-Fix** (`/api/admin/sync/finalize`):
+Die UI ruft 5 individuelle Sync-Routen sequentiell auf. Diese schreiben jedoch weder das `sync_metadata`-Doc komplett (`lastFullSync`) noch einen `sync_logs`-Eintrag. Folge: Status-Seite blieb auf altem Datum, „Letzter Fehler" wurde nie geleert, Sync-Verlauf war nie aktuell.
+- Neuer POST-Endpoint `/api/admin/sync/finalize` schreibt nach Sync-Abschluss `sync_metadata` mit korrektem `lastFullSync`, gültigem `syncStatus`, `recordCounts`, `lastSyncDuration`. Bei Erfolg: `errorMessage` via `FieldValue.delete()` entfernen.
+- Erstellt `sync_logs`-Eintrag (sichtbar in „Letzte Sync-Vorgänge").
+- UI ruft den Endpoint sowohl im Erfolgs- als auch im Fehlerfall auf.
+
+**Wichtige Dateien:**
+- `src/lib/sync/airtable-firestore-sync.ts` – zentrale Sync-Funktion; Refactor mit pre-loaded Daten
+- `src/app/api/admin/sync/themen/route.ts`, `schulen`, `kompetenzen`, `lektionen` – jeweils Safety-Check + maxDuration; Themen-Route schreibt neues Feld
+- `src/app/api/admin/sync/finalize/route.ts` – neuer Endpoint
+- `src/app/dashboard/admin/sync/page.tsx` – ruft Finalize statt direkter `sync_metadata`-PUT-Updates
+
 ## Umgebungsvariablen
 
 Kopiere `.env.example` zu `.env.local` und fülle folgende Werte:
@@ -1096,6 +1192,9 @@ AIRTABLE_SCHULEN_TABLE=Schulen
 AIRTABLE_KOMPETENZEN_TABLE=Kompetenzen Lehrplan
 AIRTABLE_UNTERRICHTSIDEEN_TABLE=Themen
 AIRTABLE_LEKTIONSPLANUNG_TABLE=Lektionsplanung
+# Optional: Airtable-Feldname für „Empfohlene Integrationsfächer" Multi-Select
+# Default: "Empfohlene Integrationsfächer"
+AIRTABLE_THEMEN_FIELD_INTEGRATIONSFAECHER=Empfohlene Integrationsfächer
 ```
 
 ## Entwicklung
@@ -1802,6 +1901,68 @@ Setzt den Modus (Super-Admin oder PICTS-Admin der Schule)
 { "mode": "open" | "curated" }
 ```
 
+### GET `/api/jahresplanung/mia-abdeckung?schuljahr={sj}&stufe={stufe|all}`
+Liefert die Abdeckung der MI/IB-Kompetenzen durch Jahresplanungs-Einheiten der aktuellen Lehrperson.
+
+- `schuljahr` (Pflicht): z.B. `2025/2026`
+- `stufe` (optional): `all` für keinen Filter; sonst `Stufe`-Wert (z.B. `4. Klasse`). Default: Stufe der Lehrperson.
+- Kanton wird automatisch aus dem Lehrer-Profil gezogen (für IB↔MI-Display).
+
+**Response:**
+```json
+{
+  "schuljahr": "2025/2026",
+  "stufe": "4. Klasse",
+  "kanton": "SO",
+  "results": [
+    {
+      "canonicalCode": "MI.1.2.b",
+      "displayCode": "IB.1.2.b",
+      "competencyName": "Datenstrukturen verstehen",
+      "bereich": "informatik",
+      "isCovered": true,
+      "coveringEinheiten": [
+        {
+          "einheitId": "...",
+          "titel": "Datensätze in Mathe",
+          "fachbereichId": "MA",
+          "zeitraumStart": 38,
+          "zeitraumEnde": 41,
+          "linkedViaMiaTheme": false
+        }
+      ]
+    }
+  ],
+  "stats": {
+    "total": 42,
+    "covered": 28,
+    "uncovered": 14,
+    "byBereich": {
+      "medien": { "total": 15, "covered": 10 },
+      "informatik": { "total": 18, "covered": 12 },
+      "anwendungskompetenzen": { "total": 9, "covered": 6 }
+    }
+  }
+}
+```
+
+### POST `/api/admin/sync/finalize`
+Schreibt nach Abschluss eines mehrstufigen UI-Syncs `sync_metadata` (`lastFullSync`, gültiger `syncStatus`, `recordCounts`) und einen `sync_logs`-Eintrag. Bei Erfolg wird `errorMessage` via `FieldValue.delete()` entfernt.
+
+**Request Body:**
+```json
+{
+  "duration": 18345,
+  "recordsProcessed": {
+    "schulen": { "added": 0, "updated": 5, "deleted": 0 },
+    "themes": { "added": 2, "updated": 88, "deleted": 0 },
+    "kompetenzen": { "added": 0, "updated": 200, "deleted": 0 },
+    "lektionen": { "added": 0, "updated": 350, "deleted": 0 }
+  },
+  "errors": []
+}
+```
+
 ## Tipps für weitere Entwicklung
 
 ### Neue Airtable-Tabelle hinzufügen
@@ -2009,6 +2170,36 @@ makeSuperAdmin("deine-email@schule.ch");
   - Orphan-Handling (gelöschte Originale werden still übersprungen)
   - Validierung von Zeitraum/Stufe gegen bekannte Enums
   - Firestore-Rules für neue Collection `school_jahresplan_assignments`
+
+### ✅ Abgeschlossen (Mai 2026)
+
+- [x] **Empfohlene Integrationsfächer pro MIA-Thema** (Baustein 1)
+  - Multi-Select-Feld in Airtable + Custom-Themen-Formular
+  - Override pro Schule im Jahresplan-Pool
+  - Filter-Dropdown im Jahresplan MIA mit Badge-Anzeige auf Karten und im Detail-Dialog
+  - Konfigurierbarer Airtable-Feldname via ENV-Var
+- [x] **MIA-Thema als Vorlage in jedem Fach** (Baustein 2)
+  - Constraint MI/IB beim Einheit-Erstellen entfernt; Vorlage-Übernahme in allen Fachbereichen
+  - Neuer `MiaThemePickerDialog` mit Suche, Empfehlungs-Filter und „Empfohlen"-Badge
+  - Heuristik `anzahlLektionen / 2` für `zeitraumEnde`-Default
+  - `linkedMiaThemeId` wird auch in Nicht-MI-Fachbereichen persistiert
+  - KompetenzPicker-Fix: Airtable-IDs aus MIA-Vorlage werden via Fallback-Names lesbar gerendert
+- [x] **MIA-Abdeckungs-Ansicht** (Baustein 3)
+  - Coverage-Tracker pro MI/IB-Kompetenzstufe; direkte + indirekte (über `linkedMiaThemeId`) Abdeckung
+  - MI./IB.-Dedupe via canonicalLpCode; Anzeige je nach Kanton
+  - Gruppiert nach Medien/Informatik/Anwendungskompetenzen mit Coverage-Stats
+  - PDF-Export
+- [x] **Kanton-SO-Hinweisbanner** (Baustein 4)
+  - Erscheint im Jahresplan MIA für SO-Lehrpersonen ab SJ 2027/28
+  - Direktlink zur MIA-Abdeckung; lokal ausblendbar
+- [x] **Sync-Optimierungen**
+  - Doppelte `getAllThemen()`-Calls in Phase 1 entfernt; Phase-1-Timeout 8s → 60s
+  - N+1-Loop in Lektionen-Sync auf Bulk-Load umgestellt
+  - Explizite `maxDuration` pro individueller Sync-Route
+  - Safety-Checks gegen Massen-Deaktivierung bei leerer Airtable-Antwort
+- [x] **Sync-Status-Finalize**
+  - Neuer Endpoint `/api/admin/sync/finalize`: schreibt `lastFullSync`, löscht `errorMessage` via `FieldValue.delete()`, legt `sync_logs`-Eintrag an
+  - UI-Sync ruft Finalize sowohl bei Erfolg als auch bei Fehler
 
 ### 🚧 In Arbeit / Geplant
 

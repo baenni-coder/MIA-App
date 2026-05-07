@@ -9,6 +9,9 @@ import {
 } from "@/lib/firestore/system-cache";
 import { SystemTheme } from "@/types";
 
+// Vercel: 60s Funktion-Timeout (Default ist 10s auf Hobby)
+export const maxDuration = 60;
+
 /**
  * POST /api/admin/sync/themen
  * Synchronisiert nur Themen von Airtable → Firestore
@@ -52,6 +55,22 @@ export async function POST(req: NextRequest) {
     // Map für schnellen Zugriff auf existierende Firestore-Themen
     const firestoreThemeMap = new Map(firestoreThemen.map((t) => [t.airtableId, t]));
 
+    // SAFETY: Wenn Airtable leer zurückkommt, wäre die nachfolgende
+    // Deaktivierung katastrophal (alle Cache-Einträge weg). Abbrechen.
+    if (airtableThemen.length === 0 && firestoreThemen.length > 0) {
+      throw new Error(
+        "Airtable lieferte 0 Themen, aber Firestore enthält Daten – wahrscheinlich Verbindungs- oder Auth-Problem. Sync abgebrochen, um Datenverlust zu vermeiden."
+      );
+    }
+
+    // Debug: zähle Themen mit empfohleneIntegrationsfaecher
+    const themenWithIntegration = airtableThemen.filter(
+      (t) => t.empfohleneIntegrationsfaecher && t.empfohleneIntegrationsfaecher.length > 0
+    ).length;
+    console.log(
+      `   ${themenWithIntegration}/${airtableThemen.length} themen haben empfohleneIntegrationsfaecher`
+    );
+
     // 5. Identifiziere neue und zu aktualisierende Themen
     const toUpsert: Omit<SystemTheme, "id">[] = airtableThemen.map((thema) => {
       const isNew = !firestoreIds.has(thema.id);
@@ -83,6 +102,7 @@ export async function POST(req: NextRequest) {
         startdatum: thema.startdatum,
         uebersichtPICTS: thema.uebersichtPICTS,
         pictsBuchen: thema.pictsBuchen,
+        empfohleneIntegrationsfaecher: thema.empfohleneIntegrationsfaecher,
         isActive: true,
         lastSyncedAt: new Date(),
       };

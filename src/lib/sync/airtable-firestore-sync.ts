@@ -1,6 +1,5 @@
 import { getAllThemen } from "@/lib/airtable/themen";
 import { getAllSchulen } from "@/lib/airtable/schulen";
-import { getKompetenzenByIds } from "@/lib/airtable/kompetenzen";
 import { getAllLektionsplanung } from "@/lib/airtable/lektionsplanung";
 import {
   upsertSystemThemes,
@@ -19,7 +18,7 @@ import {
   createSyncLog,
 } from "@/lib/firestore/system-cache";
 import { downloadAndUploadImage, generateSystemImagePath } from "@/lib/storage/upload";
-import { SystemTheme, SystemSchule, SystemKompetenz, SystemLektion } from "@/types";
+import { SystemTheme, SystemSchule, SystemKompetenz, SystemLektion, Thema, Schule, Kompetenz } from "@/types";
 
 /**
  * Sync Result Interface
@@ -84,31 +83,87 @@ export async function syncAirtableToFirestore(triggeredBy?: string): Promise<Syn
     });
 
     console.log("🔄 Starting Airtable → Firestore sync...");
-    console.log("⚡ Running parallel sync for better performance...");
 
-    // OPTIMIERUNG: Sync Schulen, Themen und Kompetenzen PARALLEL
-    // (keine Abhängigkeiten untereinander)
-    // Timeout nach 8 Sekunden (Vercel hat 10s Limit)
+    // OPTIMIERUNG: Airtable-Daten EINMAL laden (sequentiell, respektiert
+    // Rate-Limit von 5 req/sec). Vorher wurde getAllThemen() doppelt
+    // aufgerufen (in syncThemen UND syncKompetenzen), was bei vielen
+    // Kompetenzen das 8s-Timeout sprengte.
+    console.log("📥 Loading source data from Airtable...");
+    const sourceLoadStart = Date.now();
+    let airtableThemen: Thema[];
+    let airtableSchulen: Schule[];
+    try {
+      [airtableThemen, airtableSchulen] = await withTimeout(
+        Promise.all([getAllThemen(), getAllSchulen()]),
+        90000, // 90s – grosszügig, da Airtable manchmal langsam ist
+        "Airtable load timeout after 90 seconds"
+      );
+    } catch (loadError) {
+      const msg =
+        loadError instanceof Error ? loadError.message : String(loadError);
+      throw new Error(`Airtable-Load fehlgeschlagen: ${msg}`);
+    }
+    const sourceLoadDuration = Date.now() - sourceLoadStart;
+    console.log(
+      `   Loaded ${airtableThemen.length} themen, ${airtableSchulen.length} schulen in ${sourceLoadDuration}ms`
+    );
+
+    // SAFETY: Wenn Airtable leer zurückkommt, ist meist ein Verbindungs-/
+    // Konfigurationsfehler die Ursache. Sync abbrechen, statt versehentlich
+    // ALLE Cache-Einträge zu deaktivieren.
+    if (airtableThemen.length === 0 && airtableSchulen.length === 0) {
+      throw new Error(
+        "Airtable lieferte 0 Themen UND 0 Schulen – wahrscheinlich Verbindungs- oder Auth-Problem. Sync abgebrochen, um Datenverlust zu vermeiden."
+      );
+    }
+
+    // Zähle Themen mit empfohleneIntegrationsfaecher (für Debug-Sichtbarkeit)
+    const themenWithIntegrationField = airtableThemen.filter(
+      (t) => t.empfohleneIntegrationsfaecher && t.empfohleneIntegrationsfaecher.length > 0
+    ).length;
+    console.log(
+      `   ${themenWithIntegrationField}/${airtableThemen.length} themen haben empfohleneIntegrationsfaecher gesetzt`
+    );
+
+    // Kompetenzen-Map aus den bereits geladenen Themen extrahieren
+    // (getAllThemen liefert Kompetenzen schon als aufgelöste Objekte mit
+    // Unterrichtsideen – wir müssen sie nicht erneut laden).
+    const kompetenzenMap = new Map<string, Kompetenz>();
+    airtableThemen.forEach((thema) => {
+      thema.kompetenzen?.forEach((k) => {
+        if (!kompetenzenMap.has(k.id)) {
+          kompetenzenMap.set(k.id, k);
+        }
+      });
+    });
+    console.log(`   Extracted ${kompetenzenMap.size} unique kompetenzen`);
+
+    // OPTIMIERUNG: Firestore-Upserts parallel ausführen (keine Airtable-Calls
+    // mehr in Phase 1, daher ist Parallelisierung sicher und schnell).
+    console.log("⚡ Running parallel Firestore upserts...");
+    const phase1Start = Date.now();
     const [schulenResult, themenResult, kompetenzenResult] = await withTimeout(
       Promise.all([
-        syncSchulen().catch((error) => {
+        syncSchulen(airtableSchulen).catch((error) => {
           console.error("Error syncing Schulen:", error);
           return { added: 0, updated: 0, deleted: 0, errors: [error.message] };
         }),
-        syncThemen().catch((error) => {
+        syncThemen(airtableThemen).catch((error) => {
           console.error("Error syncing Themen:", error);
           return { added: 0, updated: 0, deleted: 0, errors: [error.message] };
         }),
-        syncKompetenzen().catch((error) => {
+        syncKompetenzen(kompetenzenMap).catch((error) => {
           console.error("Error syncing Kompetenzen:", error);
           return { added: 0, updated: 0, deleted: 0, errors: [error.message] };
         }),
       ]),
-      8000, // 8 Sekunden Timeout
-      "Sync Phase 1 timeout after 8 seconds"
+      60000, // 60s Timeout (war 8s – zu kurz für Firestore-Batches)
+      "Sync Phase 1 timeout after 60 seconds"
     );
 
-    console.log("✅ Phase 1 (parallel) completed");
+    console.log(
+      `✅ Phase 1 (parallel Firestore upserts) completed in ${Date.now() - phase1Start}ms`
+    );
 
     result.recordsProcessed.schulen = schulenResult;
     result.recordsProcessed.themes = themenResult;
@@ -220,16 +275,17 @@ export async function syncAirtableToFirestore(triggeredBy?: string): Promise<Syn
 
 /**
  * Sync Schulen
+ * @param airtableSchulen - Bereits aus Airtable geladene Schulen
  */
-async function syncSchulen(): Promise<{ added: number; updated: number; deleted: number; errors?: string[] }> {
+async function syncSchulen(
+  airtableSchulen: Schule[]
+): Promise<{ added: number; updated: number; deleted: number; errors?: string[] }> {
   const errors: string[] = [];
   let added = 0;
   let updated = 0;
   let deleted = 0;
 
   try {
-    // 1. Lade alle Schulen aus Airtable
-    const airtableSchulen = await getAllSchulen();
     const airtableIds = new Set(airtableSchulen.map((s) => s.id));
 
     // 2. Lade alle Schulen aus Firestore
@@ -281,16 +337,17 @@ async function syncSchulen(): Promise<{ added: number; updated: number; deleted:
 
 /**
  * Sync Themen
+ * @param airtableThemen - Bereits aus Airtable geladene Themen (mit aufgelösten Kompetenzen)
  */
-async function syncThemen(): Promise<{ added: number; updated: number; deleted: number; errors?: string[] }> {
+async function syncThemen(
+  airtableThemen: Thema[]
+): Promise<{ added: number; updated: number; deleted: number; errors?: string[] }> {
   const errors: string[] = [];
   let added = 0;
   let updated = 0;
   let deleted = 0;
 
   try {
-    // 1. Lade alle Themen aus Airtable
-    const airtableThemen = await getAllThemen();
     const airtableIds = new Set(airtableThemen.map((t) => t.id));
 
     // 2. Lade alle Themen aus Firestore
@@ -335,6 +392,7 @@ async function syncThemen(): Promise<{ added: number; updated: number; deleted: 
         startdatum: thema.startdatum,
         uebersichtPICTS: thema.uebersichtPICTS,
         pictsBuchen: thema.pictsBuchen,
+        empfohleneIntegrationsfaecher: thema.empfohleneIntegrationsfaecher,
         isActive: true,
         lastSyncedAt: new Date(),
       };
@@ -369,37 +427,28 @@ async function syncThemen(): Promise<{ added: number; updated: number; deleted: 
 
 /**
  * Sync Kompetenzen
+ * @param kompetenzenMap - Bereits aus Airtable extrahierte Kompetenzen (Map: id → Kompetenz)
  */
-async function syncKompetenzen(): Promise<{ added: number; updated: number; deleted: number; errors?: string[] }> {
+async function syncKompetenzen(
+  kompetenzenMap: Map<string, Kompetenz>
+): Promise<{ added: number; updated: number; deleted: number; errors?: string[] }> {
   const errors: string[] = [];
   let added = 0;
   let updated = 0;
   let deleted = 0;
 
   try {
-    // 1. Sammle alle Kompetenzen-IDs aus den Themen
-    const airtableThemen = await getAllThemen();
-    const allKompetenzIds = new Set<string>();
-
-    airtableThemen.forEach((thema) => {
-      if (thema.kompetenzen) {
-        thema.kompetenzen.forEach((k) => allKompetenzIds.add(k.id));
-      }
-    });
-
-    if (allKompetenzIds.size === 0) {
+    if (kompetenzenMap.size === 0) {
       return { added: 0, updated: 0, deleted: 0 };
     }
 
-    // 2. Lade alle Kompetenzen aus Airtable
-    const kompetenzenMap = await getKompetenzenByIds(Array.from(allKompetenzIds));
     const airtableIds = new Set(kompetenzenMap.keys());
 
-    // 3. Lade alle Kompetenzen aus Firestore
+    // Lade alle Kompetenzen aus Firestore
     const firestoreKompetenzen = await getSystemKompetenzen();
     const firestoreIds = new Set(firestoreKompetenzen.map((k) => k.airtableId));
 
-    // 4. Identifiziere neue und zu aktualisierende Kompetenzen
+    // Identifiziere neue und zu aktualisierende Kompetenzen
     const toUpsert: Omit<SystemKompetenz, "id">[] = [];
 
     kompetenzenMap.forEach((kompetenz) => {

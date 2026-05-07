@@ -430,22 +430,21 @@ export default function AdminSyncPage() {
 
       const duration = Date.now() - startTime;
 
-      // Update Sync Metadata
-      await fetch("/api/admin/sync/status", {
-        method: "PUT",
+      // Sync abschliessen: schreibt sync_metadata (inkl. lastFullSync und
+      // löscht alten errorMessage-Eintrag) und legt einen sync_logs-Eintrag an.
+      await fetch("/api/admin/sync/finalize", {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          syncStatus: "completed",
-          lastSyncedAt: new Date().toISOString(),
-          lastSyncDuration: duration,
-          recordCounts: {
-            themes: results.themen.added + results.themen.updated,
-            schulen: results.schulen.added + results.schulen.updated,
-            kompetenzen: results.kompetenzen.added + results.kompetenzen.updated,
-            lektionen: results.lektionen.added + results.lektionen.updated,
+          duration,
+          recordsProcessed: {
+            schulen: results.schulen,
+            themes: results.themen,
+            kompetenzen: results.kompetenzen,
+            lektionen: results.lektionen,
           },
         }),
       });
@@ -466,20 +465,36 @@ export default function AdminSyncPage() {
       console.error("Sync error:", error);
       setError(`❌ Sync Fehler: ${error.message}`);
 
-      // Update Status zu Error
-      await fetch("/api/admin/sync/status", {
-        method: "PUT",
+      const duration = Date.now() - startTime;
+
+      // Bei Fehler: ebenfalls finalize aufrufen, mit Fehlerliste.
+      // Schreibt sync_metadata (syncStatus=error, errorMessage) und
+      // einen sync_logs-Eintrag mit status=error.
+      await fetch("/api/admin/sync/finalize", {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          syncStatus: "error",
-          errorMessage: error.message,
+          duration,
+          recordsProcessed: {
+            schulen: results.schulen,
+            themes: results.themen,
+            kompetenzen: results.kompetenzen,
+            lektionen: results.lektionen,
+          },
+          errors: [error.message || "Unbekannter Fehler"],
         }),
+      }).catch((finalizeError) => {
+        console.warn("Could not finalize failed sync:", finalizeError);
       });
 
-      setSyncProgress(null);
+      // Re-load Status, damit UI den neuen Fehler anzeigt
+      setTimeout(() => {
+        loadSyncStatus();
+        setSyncProgress(null);
+      }, 1000);
     } finally {
       setSyncing(false);
     }

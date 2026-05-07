@@ -73,6 +73,7 @@ async function convertSystemThemeToThema(systemTheme: any, kompetenzenMap?: Map<
     startdatum: systemTheme.startdatum,
     uebersichtPICTS: systemTheme.uebersichtPICTS,
     pictsBuchen: systemTheme.pictsBuchen,
+    empfohleneIntegrationsfaecher: systemTheme.empfohleneIntegrationsfaecher,
   };
 }
 

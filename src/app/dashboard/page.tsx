@@ -29,6 +29,7 @@ import {
   HelpCircle,
   Download,
   Shield,
+  Target,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Teacher, Stufe, Schule, Kanton, KANTONE, SchoolChangeRequest } from "@/types";
@@ -77,6 +78,13 @@ const TILE_OPTIONS: TileOption[] = [
     description: "Planen Sie Ihren Unterricht über alle Fachbereiche",
     icon: <CalendarDays className="h-8 w-8 text-primary mb-2" />,
     buttonLabel: "Zur Jahresplanung",
+  },
+  {
+    path: "/dashboard/jahresplanung/mia-abdeckung",
+    label: "MIA-Abdeckung",
+    description: "Welche MI/IB-Kompetenzen sind in Ihrer Jahresplanung abgedeckt?",
+    icon: <Target className="h-8 w-8 text-primary mb-2" />,
+    buttonLabel: "Zur MIA-Abdeckung",
   },
   {
     path: "/dashboard/lehrmittel",

@@ -9,7 +9,11 @@ import {
   getTeacherProfile,
   canManageSchoolJahresplan,
 } from "@/lib/firestore/permissions";
-import { Stufe, Zeitraum } from "@/types";
+import { Stufe, Zeitraum, Fachbereich, FACHBEREICHE } from "@/types";
+
+const ALLOWED_FACHBEREICHE = new Set<Fachbereich>(
+  FACHBEREICHE.map((f) => f.value)
+);
 
 const ALLOWED_ZEITRAUM: Zeitraum[] = [
   "Sommerferien-Herbstferien",
@@ -136,6 +140,22 @@ export async function PUT(
         { status: 400 }
       );
     }
+    if (body.empfohleneIntegrationsfaecherOverride != null) {
+      if (!Array.isArray(body.empfohleneIntegrationsfaecherOverride)) {
+        return NextResponse.json(
+          { error: "empfohleneIntegrationsfaecherOverride must be an array" },
+          { status: 400 }
+        );
+      }
+      for (const f of body.empfohleneIntegrationsfaecherOverride) {
+        if (!ALLOWED_FACHBEREICHE.has(f)) {
+          return NextResponse.json(
+            { error: `Invalid Fachbereich: ${f}` },
+            { status: 400 }
+          );
+        }
+      }
+    }
 
     await updateAssignment(
       id,
@@ -149,6 +169,8 @@ export async function PUT(
         anzahlLektionenOverride: body.anzahlLektionenOverride,
         fileRougeOverride: body.fileRougeOverride,
         unterlagenOverride: body.unterlagenOverride,
+        empfohleneIntegrationsfaecherOverride:
+          body.empfohleneIntegrationsfaecherOverride,
         schulMaterialien: body.schulMaterialien,
         schulNotizen: body.schulNotizen,
         schulUnterlagen: body.schulUnterlagen,

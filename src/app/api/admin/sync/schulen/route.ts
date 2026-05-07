@@ -9,6 +9,9 @@ import {
 } from "@/lib/firestore/system-cache";
 import { SystemSchule } from "@/types";
 
+// Vercel: 30s Funktion-Timeout (Schulen sind klein, 30s reicht großzügig)
+export const maxDuration = 30;
+
 /**
  * POST /api/admin/sync/schulen
  * Synchronisiert nur Schulen von Airtable → Firestore
@@ -48,6 +51,13 @@ export async function POST(req: NextRequest) {
     // 4. Lade alle Schulen aus Firestore
     const firestoreSchulen = await getSystemSchulen();
     const firestoreIds = new Set(firestoreSchulen.map((s) => s.airtableId));
+
+    // SAFETY: Wenn Airtable leer ist, nicht alle Schulen deaktivieren
+    if (airtableSchulen.length === 0 && firestoreSchulen.length > 0) {
+      throw new Error(
+        "Airtable lieferte 0 Schulen, aber Firestore enthält Daten – Sync abgebrochen, um Datenverlust zu vermeiden."
+      );
+    }
 
     // 5. Identifiziere neue und zu aktualisierende Schulen
     const toUpsert: Omit<SystemSchule, "id">[] = airtableSchulen.map((schule) => {
