@@ -46,6 +46,13 @@ interface LP21SyncedStrukturKompetenzbereich {
 
 interface KompetenzPickerProps {
   selectedKompetenzen: string[]; // Array von Kompetenz-IDs
+  /**
+   * Optionales Parallel-Array zu selectedKompetenzen mit den Anzeige-Namen.
+   * Wird als Fallback genutzt, wenn eine ID nicht im LP21-API-Cache des
+   * Pickers liegt (z.B. weil sie aus einem MIA-Thema (Airtable-ID)
+   * übernommen wurde oder beim Bearbeiten einer alten Einheit stammt).
+   */
+  selectedKompetenzenNamen?: string[];
   onKompetenzenChange: (kompetenzenIds: string[], kompetenzenNamen: string[]) => void;
   disabled?: boolean;
   defaultFachbereich?: string; // Fachbereich aus dem Einheit-Formular
@@ -53,6 +60,7 @@ interface KompetenzPickerProps {
 
 export default function KompetenzPicker({
   selectedKompetenzen,
+  selectedKompetenzenNamen,
   onKompetenzenChange,
   disabled = false,
   defaultFachbereich,
@@ -217,6 +225,19 @@ export default function KompetenzPicker({
     onKompetenzenChange(newIds, newNames);
   };
 
+  // Fallback-Map: ID → Anzeige-Name (z.B. LP-Code) aus dem Parallel-Array
+  // selectedKompetenzenNamen. Wird genutzt, wenn der LP21-API-Cache eine ID
+  // nicht kennt (Airtable-IDs aus MIA-Thema-Vorlage, alte Einheiten).
+  const fallbackNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!selectedKompetenzenNamen) return map;
+    selectedKompetenzen.forEach((id, idx) => {
+      const name = selectedKompetenzenNamen[idx];
+      if (name && name !== id) map.set(id, name);
+    });
+    return map;
+  }, [selectedKompetenzen, selectedKompetenzenNamen]);
+
   // Kompetenz-Name auflösen (uses cache for cross-fachbereich lookups)
   const resolveKompetenzName = useCallback((id: string): string => {
     const cached = kompetenzstufenCacheRef.current.get(id);
@@ -224,8 +245,11 @@ export default function KompetenzPicker({
     // Also check current list
     const synced = syncedKompetenzstufen.find((ks) => ks.id === id);
     if (synced) return `${synced.lpCode}: ${synced.kompetenzstufe}`;
+    // Fallback: vom Parent übergebener Name (z.B. LP-Code aus MIA-Thema)
+    const fallback = fallbackNameMap.get(id);
+    if (fallback) return fallback;
     return id;
-  }, [syncedKompetenzstufen]);
+  }, [syncedKompetenzstufen, fallbackNameMap]);
 
   // Kompetenz entfernen (über Badge)
   const removeKompetenz = (kompetenzId: string) => {
@@ -262,13 +286,35 @@ export default function KompetenzPicker({
       };
     }
 
-    // Fallback
+    // Fallback: vom Parent übergebener Name (z.B. "MI.1.2.b" aus MIA-Thema).
+    // Versuche LP-Code-Format "CODE: Beschreibung" zu parsen, damit die
+    // bekannte UI (farbiger Code + Name in grau) erhalten bleibt.
+    const fallback = fallbackNameMap.get(kompetenzId);
+    if (fallback) {
+      const colonIdx = fallback.indexOf(":");
+      const code =
+        colonIdx > 0 ? fallback.slice(0, colonIdx).trim() : fallback;
+      const name = colonIdx > 0 ? fallback.slice(colonIdx + 1).trim() : "";
+      // Fachbereich aus LP-Code-Prefix (z.B. "MI.1.2.b" → "MI") ableiten,
+      // damit auch die Farbe stimmt.
+      const prefix = code.split(".")[0] || "";
+      const fb = staticFachbereiche.find(
+        (f) => f.fachbereichKuerzel === prefix || f.id === prefix
+      );
+      return {
+        code,
+        name,
+        farbe: fb?.farbe || "#6366F1", // MI-Default
+      };
+    }
+
+    // Letzter Fallback: zeige die ID (Bug-Indikator)
     return {
       code: kompetenzId,
       name: "",
       farbe: "#6b7280",
     };
-  }, [syncedKompetenzstufen, selectedFachbereich, staticFachbereiche, getFachbereichInfo]);
+  }, [syncedKompetenzstufen, selectedFachbereich, staticFachbereiche, getFachbereichInfo, fallbackNameMap]);
 
   // Get the shared Kompetenz description for the selected Kompetenz
   const selectedKompetenzBeschreibung = useMemo(() => {

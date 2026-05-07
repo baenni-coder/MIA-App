@@ -659,6 +659,7 @@ export default function EinheitFormPage() {
             <CardContent>
               <KompetenzPicker
                 selectedKompetenzen={kompetenzenIds}
+                selectedKompetenzenNamen={kompetenzenNamen}
                 onKompetenzenChange={(ids, namen) => {
                   setKompetenzenIds(ids);
                   setKompetenzenNamen(namen);
