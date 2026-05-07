@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Thema, Zeitraum, Teacher, Stufe, Fachbereich, FACHBEREICHE } from "@/types";
 import { Search, X, Layers } from "lucide-react";
+import SoIntegrationHinweis from "@/components/SoIntegrationHinweis";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -110,6 +111,8 @@ function JahresplanContent() {
                 : "Wird geladen..."}
             </p>
           </div>
+
+          <SoIntegrationHinweis teacher={teacherData} />
 
           {teacherData && (
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
