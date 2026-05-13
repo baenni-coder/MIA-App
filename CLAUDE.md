@@ -2205,7 +2205,7 @@ makeSuperAdmin("deine-email@schule.ch");
 
 #### Jahresplan-Pool Phase 2
 
-- [ ] **Auto-Assignment bei Theme-Approval** - Neu freigegebene Custom Themes automatisch in Pool der Schul-Jahrespläne einordnen
+- [x] **Auto-Assignment bei Theme-Approval** - Neu freigegebene Custom Themes werden automatisch allen Schulen im Modus `curated` zugeordnet (Upsert, reaktiviert deaktivierte Assignments, idempotent). Implementiert in `autoAssignThemeToCuratedSchools()` und wird vom Review-Endpoint nach `notifyThemeApproved` aufgerufen. Fehler beim Auto-Assignment lassen die Freigabe selbst nicht scheitern.
 - [ ] **Orphan-Cleanup-UI** - Hinweis im Pool, wenn Assignment auf gelöschtes Original zeigt
 - [ ] **Override-Badge im KanbanBoard** - Visuelle Kennzeichnung `isSchoolOverridden=true`
 - [ ] **Reihenfolge-Steuerung** - `sortOrder`-Feld zur UI hinzufügen
