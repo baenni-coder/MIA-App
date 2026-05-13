@@ -307,3 +307,76 @@ export async function deleteAssignment(id: string): Promise<void> {
   const adminDb = getAdminDb();
   await adminDb.collection(COLLECTION).doc(id).delete();
 }
+
+/**
+ * Liefert die IDs aller Schulen, die im Modus `curated` sind.
+ * Wird genutzt, um neu freigegebene Custom Themes automatisch in die
+ * kuratierten Schul-Jahrespläne aufzunehmen.
+ */
+export async function getCuratedSchuleIds(): Promise<string[]> {
+  try {
+    const adminDb = getAdminDb();
+    const snapshot = await adminDb
+      .collection("system_schulen")
+      .where("jahresplanMode", "==", "curated")
+      .get();
+    return snapshot.docs.map((d) => d.id);
+  } catch (error) {
+    console.error("Error fetching curated school IDs:", error);
+    return [];
+  }
+}
+
+/**
+ * Weist ein einzelnes Thema allen Schulen zu, die im Modus `curated` sind
+ * (Upsert; reaktiviert deaktivierte Assignments). Idempotent.
+ *
+ * Bereits aktive Assignments bleiben unverändert (Overrides bleiben erhalten).
+ */
+export async function autoAssignThemeToCuratedSchools(input: {
+  sourceThemeId: string;
+  sourceType: SchoolJahresplanSourceType;
+  assignedBy: string;
+  assignedByName: string;
+}): Promise<{ schools: number; created: number; reactivated: number; skipped: number }> {
+  const schuleIds = await getCuratedSchuleIds();
+  let created = 0;
+  let reactivated = 0;
+  let skipped = 0;
+
+  for (const schuleId of schuleIds) {
+    const existing = await findAssignment(
+      schuleId,
+      input.sourceThemeId,
+      input.sourceType
+    );
+    if (existing) {
+      if (existing.isActive) {
+        skipped++;
+      } else {
+        const adminDb = getAdminDb();
+        await adminDb.collection(COLLECTION).doc(existing.id).update({
+          isActive: true,
+          lastModifiedBy: input.assignedBy,
+          lastModifiedByName: input.assignedByName,
+          lastModifiedAt: new Date(),
+        });
+        reactivated++;
+      }
+    } else {
+      const adminDb = getAdminDb();
+      await adminDb.collection(COLLECTION).add({
+        schuleId,
+        sourceThemeId: input.sourceThemeId,
+        sourceType: input.sourceType,
+        assignedBy: input.assignedBy,
+        assignedByName: input.assignedByName,
+        assignedAt: new Date(),
+        isActive: true,
+      });
+      created++;
+    }
+  }
+
+  return { schools: schuleIds.length, created, reactivated, skipped };
+}

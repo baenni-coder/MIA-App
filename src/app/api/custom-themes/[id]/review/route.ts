@@ -11,6 +11,7 @@ import {
 } from "@/lib/firestore/notifications";
 import { getTeacherProfile } from "@/lib/firestore/permissions";
 import { logThemeApproval, logThemeRejection } from "@/lib/audit/logger";
+import { autoAssignThemeToCuratedSchools } from "@/lib/firestore/school-jahresplan";
 import { ThemeStatus } from "@/types";
 
 /**
@@ -113,6 +114,22 @@ export async function PUT(
       );
       // Audit-Log
       await logThemeApproval(userId, admin.name, themeId, theme.thema, theme.createdByName);
+
+      // Auto-Assignment in alle kuratierten Schul-Jahrespläne.
+      // Schlägt das fehl, soll die Freigabe trotzdem als erfolgreich gelten.
+      try {
+        const result = await autoAssignThemeToCuratedSchools({
+          sourceThemeId: themeId,
+          sourceType: "custom",
+          assignedBy: userId,
+          assignedByName: admin.name,
+        });
+        console.log(
+          `Auto-Assignment für Theme ${themeId}: ${result.created} neu, ${result.reactivated} reaktiviert, ${result.skipped} bereits aktiv (Schulen: ${result.schools})`
+        );
+      } catch (err) {
+        console.error("Auto-Assignment fehlgeschlagen:", err);
+      }
     } else {
       await notifyThemeRejected(
         themeId,
