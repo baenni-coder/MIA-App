@@ -94,7 +94,11 @@ export default function SchoolsManagementPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isPictsAdmin, setIsPictsAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const hasAccess = isSuperAdmin || isPictsAdmin;
 
   // User Role Dialog States
   const [editingUser, setEditingUser] = useState<SchoolUser | null>(null);
@@ -111,14 +115,19 @@ export default function SchoolsManagementPage() {
   const [deleteSchoolId, setDeleteSchoolId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Delete User Confirmation
+  const [deleteUser, setDeleteUser] = useState<SchoolUser | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+
   useEffect(() => {
-    checkSuperAdminAccess();
+    checkAdminAccess();
   }, [user]);
 
-  const checkSuperAdminAccess = async () => {
+  const checkAdminAccess = async () => {
     if (!user) return;
 
     try {
+      setCurrentUserId(user.uid);
       const token = await user.getIdToken();
       const response = await fetch("/api/auth/check-admin", {
         headers: {
@@ -133,13 +142,16 @@ export default function SchoolsManagementPage() {
 
       const data = await response.json();
 
-      if (data.role !== "super_admin") {
-        alert("Nur Super-Admins haben Zugriff auf die Schulverwaltung");
-        router.push("/dashboard/admin");
+      if (data.role === "super_admin") {
+        setIsSuperAdmin(true);
+      } else if (data.role === "picts_admin") {
+        setIsPictsAdmin(true);
+      } else {
+        alert("Keine Berechtigung für die Schulverwaltung");
+        router.push("/dashboard");
         return;
       }
 
-      setIsSuperAdmin(true);
       loadSchools();
     } catch (error) {
       console.error("Error checking admin access:", error);
@@ -305,6 +317,45 @@ export default function SchoolsManagementPage() {
     }
   };
 
+  // --- Delete User ---
+  const handleDeleteUser = async () => {
+    if (!user || !deleteUser) return;
+
+    try {
+      setIsDeletingUser(true);
+      const token = await user.getIdToken();
+
+      const response = await fetch(`/api/admin/users/${deleteUser.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Fehler beim Löschen");
+      }
+
+      setDeleteUser(null);
+      loadSchools();
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      alert(err instanceof Error ? err.message : "Fehler beim Löschen");
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
+  // Darf der eingeloggte Admin den Benutzer löschen / bearbeiten?
+  const canModifyUser = (u: SchoolUser): boolean => {
+    if (u.id === currentUserId) return false;
+    if (isSuperAdmin) return true;
+    // PICTS-Admin: Super-Admins der eigenen Schule darf er nicht anfassen
+    if (u.role === "super_admin") return false;
+    return true;
+  };
+
   // Filter schools
   const filteredSchools = schools.filter((school) => {
     if (!searchQuery) return true;
@@ -320,7 +371,7 @@ export default function SchoolsManagementPage() {
     );
   });
 
-  if (!isSuperAdmin) {
+  if (!hasAccess) {
     return (
       <ProtectedRoute>
         <DashboardLayout>
@@ -344,14 +395,18 @@ export default function SchoolsManagementPage() {
                 Schulverwaltung
               </h1>
               <p className="text-muted-foreground">
-                Verwalten Sie Schulen, PICTS-Admins und Benutzer
+                {isSuperAdmin
+                  ? "Verwalten Sie Schulen, PICTS-Admins und Benutzer"
+                  : "Verwalten Sie Ihre Schule und Lehrpersonen"}
               </p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleNewSchool}>
-                <Plus className="h-4 w-4 mr-2" />
-                Neue Schule
-              </Button>
+              {isSuperAdmin && (
+                <Button onClick={handleNewSchool}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Neue Schule
+                </Button>
+              )}
               <Button variant="outline" onClick={loadSchools}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Aktualisieren
@@ -359,8 +414,8 @@ export default function SchoolsManagementPage() {
             </div>
           </div>
 
-          {/* Statistiken */}
-          {stats && (
+          {/* Statistiken (nur Super-Admin sieht globale Zahlen) */}
+          {stats && isSuperAdmin && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="p-4">
@@ -473,7 +528,7 @@ export default function SchoolsManagementPage() {
                         <Pencil className="h-4 w-4 mr-1" />
                         Bearbeiten
                       </Button>
-                      {school.userCount === 0 && (
+                      {isSuperAdmin && school.userCount === 0 && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -577,14 +632,36 @@ export default function SchoolsManagementPage() {
                                   </Badge>
                                 </td>
                                 <td className="px-4 py-2 text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditRole(userItem)}
-                                  >
-                                    <UserCog className="h-4 w-4 mr-1" />
-                                    Rolle
-                                  </Button>
+                                  <div className="flex justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditRole(userItem)}
+                                      disabled={!canModifyUser(userItem)}
+                                      title={
+                                        !canModifyUser(userItem)
+                                          ? "Keine Berechtigung für diesen Benutzer"
+                                          : undefined
+                                      }
+                                    >
+                                      <UserCog className="h-4 w-4 mr-1" />
+                                      Rolle
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-red-600 hover:text-red-700"
+                                      onClick={() => setDeleteUser(userItem)}
+                                      disabled={!canModifyUser(userItem)}
+                                      title={
+                                        !canModifyUser(userItem)
+                                          ? "Keine Berechtigung für diesen Benutzer"
+                                          : undefined
+                                      }
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -696,6 +773,42 @@ export default function SchoolsManagementPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Delete User Confirmation Dialog */}
+        <Dialog open={!!deleteUser} onOpenChange={() => setDeleteUser(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Benutzer löschen?</DialogTitle>
+              <DialogDescription>
+                Möchten Sie {deleteUser?.name || deleteUser?.email} wirklich
+                löschen? Das Profil und der Anmelde-Account werden entfernt;
+                erstellte Inhalte (eigene Themen, Dateien etc.) bleiben
+                bestehen. Diese Aktion kann nicht rückgängig gemacht werden.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteUser(null)}
+                disabled={isDeletingUser}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteUser}
+                disabled={isDeletingUser}
+              >
+                {isDeletingUser ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Löschen
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Delete School Confirmation Dialog */}
         <Dialog open={!!deleteSchoolId} onOpenChange={() => setDeleteSchoolId(null)}>
           <DialogContent>
@@ -775,12 +888,14 @@ export default function SchoolsManagementPage() {
                         PICTS-Admin
                       </span>
                     </SelectItem>
-                    <SelectItem value="super_admin">
-                      <span className="flex items-center gap-2">
-                        <Crown className="h-4 w-4" />
-                        Super-Admin
-                      </span>
-                    </SelectItem>
+                    {isSuperAdmin && (
+                      <SelectItem value="super_admin">
+                        <span className="flex items-center gap-2">
+                          <Crown className="h-4 w-4" />
+                          Super-Admin
+                        </span>
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

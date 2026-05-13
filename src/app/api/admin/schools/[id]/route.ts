@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
+import { canManageSchoolJahresplan } from "@/lib/firestore/permissions";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -7,7 +8,9 @@ interface RouteParams {
 
 /**
  * PUT /api/admin/schools/[id]
- * Aktualisiert eine Schule (nur Super-Admin)
+ * Aktualisiert eine Schule.
+ * - Super-Admin: jede Schule
+ * - PICTS-Admin: nur die eigene Schule
  */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
@@ -27,7 +30,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    // Prüfe Super-Admin-Status
     const adminDb = getAdminDb();
     const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
 
@@ -38,10 +40,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const currentUser = teacherDoc.data()!;
-    if (currentUser.role !== "super_admin") {
+    // Super-Admin oder PICTS-Admin dieser Schule
+    const canManage = await canManageSchoolJahresplan(userId, schoolId);
+    if (!canManage) {
       return NextResponse.json(
-        { error: "Super admin access required" },
+        { error: "Forbidden – nicht berechtigt für diese Schule" },
         { status: 403 }
       );
     }
