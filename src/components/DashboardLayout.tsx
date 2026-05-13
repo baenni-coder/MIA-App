@@ -249,7 +249,7 @@ export default function DashboardLayout({
           label: "Schulen",
           icon: <Building2 className="h-5 w-5" />,
           path: "/dashboard/admin/schools",
-          superAdminOnly: true,
+          adminOnly: true,
         },
         {
           label: "Schulanfragen",

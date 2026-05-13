@@ -20,7 +20,9 @@ interface SchoolWithUsers extends Schule {
 
 /**
  * GET /api/admin/schools
- * Holt alle Schulen mit Benutzerübersicht (nur Super-Admin)
+ * Holt Schulen mit Benutzerübersicht.
+ * - Super-Admin: alle Schulen + globale Stats
+ * - PICTS-Admin: nur die eigene Schule + scoped Stats
  */
 export async function GET(request: NextRequest) {
   try {
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    // Prüfe Super-Admin-Status
+    // Prüfe Admin-Status
     const adminDb = getAdminDb();
     const teacherDoc = await adminDb.collection("teachers").doc(userId).get();
 
@@ -50,25 +52,56 @@ export async function GET(request: NextRequest) {
     }
 
     const teacher = teacherDoc.data()!;
-    if (teacher.role !== "super_admin") {
+    const isSuperAdmin = teacher.role === "super_admin";
+    const isPictsAdmin = teacher.role === "picts_admin";
+
+    if (!isSuperAdmin && !isPictsAdmin) {
       return NextResponse.json(
-        { error: "Super admin access required" },
+        { error: "Admin access required" },
         { status: 403 }
       );
     }
 
-    // Hole alle Schulen aus dem Cache
-    const schulenSnapshot = await adminDb.collection("system_schulen").get();
-    const schulen: Schule[] = schulenSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      name: doc.data().name,
-      ort: doc.data().ort,
-      pictsBuchen: doc.data().pictsBuchen,
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-    }));
+    // Schulen laden: Super-Admin alle, PICTS-Admin nur eigene
+    let schulen: Schule[] = [];
+    if (isSuperAdmin) {
+      const schulenSnapshot = await adminDb.collection("system_schulen").get();
+      schulen = schulenSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        name: doc.data().name,
+        ort: doc.data().ort,
+        pictsBuchen: doc.data().pictsBuchen,
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+      }));
+    } else {
+      if (!teacher.schuleId) {
+        return NextResponse.json(
+          { error: "No school assigned to this admin" },
+          { status: 404 }
+        );
+      }
+      const schuleDoc = await adminDb
+        .collection("system_schulen")
+        .doc(teacher.schuleId)
+        .get();
+      if (schuleDoc.exists) {
+        schulen = [
+          {
+            id: schuleDoc.id,
+            name: schuleDoc.data()!.name,
+            ort: schuleDoc.data()!.ort,
+            pictsBuchen: schuleDoc.data()!.pictsBuchen,
+            createdAt: schuleDoc.data()!.createdAt?.toDate() || new Date(),
+          },
+        ];
+      }
+    }
 
-    // Hole alle Lehrer
-    const teachersSnapshot = await adminDb.collection("teachers").get();
+    // Lehrer laden: Super-Admin alle, PICTS-Admin nur die der eigenen Schule
+    const teachersQuery = isSuperAdmin
+      ? adminDb.collection("teachers")
+      : adminDb.collection("teachers").where("schuleId", "==", teacher.schuleId);
+    const teachersSnapshot = await teachersQuery.get();
     const allTeachers = teachersSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -104,7 +137,7 @@ export async function GET(request: NextRequest) {
     // Sortiere nach Name
     schoolsWithUsers.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Füge Statistiken hinzu
+    // Statistiken: scope passend zur Rolle
     const stats = {
       totalSchools: schoolsWithUsers.length,
       totalUsers: allTeachers.length,
@@ -120,6 +153,7 @@ export async function GET(request: NextRequest) {
       {
         schools: schoolsWithUsers,
         stats,
+        viewerRole: teacher.role,
       },
       { status: 200 }
     );
