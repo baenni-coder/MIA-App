@@ -9,7 +9,8 @@
     "lint": "next lint",
     "lp21:list": "tsx --tsconfig tsconfig.json scripts/lp21-sync.ts --list",
     "lp21:sync": "tsx --tsconfig tsconfig.json scripts/lp21-sync.ts",
-    "lp21:sync:json": "tsx --tsconfig tsconfig.json scripts/lp21-sync.ts --json"
+    "lp21:sync:json": "tsx --tsconfig tsconfig.json scripts/lp21-sync.ts --json",
+    "export:lehrplan": "node scripts/export-lehrplan-data.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
