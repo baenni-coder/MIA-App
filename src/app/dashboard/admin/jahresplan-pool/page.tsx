@@ -221,7 +221,7 @@ export default function JahresplanPoolPage() {
         fetch(`/api/admin/schools/${schuleId}/jahresplan-mode`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`/api/themen?grouped=false`),
+        fetch(`/api/themen?grouped=false&includeCustom=true`),
         fetch(
           `/api/school-jahresplan?schuleId=${encodeURIComponent(schuleId)}&includeInactive=true`,
           { headers: { Authorization: `Bearer ${token}` } }

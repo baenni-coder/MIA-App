@@ -96,6 +96,25 @@ async function getCombinedThemenByStufe(stufe: Stufe): Promise<Thema[]> {
 }
 
 /**
+ * Kombiniert alle System-Themen mit allen systemweit freigegebenen Custom Themes
+ * (ohne Stufen-Filter). Dies ist der vollständige "Jahresplan-Pool".
+ * Wird u.a. von der Pool-Verwaltung genutzt, damit auch freigegebene eigene
+ * Themen im Pool sichtbar sind (nicht nur die System-Themen).
+ */
+async function getCombinedAllThemen(): Promise<Thema[]> {
+  const [systemThemen, customThemes] = await Promise.all([
+    getThemes(),
+    getCustomThemes({ isSystemWide: true }),
+  ]);
+
+  const customThemenConverted = await Promise.all(
+    customThemes.map((ct) => convertCustomThemeToThema(ct))
+  );
+
+  return [...systemThemen, ...customThemenConverted];
+}
+
+/**
  * Gruppiert Themen in die 6 Zeitraum-Spalten
  */
 function groupByZeitraum(themen: Thema[]): Record<Zeitraum, Thema[]> {
@@ -266,6 +285,9 @@ export async function GET(request: Request) {
     const grouped = searchParams.get("grouped") === "true";
     const schuleId = searchParams.get("schuleId");
     const curated = searchParams.get("curated") === "true";
+    // Wenn true, werden auch systemweit freigegebene Custom Themes in den
+    // ungruppierten/stufenlosen Pool aufgenommen (z.B. für die Pool-Verwaltung).
+    const includeCustom = searchParams.get("includeCustom") === "true";
 
     const cacheEnabled = process.env.ENABLE_FIRESTORE_CACHE === "true";
     const dataSource = cacheEnabled ? "firestore-cache" : "airtable-direct";
@@ -302,7 +324,9 @@ export async function GET(request: Request) {
     }
 
     if (grouped) {
-      const allThemen = await getThemes();
+      const allThemen = includeCustom
+        ? await getCombinedAllThemen()
+        : await getThemes();
       return NextResponse.json(groupByZeitraum(allThemen), {
         headers: baseHeaders,
       });
@@ -313,7 +337,9 @@ export async function GET(request: Request) {
       return NextResponse.json(themen, { headers: baseHeaders });
     }
 
-    const allThemen = await getThemes();
+    const allThemen = includeCustom
+      ? await getCombinedAllThemen()
+      : await getThemes();
     return NextResponse.json(allThemen, { headers: baseHeaders });
   } catch (error) {
     console.error("Error fetching Themen:", error);
