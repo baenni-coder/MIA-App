@@ -43,6 +43,7 @@ import {
   Fachbereich,
 } from "@/types";
 import IntegrationsfaecherMultiSelect from "@/components/IntegrationsfaecherMultiSelect";
+import SchoolLektionenEditor from "@/components/SchoolLektionenEditor";
 import {
   Loader2,
   Search,
@@ -51,6 +52,7 @@ import {
   RefreshCw,
   Pencil,
   RotateCcw,
+  BookOpen,
 } from "lucide-react";
 
 const ZEITRAEUME: Zeitraum[] = [
@@ -717,6 +719,7 @@ function AssignmentEditDialog({
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [lektionenEditorOpen, setLektionenEditorOpen] = useState(false);
 
   const [thema, setThema] = useState<string>(
     assignment.themaOverride ?? original.thema
@@ -1036,6 +1039,36 @@ function AssignmentEditDialog({
               rows={3}
             />
           </div>
+
+          {/* Lektionsplanung schulspezifisch anpassen */}
+          <div className="rounded-md border p-3 flex items-center justify-between gap-3">
+            <div>
+              <Label>Lektionsplanung</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Original-Lektionen übernehmen oder pro Lektion eine eigene
+                Fassung hinterlegen (original / eigene).
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLektionenEditorOpen(true)}
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              Anpassen
+            </Button>
+          </div>
+
+          {lektionenEditorOpen && (
+            <SchoolLektionenEditor
+              schuleId={assignment.schuleId}
+              sourceType={assignment.sourceType}
+              sourceThemeId={assignment.sourceThemeId}
+              themaName={original.thema}
+              open={lektionenEditorOpen}
+              onOpenChange={setLektionenEditorOpen}
+            />
+          )}
 
           {err && (
             <Alert variant="destructive">
