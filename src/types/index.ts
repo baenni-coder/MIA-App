@@ -352,6 +352,59 @@ export interface SchoolJahresplanAssignment {
   sortOrder?: number; // optionale Sortierung innerhalb eines Zeitraums
 }
 
+// ============================================
+// School Lektion Overrides (schulspezifische Lektionsplanung)
+// ============================================
+
+// Schulspezifische Anpassung einer einzelnen Lektion eines Pool-Themas.
+// Override-Pattern analog zu SchoolJahresplanAssignment: Das Original-Thema und
+// seine Original-Lektionen bleiben die Source of Truth. Pro Schule kann eine
+// Lektion:
+//   - über useOriginal umgeschaltet werden (Original vs. eigene Fassung),
+//   - inhaltlich überschrieben werden (wenn useOriginal = false),
+//   - ausgeblendet werden (isHidden),
+//   - oder es kann eine komplett neue schuleigene Lektion ergänzt werden
+//     (dann ist originalLektionId nicht gesetzt).
+export interface SchoolLektionOverride {
+  id: string;
+
+  // Zuordnung zum Pool-Thema (gleich wie im Assignment)
+  schuleId: string;
+  sourceType: SchoolJahresplanSourceType; // "system" | "custom"
+  sourceThemeId: string; // Airtable recId (system) oder Firestore doc id (custom)
+
+  // Verweis auf die Original-Lektion, die angepasst wird.
+  // Nicht gesetzt = neue, rein schuleigene Lektion (keine Vorlage).
+  originalLektionId?: string; // Airtable-Lektion-ID (system) oder custom_lektionen-ID
+  originalLektionKey?: string; // stabiler Fallback-Matcher (eindeutigeBezeichnung)
+
+  // Steuerung "Häkchen original / eigene"
+  useOriginal: boolean; // true = Lehrpersonen sehen das Original; false = diese Fassung
+  isHidden?: boolean; // true = Original-Lektion für die Schule ausblenden
+
+  // Inhalt der schuleigenen Fassung (genutzt bei useOriginal = false bzw. neue Lektion)
+  lektion: string; // Anzeigename, z.B. "Lektion 1"
+  eindeutigeBezeichnung?: string;
+  aufgaben?: string;
+  vorwissen?: string;
+  material?: string[];
+  websiteTools?: WebsiteTool[];
+  einstieg?: string;
+  hauptteil?: string;
+  abschluss?: string;
+  stolpersteine?: string;
+
+  sortOrder?: number; // Position (v.a. für neue schuleigene Lektionen)
+
+  // Metadaten
+  createdBy: string;
+  createdByName: string;
+  createdAt: Date;
+  updatedAt: Date;
+  lastModifiedBy?: string;
+  lastModifiedByName?: string;
+}
+
 // Notification Typen
 export type NotificationType =
   | "theme_submitted"

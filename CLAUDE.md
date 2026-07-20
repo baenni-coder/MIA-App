@@ -58,6 +58,10 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Initial-Befüllung**: Ein-Klick-Zuordnung aller Pool-Themen inkl. nachträglicher Entfernungsmöglichkeit
 - **Abwärtskompatibel**: Schulen ohne gesetzten Modus bleiben auf `open`; Lehrer-Jahresplan funktioniert unverändert
 
+**NEU (2026-07)**:
+- **Pool-Fix – freigegebene Custom Themes sichtbar**: Die Jahresplan-Pool-Verwaltung lud nur System-Themen (`/api/themen?grouped=false` → `getThemes()`), sodass systemweit freigegebene eigene Themen nie als Pool-Zeile erschienen (auch nicht nach „Alle Pool-Themen zuordnen"). `/api/themen` erhält den Flag `includeCustom=true`, der System-Themen + approved Custom Themes kombiniert; die Pool-Seite nutzt ihn.
+- **Schulspezifische Lektionsplanung (Overrides)**: PICTS-/Super-Admin können im Pool-Edit-Dialog pro Lektion zwischen Original und eigener Fassung umschalten („original / eigene"), Lektionen ausblenden oder eigene schuleigene Lektionen ergänzen. Override-Pattern (Original bleibt Source of Truth). Lehrpersonen sehen die angepasste Planung im Jahresplan MIA (Badges „Schul-Anpassung" / „Schuleigen").
+
 **NEU (2026-05)** – Integrative MIA-Umsetzung (relevant für SO ab SJ 2027/28):
 - **Empfohlene Integrationsfächer pro MIA-Thema**: Pflegbar in Airtable (Multi-Select) und Custom-Themen-Formular; via Override auch schulspezifisch anpassbar
 - **Filter im Jahresplan MIA**: Lehrpersonen filtern Themen nach Integrationsfach (z.B. „Welche MIA-Themen kann ich in Mathe einbauen?")
@@ -1166,6 +1170,86 @@ Die UI ruft 5 individuelle Sync-Routen sequentiell auf. Diese schreiben jedoch w
 - `src/app/api/admin/sync/finalize/route.ts` – neuer Endpoint
 - `src/app/dashboard/admin/sync/page.tsx` – ruft Finalize statt direkter `sync_metadata`-PUT-Updates
 
+### 33. Pool-Fix & schulspezifische Lektionsplanung (NEU)
+
+**Problem 1 – freigegebene Custom Themes fehlten im Pool:**
+Die Pool-Verwaltung (`/dashboard/admin/jahresplan-pool`) baute ihre sichtbare
+Themen-Liste aus `/api/themen?grouped=false`. Dieser Pfad lieferte über
+`getThemes()` **nur System-Themen** – Custom Themes werden im `/api/themen`
+nur bei gesetztem `stufe` gemerged. Folge: systemweit freigegebene eigene
+Themen (auch das in der Prüfübersicht sichtbare) erschienen nie als Zeile im
+Pool, und „Alle Pool-Themen zuordnen" legte zwar Assignments an (Zähler stieg),
+zeigte aber keine anklickbare Checkbox-Zeile.
+- **Fix:** `/api/themen` erhält den Flag `includeCustom=true`
+  (`getCombinedAllThemen()` = System-Themen + `getCustomThemes({ isSystemWide: true })`).
+  Bestehende Aufrufer bleiben unverändert. Die Pool-Seite ruft
+  `/api/themen?grouped=false&includeCustom=true` auf.
+
+**Problem 2 – Lektionsplanung schulspezifisch anpassbar machen:**
+Rückmeldung eines PICTS: die Original-Lektionsplanung eines Themas sehen und
+pro Lektion „original / eigene" umschalten bzw. anpassen können, damit Schulen
+ein fertiges Produkt übernehmen und bei Bedarf adaptieren.
+
+- **Konzept: Override-Pattern pro Lektion.** Neue Collection
+  `school_lektion_overrides`. Das Original-Thema und seine Original-Lektionen
+  (System = Airtable, Custom = `custom_lektionen`) bleiben Source of Truth.
+  Pro Schule und Original-Lektion kann:
+  - über `useOriginal` zwischen Original und eigener Fassung umgeschaltet werden,
+  - der Inhalt überschrieben werden (`useOriginal=false`),
+  - die Lektion ausgeblendet werden (`isHidden`),
+  - oder eine komplett neue schuleigene Lektion ergänzt werden
+    (kein `originalLektionId`).
+- **Admin-UI:** Im Pool-Edit-Dialog (`AssignmentEditDialog`) öffnet der Button
+  „Lektionsplanung → Anpassen" den `SchoolLektionenEditor`. Dieser lädt die
+  Original-Lektionen (System via `/api/lektionsplanung?thema=`, Custom via
+  `/api/custom-lektionen?themeId=`) + bestehende Overrides und bietet je Lektion
+  die Umschaltung Original / Eigene Fassung / Ausblenden sowie das Ergänzen
+  neuer Lektionen. Editierbar sind alle Inhaltsfelder inkl. **Websites & Tools**
+  (Name + Link, hinzufügen/entfernen); beim Wechsel auf „Eigene Fassung" werden
+  die Original-Inhalte (inkl. Tools) vorbefüllt.
+- **Lehrer-Sicht:** `LektionsplanungViewer` erhält die `schuleId` der Lehrperson
+  (Jahresplan → KanbanBoard → Viewer), lädt die Overrides und merged sie auf die
+  Original-Lektionen: ausgeblendete werden entfernt, „eigene Fassung" ersetzt den
+  Inhalt (Badge „Schul-Anpassung"), neue schuleigene Lektionen erscheinen in einer
+  eigenen Sektion („Schulspezifische Lektionen", Badge „Schuleigen"). Matching per
+  `originalLektionId` mit Fallback auf `originalLektionKey` (eindeutigeBezeichnung).
+  Der **Markdown-/PDF-Export** im Viewer spiegelt die angezeigte (ggf.
+  schulspezifisch angepasste) Planung wider – System-, Custom-/Theme- und
+  schuleigene Lektionen zusammengeführt.
+- **Modusunabhängig:** Overrides wirken für die Schule in `open` **und** `curated`,
+  da sie über `schuleId` + `sourceType` + `sourceThemeId` zugeordnet werden.
+
+**Firestore-Collection `school_lektion_overrides`:**
+```typescript
+{
+  schuleId: string
+  sourceType: "system" | "custom"
+  sourceThemeId: string          // Airtable-ID (System) oder Firestore-ID (Custom Theme)
+  originalLektionId?: string     // Original-Lektion (leer = neue schuleigene Lektion)
+  originalLektionKey?: string    // Fallback-Matcher (eindeutigeBezeichnung)
+  useOriginal: boolean           // true = Original zeigen; false = diese Fassung
+  isHidden?: boolean             // Original-Lektion für die Schule ausblenden
+  lektion: string                // Anzeigename
+  eindeutigeBezeichnung?, aufgaben?, vorwissen?, material?, websiteTools?,
+  einstieg?, hauptteil?, abschluss?, stolpersteine?
+  sortOrder?: number
+  createdBy, createdByName, createdAt, updatedAt, lastModifiedBy?, lastModifiedByName?
+}
+```
+Firestore-Rules: Read = alle authentifizierten User; Write = Super-Admin oder
+PICTS-Admin der Schule (Filterung/Autorisierung auf API-Ebene).
+
+**Wichtige Dateien:**
+- `src/types/index.ts` – Typ `SchoolLektionOverride`
+- `src/lib/firestore/school-lektionen.ts` – CRUD (nur Gleichheitsfilter → kein Composite Index)
+- `src/app/api/school-lektionen/route.ts` – GET (List), POST (Create)
+- `src/app/api/school-lektionen/[id]/route.ts` – PUT, DELETE
+- `src/components/SchoolLektionenEditor.tsx` – Admin-Editor (Dialog)
+- `src/components/LektionsplanungViewer.tsx` – Merge-Logik für die Lehrer-Sicht
+- `src/app/dashboard/admin/jahresplan-pool/page.tsx` – Button im Edit-Dialog + `includeCustom`
+- `src/app/api/themen/route.ts` – `includeCustom`-Flag / `getCombinedAllThemen()`
+- `firestore.rules` – Regeln für `school_lektion_overrides`
+
 ## Umgebungsvariablen
 
 Kopiere `.env.example` zu `.env.local` und fülle folgende Werte:
@@ -1945,6 +2029,59 @@ Liefert die Abdeckung der MI/IB-Kompetenzen durch Jahresplanungs-Einheiten der a
   }
 }
 ```
+
+### GET `/api/themen?...&includeCustom=true`
+Fügt dem ungruppierten/stufenlosen Pool die systemweit freigegebenen Custom
+Themes hinzu (System-Themen + `getCustomThemes({ isSystemWide: true })`).
+Ohne den Flag bleibt das bisherige Verhalten (nur System-Themen) erhalten.
+Wird von der Pool-Verwaltung genutzt.
+
+### GET `/api/school-lektionen?schuleId={id}&sourceType={system|custom}&sourceThemeId={id}`
+Lädt alle schulspezifischen Lektions-Overrides einer Schule für ein Pool-Thema.
+Lesbar für jeden authentifizierten User (Lehrpersonen sehen die Anpassungen
+ihrer Schule).
+
+**Response:**
+```json
+{
+  "overrides": [
+    {
+      "id": "firestore-doc-id",
+      "schuleId": "firestore-id",
+      "sourceType": "system",
+      "sourceThemeId": "recXXX",
+      "originalLektionId": "recLektion",
+      "useOriginal": false,
+      "isHidden": false,
+      "lektion": "Lektion 1",
+      "aufgaben": "Angepasste Aufgabenstellung ..."
+    }
+  ]
+}
+```
+
+### POST `/api/school-lektionen`
+Erstellt ein Lektions-Override (Anpassung einer Original-Lektion oder neue
+schuleigene Lektion). Nur Super-Admin / PICTS-Admin der Schule.
+
+**Request Body:**
+```json
+{
+  "schuleId": "firestore-id",
+  "sourceType": "system",
+  "sourceThemeId": "recXXX",
+  "originalLektionId": "recLektion",
+  "useOriginal": false,
+  "lektion": "Lektion 1",
+  "aufgaben": "..."
+}
+```
+
+### PUT `/api/school-lektionen/[id]`
+Aktualisiert ein Override. `null` als Wert entfernt das jeweilige Feld.
+
+### DELETE `/api/school-lektionen/[id]`
+Löscht ein Override und stellt damit das Original für die Schule wieder her.
 
 ### POST `/api/admin/sync/finalize`
 Schreibt nach Abschluss eines mehrstufigen UI-Syncs `sync_metadata` (`lastFullSync`, gültiger `syncStatus`, `recordCounts`) und einen `sync_logs`-Eintrag. Bei Erfolg wird `errorMessage` via `FieldValue.delete()` entfernt.

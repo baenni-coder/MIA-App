@@ -235,6 +235,7 @@ function JahresplanContent() {
                 integrationFilter === "all" ? null : integrationFilter
               }
               userStufe={teacherData?.stufe}
+              schuleId={teacherData?.schuleId}
             />
           ) : (
             <div className="text-center py-12">

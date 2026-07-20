@@ -465,5 +465,34 @@ service cloud.firestore {
         isPICTSAdminOfSchule(request.auth.uid, resource.data.schuleId)
       );
     }
+
+    // ============================================
+    // School Lektion Overrides Collection
+    // (schulspezifische Anpassung einzelner Lektionen eines Pool-Themas)
+    // ============================================
+
+    match /school_lektion_overrides/{overrideId} {
+      // Lesen: Alle authentifizierten User (Lehrpersonen sehen die angepasste
+      // Lektionsplanung ihrer Schule; die Filterung erfolgt auf API-Ebene).
+      allow read: if isAuthenticated();
+
+      // Schreiben: Nur Super-Admin oder PICTS-Admin der betreffenden Schule.
+      // Der Haupt-Workflow läuft über die API (Admin SDK umgeht Rules), diese
+      // Rules dienen als Sicherheitsnetz.
+      allow create: if isAuthenticated() && (
+        isSuperAdmin(request.auth.uid) ||
+        isPICTSAdminOfSchule(request.auth.uid, request.resource.data.schuleId)
+      );
+
+      allow update: if isAuthenticated() && (
+        isSuperAdmin(request.auth.uid) ||
+        isPICTSAdminOfSchule(request.auth.uid, resource.data.schuleId)
+      );
+
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin(request.auth.uid) ||
+        isPICTSAdminOfSchule(request.auth.uid, resource.data.schuleId)
+      );
+    }
   }
 }

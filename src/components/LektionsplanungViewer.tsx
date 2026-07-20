@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Lektionsplanung, CustomLektion } from "@/types";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Lektionsplanung, CustomLektion, SchoolLektionOverride } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Badge } from "./ui/badge";
@@ -35,6 +35,7 @@ interface LektionsplanungViewerProps {
   themaName: string;
   themaId?: string; // Airtable Record ID for system themes
   customThemeId?: string; // Firestore ID for custom themes
+  schuleId?: string; // Schule der Lehrperson – für schulspezifische Lektions-Overrides
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -43,14 +44,18 @@ export default function LektionsplanungViewer({
   themaName,
   themaId,
   customThemeId,
+  schuleId,
   open,
   onOpenChange
 }: LektionsplanungViewerProps) {
   const { getAuthToken } = useAuth();
   const [lektionen, setLektionen] = useState<Lektionsplanung[]>([]);
   const [customLektionen, setCustomLektionen] = useState<CustomLektion[]>([]);
+  const [schoolOverrides, setSchoolOverrides] = useState<SchoolLektionOverride[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isCustomTheme = !!customThemeId;
 
   // Form state for new custom lektion
   const [showAddForm, setShowAddForm] = useState(false);
@@ -66,13 +71,177 @@ export default function LektionsplanungViewer({
     stolpersteine: "",
   });
 
+  const loadSchoolOverrides = useCallback(async () => {
+    if (!schuleId) {
+      setSchoolOverrides([]);
+      return;
+    }
+    const sourceType = customThemeId ? "custom" : "system";
+    const sourceThemeId = customThemeId || themaId;
+    if (!sourceThemeId) {
+      setSchoolOverrides([]);
+      return;
+    }
+    try {
+      const token = await getAuthToken();
+      if (!token) return;
+      const res = await fetch(
+        `/api/school-lektionen?schuleId=${encodeURIComponent(
+          schuleId
+        )}&sourceType=${sourceType}&sourceThemeId=${encodeURIComponent(
+          sourceThemeId
+        )}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setSchoolOverrides(data.overrides || []);
+      }
+    } catch (err) {
+      console.error("Error loading school lektion overrides:", err);
+    }
+  }, [schuleId, customThemeId, themaId, getAuthToken]);
+
   useEffect(() => {
     if (open && themaName && typeof themaName === 'string') {
       loadLektionsplanung();
       loadCustomLektionen();
+      loadSchoolOverrides();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, themaName]);
+  }, [open, themaName, loadSchoolOverrides]);
+
+  // Merge: schulspezifische Overrides auf die Original-Lektionen anwenden.
+  const {
+    systemLektionen,
+    customLektionenToRender,
+    schoolNewLektionen,
+    overriddenIds,
+  } = useMemo(() => {
+    const overriddenIds = new Set<string>();
+    const byOriginalId = new Map<string, SchoolLektionOverride>();
+    const byOriginalKey = new Map<string, SchoolLektionOverride>();
+    const newOnes: SchoolLektionOverride[] = [];
+    for (const o of schoolOverrides) {
+      if (o.originalLektionId) byOriginalId.set(o.originalLektionId, o);
+      else if (o.originalLektionKey) byOriginalKey.set(o.originalLektionKey, o);
+      else newOnes.push(o);
+    }
+    const findOv = (id?: string, key?: string) =>
+      (id ? byOriginalId.get(id) : undefined) ||
+      (key ? byOriginalKey.get(key) : undefined);
+
+    const mergeSystem = (l: Lektionsplanung): Lektionsplanung | null => {
+      const ov = findOv(l.id, l.eindeutigeBezeichnung);
+      if (!ov) return l;
+      if (ov.isHidden) return null;
+      if (ov.useOriginal) return l;
+      overriddenIds.add(l.id);
+      return {
+        ...l,
+        lektion: ov.lektion || l.lektion,
+        aufgaben: ov.aufgaben ?? l.aufgaben,
+        vorwissen: ov.vorwissen ?? l.vorwissen,
+        material: ov.material ?? l.material,
+        websiteTools: ov.websiteTools ?? l.websiteTools,
+        einstieg: ov.einstieg ?? l.einstieg,
+        hauptteil: ov.hauptteil ?? l.hauptteil,
+        abschluss: ov.abschluss ?? l.abschluss,
+        stolpersteine: ov.stolpersteine ?? l.stolpersteine,
+        kiZusammenfassung: undefined,
+      };
+    };
+
+    const mergeCustom = (l: CustomLektion): CustomLektion | null => {
+      const ov = findOv(l.id, l.eindeutigeBezeichnung);
+      if (!ov) return l;
+      if (ov.isHidden) return null;
+      if (ov.useOriginal) return l;
+      overriddenIds.add(l.id);
+      return {
+        ...l,
+        lektion: ov.lektion || l.lektion,
+        aufgaben: ov.aufgaben ?? l.aufgaben,
+        vorwissen: ov.vorwissen ?? l.vorwissen,
+        material: ov.material ?? l.material,
+        websiteTools: ov.websiteTools ?? l.websiteTools,
+        einstieg: ov.einstieg ?? l.einstieg,
+        hauptteil: ov.hauptteil ?? l.hauptteil,
+        abschluss: ov.abschluss ?? l.abschluss,
+        stolpersteine: ov.stolpersteine ?? l.stolpersteine,
+      };
+    };
+
+    const sys = lektionen
+      .map(mergeSystem)
+      .filter((l): l is Lektionsplanung => l !== null);
+
+    const customList = isCustomTheme
+      ? customLektionen
+          .map(mergeCustom)
+          .filter((l): l is CustomLektion => l !== null)
+      : customLektionen;
+
+    const schoolNew: CustomLektion[] = newOnes
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      .map((o) => ({
+        id: o.id,
+        lektion: o.lektion,
+        eindeutigeBezeichnung: o.eindeutigeBezeichnung || o.lektion,
+        aufgaben: o.aufgaben,
+        vorwissen: o.vorwissen,
+        material: o.material,
+        websiteTools: o.websiteTools,
+        einstieg: o.einstieg,
+        hauptteil: o.hauptteil,
+        abschluss: o.abschluss,
+        stolpersteine: o.stolpersteine,
+        createdBy: o.createdBy,
+        createdByName: o.createdByName,
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt,
+        order: o.sortOrder ?? 0,
+      }));
+
+    return {
+      systemLektionen: sys,
+      customLektionenToRender: customList,
+      schoolNewLektionen: schoolNew,
+      overriddenIds,
+    };
+  }, [lektionen, customLektionen, schoolOverrides, isCustomTheme]);
+
+  // Export-Liste: spiegelt die (ggf. schulspezifisch angepasste) Anzeige wider –
+  // System-Lektionen, Custom-/Theme-Lektionen und schuleigene Lektionen.
+  const exportLektionen = useMemo<Lektionsplanung[]>(() => {
+    const normalize = (l: Lektionsplanung | CustomLektion): Lektionsplanung => ({
+      id: l.id,
+      eindeutigeBezeichnung:
+        (l as Lektionsplanung).eindeutigeBezeichnung || l.lektion || "",
+      lektion: l.lektion,
+      themaId: themaId || customThemeId || "",
+      aufgaben: l.aufgaben,
+      vorwissen: l.vorwissen,
+      material: l.material,
+      websiteTools: l.websiteTools,
+      einstieg: l.einstieg,
+      hauptteil: l.hauptteil,
+      abschluss: l.abschluss,
+      stolpersteine: l.stolpersteine,
+      kiZusammenfassung: (l as Lektionsplanung).kiZusammenfassung,
+    });
+    return [
+      ...systemLektionen.map(normalize),
+      ...customLektionenToRender.map(normalize),
+      ...schoolNewLektionen.map(normalize),
+    ];
+  }, [
+    systemLektionen,
+    customLektionenToRender,
+    schoolNewLektionen,
+    themaId,
+    customThemeId,
+  ]);
 
   const loadLektionsplanung = async () => {
     try {
@@ -200,8 +369,8 @@ export default function LektionsplanungViewer({
     }
   };
 
-  const exportAsMarkdown = () => {
-    const markdown = generateMarkdown(lektionen, themaName);
+  const exportAsMarkdown = (list: Lektionsplanung[]) => {
+    const markdown = generateMarkdown(list, themaName);
     const blob = new Blob([markdown], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -213,7 +382,7 @@ export default function LektionsplanungViewer({
     URL.revokeObjectURL(url);
   };
 
-  const exportAsPDF = async () => {
+  const exportAsPDF = async (list: Lektionsplanung[]) => {
     try {
       // Dynamisches Import von jsPDF
       const { jsPDF } = await import("jspdf");
@@ -229,7 +398,7 @@ export default function LektionsplanungViewer({
 
     let yPosition = 80;
 
-    lektionen.forEach((lektion, index) => {
+    list.forEach((lektion, index) => {
       // Neue Seite für jede Lektion (außer der ersten)
       if (index > 0) {
         doc.addPage();
@@ -354,7 +523,7 @@ export default function LektionsplanungViewer({
           </div>
         )}
 
-        {!loading && !error && lektionen.length === 0 && customLektionen.length === 0 && (
+        {!loading && !error && systemLektionen.length === 0 && customLektionenToRender.length === 0 && schoolNewLektionen.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             Keine Lektionsplanung verfügbar
             {themaId && (
@@ -366,7 +535,7 @@ export default function LektionsplanungViewer({
         )}
 
         {/* Add Custom Lektion Section - auch wenn keine Lektionen vorhanden */}
-        {!loading && !error && themaId && lektionen.length === 0 && customLektionen.length === 0 && (
+        {!loading && !error && themaId && systemLektionen.length === 0 && customLektionenToRender.length === 0 && schoolNewLektionen.length === 0 && (
           <div className="mt-4 border-t pt-4">
             {!showAddForm ? (
               <Button
@@ -526,42 +695,52 @@ export default function LektionsplanungViewer({
           </div>
         )}
 
-        {!loading && !error && (lektionen.length > 0 || customLektionen.length > 0) && (
+        {!loading && !error && (systemLektionen.length > 0 || customLektionenToRender.length > 0 || schoolNewLektionen.length > 0) && (
           <>
             {/* Export Buttons */}
             <div className="flex gap-2 mb-4">
-              <Button onClick={exportAsMarkdown} variant="outline" size="sm">
+              <Button onClick={() => exportAsMarkdown(exportLektionen)} variant="outline" size="sm">
                 <FileText className="h-4 w-4 mr-2" />
                 Als Markdown exportieren
               </Button>
-              <Button onClick={exportAsPDF} variant="outline" size="sm">
+              <Button onClick={() => exportAsPDF(exportLektionen)} variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
                 Als PDF exportieren
               </Button>
             </div>
 
             {/* Lektionen Übersicht */}
-            <div className="flex items-center gap-2 mb-4">
-              {lektionen.length > 0 && (
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              {systemLektionen.length > 0 && (
                 <Badge variant="secondary" className="text-sm">
-                  {`${lektionen.length} System-${lektionen.length === 1 ? "Lektion" : "Lektionen"}`}
+                  {`${systemLektionen.length} System-${systemLektionen.length === 1 ? "Lektion" : "Lektionen"}`}
                 </Badge>
               )}
-              {customLektionen.length > 0 && (
+              {customLektionenToRender.length > 0 && (
                 <Badge variant="outline" className="text-sm">
-                  {`${customLektionen.length} eigene ${customLektionen.length === 1 ? "Ergänzung" : "Ergänzungen"}`}
+                  {`${customLektionenToRender.length} eigene ${customLektionenToRender.length === 1 ? "Ergänzung" : "Ergänzungen"}`}
+                </Badge>
+              )}
+              {overriddenIds.size > 0 && (
+                <Badge className="text-sm">
+                  {`${overriddenIds.size} schulspezifisch angepasst`}
                 </Badge>
               )}
             </div>
 
             {/* Akkordeon für Lektionen */}
             <Accordion type="single" collapsible className="w-full">
-              {lektionen.map((lektion) => (
+              {systemLektionen.map((lektion) => (
                 <AccordionItem key={lektion.id} value={lektion.id}>
                   <AccordionTrigger className="text-left">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <BookOpen className="h-4 w-4" />
                       <span className="font-semibold">{String(lektion.lektion || '')}</span>
+                      {overriddenIds.has(lektion.id) && (
+                        <Badge className="ml-2 text-xs">
+                          Schul-Anpassung
+                        </Badge>
+                      )}
                       {lektion.kiZusammenfassung && typeof lektion.kiZusammenfassung === 'string' && (
                         <Badge variant="outline" className="ml-2 text-xs">
                           KI Zusammenfassung
@@ -708,22 +887,26 @@ export default function LektionsplanungViewer({
             </Accordion>
 
             {/* Custom Lektionen Section */}
-            {customLektionen.length > 0 && (
+            {customLektionenToRender.length > 0 && (
               <div className="mt-6">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Eigene Ergänzungen
+                  {isCustomTheme ? "Lektionen" : "Eigene Ergänzungen"}
                 </h3>
                 <Accordion type="single" collapsible className="w-full">
-                  {customLektionen.map((lektion) => (
+                  {customLektionenToRender.map((lektion) => (
                     <AccordionItem key={lektion.id} value={lektion.id}>
                       <AccordionTrigger className="text-left">
-                        <div className="flex items-center gap-2 flex-1">
+                        <div className="flex items-center gap-2 flex-1 flex-wrap">
                           <BookOpen className="h-4 w-4" />
                           <span className="font-semibold">{lektion.lektion}</span>
-                          <Badge variant="outline" className="ml-2 text-xs">
-                            Eigene Ergänzung
-                          </Badge>
+                          {overriddenIds.has(lektion.id) ? (
+                            <Badge className="ml-2 text-xs">Schul-Anpassung</Badge>
+                          ) : (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {isCustomTheme ? "Lektion" : "Eigene Ergänzung"}
+                            </Badge>
+                          )}
                           {lektion.createdByName && (
                             <span className="text-xs text-muted-foreground">
                               von {lektion.createdByName}
@@ -756,6 +939,46 @@ export default function LektionsplanungViewer({
                               <p className="text-sm text-muted-foreground">
                                 {lektion.vorwissen}
                               </p>
+                            </div>
+                          )}
+
+                          {/* Material */}
+                          {lektion.material && Array.isArray(lektion.material) && lektion.material.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 text-sm">Material</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {lektion.material.map((mat, idx) => (
+                                  <Badge key={idx} variant="secondary" className="text-xs">
+                                    {String(mat)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Websites & Tools */}
+                          {lektion.websiteTools && Array.isArray(lektion.websiteTools) && lektion.websiteTools.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 text-sm">Websites &amp; Tools</h4>
+                              <div className="space-y-2">
+                                {lektion.websiteTools.map((tool, idx) => (
+                                  <div key={tool.id || idx}>
+                                    {tool.link ? (
+                                      <a
+                                        href={tool.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                                      >
+                                        <ExternalLink className="h-3 w-3" />
+                                        {String(tool.name)}
+                                      </a>
+                                    ) : (
+                                      <span className="text-sm">{String(tool.name)}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
 
@@ -823,6 +1046,135 @@ export default function LektionsplanungViewer({
                               Löschen
                             </Button>
                           </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+            )}
+
+            {/* Schulspezifische (schuleigene) Lektionen */}
+            {schoolNewLektionen.length > 0 && (
+              <div className="mt-6">
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Schulspezifische Lektionen
+                </h3>
+                <Accordion type="single" collapsible className="w-full">
+                  {schoolNewLektionen.map((lektion) => (
+                    <AccordionItem key={lektion.id} value={lektion.id}>
+                      <AccordionTrigger className="text-left">
+                        <div className="flex items-center gap-2 flex-1 flex-wrap">
+                          <BookOpen className="h-4 w-4" />
+                          <span className="font-semibold">{lektion.lektion}</span>
+                          <Badge className="ml-2 text-xs">Schuleigen</Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-4 pt-2">
+                          {lektion.aufgaben && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Aufgaben
+                              </h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {lektion.aufgaben}
+                              </p>
+                            </div>
+                          )}
+                          {lektion.vorwissen && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <Lightbulb className="h-4 w-4" />
+                                Vorwissen
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                {lektion.vorwissen}
+                              </p>
+                            </div>
+                          )}
+                          {lektion.material && Array.isArray(lektion.material) && lektion.material.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 text-sm">Material</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {lektion.material.map((mat, idx) => (
+                                  <Badge key={idx} variant="secondary" className="text-xs">
+                                    {String(mat)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {lektion.websiteTools && Array.isArray(lektion.websiteTools) && lektion.websiteTools.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 text-sm">Websites &amp; Tools</h4>
+                              <div className="space-y-2">
+                                {lektion.websiteTools.map((tool, idx) => (
+                                  <div key={tool.id || idx}>
+                                    {tool.link ? (
+                                      <a
+                                        href={tool.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                                      >
+                                        <ExternalLink className="h-3 w-3" />
+                                        {String(tool.name)}
+                                      </a>
+                                    ) : (
+                                      <span className="text-sm">{String(tool.name)}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {lektion.einstieg && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <Play className="h-4 w-4" />
+                                Einstieg
+                              </h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {lektion.einstieg}
+                              </p>
+                            </div>
+                          )}
+                          {lektion.hauptteil && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <Square className="h-4 w-4" />
+                                Hauptteil
+                              </h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {lektion.hauptteil}
+                              </p>
+                            </div>
+                          )}
+                          {lektion.abschluss && (
+                            <div>
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Abschluss
+                              </h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {lektion.abschluss}
+                              </p>
+                            </div>
+                          )}
+                          {lektion.stolpersteine && (
+                            <div className="bg-yellow-50 dark:bg-yellow-950 border-l-4 border-yellow-500 px-4 py-3 rounded-r-lg">
+                              <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                Stolpersteine
+                              </h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                {lektion.stolpersteine}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </AccordionContent>
                     </AccordionItem>

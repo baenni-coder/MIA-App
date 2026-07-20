@@ -18,6 +18,7 @@ interface KanbanBoardProps {
   filterQuery?: string; // Real-time filter as user types
   integrationFilter?: Fachbereich | null; // Filter nach empfohlenem Integrationsfach
   userStufe?: Stufe;
+  schuleId?: string; // Schule der Lehrperson – für schulspezifische Lektions-Overrides
 }
 
 const ZEITRAUM_LABELS: Record<Zeitraum, string> = {
@@ -38,7 +39,7 @@ const ZEITRAUM_IMAGES: Record<Zeitraum, string | null> = {
   "Zusatz": null,
 };
 
-export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQuery, filterQuery, integrationFilter, userStufe }: KanbanBoardProps) {
+export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQuery, filterQuery, integrationFilter, userStufe, schuleId }: KanbanBoardProps) {
   const [selectedThema, setSelectedThema] = useState<Thema | null>(null);
   const [selectedKompetenz, setSelectedKompetenz] = useState<Kompetenz | null>(null);
   const [lektionsplanungOpen, setLektionsplanungOpen] = useState(false);
@@ -705,6 +706,7 @@ export default function KanbanBoard({ themenGrouped, schulePictsBuchen, searchQu
         themaName={lektionsplanungThema}
         themaId={lektionsplanungThemaId}
         customThemeId={lektionsplanungCustomThemeId}
+        schuleId={schuleId}
         open={lektionsplanungOpen}
         onOpenChange={setLektionsplanungOpen}
       />
