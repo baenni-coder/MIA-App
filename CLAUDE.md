@@ -1204,13 +1204,18 @@ ein fertiges Produkt übernehmen und bei Bedarf adaptieren.
   Original-Lektionen (System via `/api/lektionsplanung?thema=`, Custom via
   `/api/custom-lektionen?themeId=`) + bestehende Overrides und bietet je Lektion
   die Umschaltung Original / Eigene Fassung / Ausblenden sowie das Ergänzen
-  neuer Lektionen.
+  neuer Lektionen. Editierbar sind alle Inhaltsfelder inkl. **Websites & Tools**
+  (Name + Link, hinzufügen/entfernen); beim Wechsel auf „Eigene Fassung" werden
+  die Original-Inhalte (inkl. Tools) vorbefüllt.
 - **Lehrer-Sicht:** `LektionsplanungViewer` erhält die `schuleId` der Lehrperson
   (Jahresplan → KanbanBoard → Viewer), lädt die Overrides und merged sie auf die
   Original-Lektionen: ausgeblendete werden entfernt, „eigene Fassung" ersetzt den
   Inhalt (Badge „Schul-Anpassung"), neue schuleigene Lektionen erscheinen in einer
   eigenen Sektion („Schulspezifische Lektionen", Badge „Schuleigen"). Matching per
   `originalLektionId` mit Fallback auf `originalLektionKey` (eindeutigeBezeichnung).
+  Der **Markdown-/PDF-Export** im Viewer spiegelt die angezeigte (ggf.
+  schulspezifisch angepasste) Planung wider – System-, Custom-/Theme- und
+  schuleigene Lektionen zusammengeführt.
 - **Modusunabhängig:** Overrides wirken für die Schule in `open` **und** `curated`,
   da sie über `schuleId` + `sourceType` + `sourceThemeId` zugeordnet werden.
 

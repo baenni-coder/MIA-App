@@ -143,6 +143,7 @@ export default function LektionsplanungViewer({
         aufgaben: ov.aufgaben ?? l.aufgaben,
         vorwissen: ov.vorwissen ?? l.vorwissen,
         material: ov.material ?? l.material,
+        websiteTools: ov.websiteTools ?? l.websiteTools,
         einstieg: ov.einstieg ?? l.einstieg,
         hauptteil: ov.hauptteil ?? l.hauptteil,
         abschluss: ov.abschluss ?? l.abschluss,
@@ -163,6 +164,7 @@ export default function LektionsplanungViewer({
         aufgaben: ov.aufgaben ?? l.aufgaben,
         vorwissen: ov.vorwissen ?? l.vorwissen,
         material: ov.material ?? l.material,
+        websiteTools: ov.websiteTools ?? l.websiteTools,
         einstieg: ov.einstieg ?? l.einstieg,
         hauptteil: ov.hauptteil ?? l.hauptteil,
         abschluss: ov.abschluss ?? l.abschluss,
@@ -208,6 +210,38 @@ export default function LektionsplanungViewer({
       overriddenIds,
     };
   }, [lektionen, customLektionen, schoolOverrides, isCustomTheme]);
+
+  // Export-Liste: spiegelt die (ggf. schulspezifisch angepasste) Anzeige wider –
+  // System-Lektionen, Custom-/Theme-Lektionen und schuleigene Lektionen.
+  const exportLektionen = useMemo<Lektionsplanung[]>(() => {
+    const normalize = (l: Lektionsplanung | CustomLektion): Lektionsplanung => ({
+      id: l.id,
+      eindeutigeBezeichnung:
+        (l as Lektionsplanung).eindeutigeBezeichnung || l.lektion || "",
+      lektion: l.lektion,
+      themaId: themaId || customThemeId || "",
+      aufgaben: l.aufgaben,
+      vorwissen: l.vorwissen,
+      material: l.material,
+      websiteTools: l.websiteTools,
+      einstieg: l.einstieg,
+      hauptteil: l.hauptteil,
+      abschluss: l.abschluss,
+      stolpersteine: l.stolpersteine,
+      kiZusammenfassung: (l as Lektionsplanung).kiZusammenfassung,
+    });
+    return [
+      ...systemLektionen.map(normalize),
+      ...customLektionenToRender.map(normalize),
+      ...schoolNewLektionen.map(normalize),
+    ];
+  }, [
+    systemLektionen,
+    customLektionenToRender,
+    schoolNewLektionen,
+    themaId,
+    customThemeId,
+  ]);
 
   const loadLektionsplanung = async () => {
     try {
@@ -335,8 +369,8 @@ export default function LektionsplanungViewer({
     }
   };
 
-  const exportAsMarkdown = () => {
-    const markdown = generateMarkdown(lektionen, themaName);
+  const exportAsMarkdown = (list: Lektionsplanung[]) => {
+    const markdown = generateMarkdown(list, themaName);
     const blob = new Blob([markdown], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -348,7 +382,7 @@ export default function LektionsplanungViewer({
     URL.revokeObjectURL(url);
   };
 
-  const exportAsPDF = async () => {
+  const exportAsPDF = async (list: Lektionsplanung[]) => {
     try {
       // Dynamisches Import von jsPDF
       const { jsPDF } = await import("jspdf");
@@ -364,7 +398,7 @@ export default function LektionsplanungViewer({
 
     let yPosition = 80;
 
-    lektionen.forEach((lektion, index) => {
+    list.forEach((lektion, index) => {
       // Neue Seite für jede Lektion (außer der ersten)
       if (index > 0) {
         doc.addPage();
@@ -665,11 +699,11 @@ export default function LektionsplanungViewer({
           <>
             {/* Export Buttons */}
             <div className="flex gap-2 mb-4">
-              <Button onClick={exportAsMarkdown} variant="outline" size="sm">
+              <Button onClick={() => exportAsMarkdown(exportLektionen)} variant="outline" size="sm">
                 <FileText className="h-4 w-4 mr-2" />
                 Als Markdown exportieren
               </Button>
-              <Button onClick={exportAsPDF} variant="outline" size="sm">
+              <Button onClick={() => exportAsPDF(exportLektionen)} variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
                 Als PDF exportieren
               </Button>
@@ -908,6 +942,46 @@ export default function LektionsplanungViewer({
                             </div>
                           )}
 
+                          {/* Material */}
+                          {lektion.material && Array.isArray(lektion.material) && lektion.material.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 text-sm">Material</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {lektion.material.map((mat, idx) => (
+                                  <Badge key={idx} variant="secondary" className="text-xs">
+                                    {String(mat)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Websites & Tools */}
+                          {lektion.websiteTools && Array.isArray(lektion.websiteTools) && lektion.websiteTools.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 text-sm">Websites &amp; Tools</h4>
+                              <div className="space-y-2">
+                                {lektion.websiteTools.map((tool, idx) => (
+                                  <div key={tool.id || idx}>
+                                    {tool.link ? (
+                                      <a
+                                        href={tool.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                                      >
+                                        <ExternalLink className="h-3 w-3" />
+                                        {String(tool.name)}
+                                      </a>
+                                    ) : (
+                                      <span className="text-sm">{String(tool.name)}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           {/* Einstieg */}
                           {lektion.einstieg && (
                             <div>
@@ -1029,6 +1103,30 @@ export default function LektionsplanungViewer({
                                   <Badge key={idx} variant="secondary" className="text-xs">
                                     {String(mat)}
                                   </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {lektion.websiteTools && Array.isArray(lektion.websiteTools) && lektion.websiteTools.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold mb-2 text-sm">Websites &amp; Tools</h4>
+                              <div className="space-y-2">
+                                {lektion.websiteTools.map((tool, idx) => (
+                                  <div key={tool.id || idx}>
+                                    {tool.link ? (
+                                      <a
+                                        href={tool.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                                      >
+                                        <ExternalLink className="h-3 w-3" />
+                                        {String(tool.name)}
+                                      </a>
+                                    ) : (
+                                      <span className="text-sm">{String(tool.name)}</span>
+                                    )}
+                                  </div>
                                 ))}
                               </div>
                             </div>

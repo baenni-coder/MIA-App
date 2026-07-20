@@ -35,9 +35,15 @@ import {
   CustomLektion,
   SchoolLektionOverride,
   SchoolJahresplanSourceType,
+  WebsiteTool,
 } from "@/types";
 
 type RowMode = "original" | "eigene" | "hidden";
+
+interface ToolInput {
+  name: string;
+  link: string;
+}
 
 interface EditableFields {
   lektion: string;
@@ -48,6 +54,7 @@ interface EditableFields {
   abschluss: string;
   stolpersteine: string;
   material: string; // eine pro Zeile
+  websiteTools: ToolInput[];
 }
 
 interface Row extends EditableFields {
@@ -70,7 +77,15 @@ const EMPTY_FIELDS: EditableFields = {
   abschluss: "",
   stolpersteine: "",
   material: "",
+  websiteTools: [],
 };
+
+function toolsFrom(tools: WebsiteTool[] | undefined): ToolInput[] {
+  if (!Array.isArray(tools)) return [];
+  return tools
+    .filter((t) => t && (t.name || t.link))
+    .map((t) => ({ name: t.name || "", link: t.link || "" }));
+}
 
 function fieldsFromSystem(l: Lektionsplanung): EditableFields {
   return {
@@ -82,6 +97,7 @@ function fieldsFromSystem(l: Lektionsplanung): EditableFields {
     abschluss: typeof l.abschluss === "string" ? l.abschluss : "",
     stolpersteine: typeof l.stolpersteine === "string" ? l.stolpersteine : "",
     material: Array.isArray(l.material) ? l.material.join("\n") : "",
+    websiteTools: toolsFrom(l.websiteTools),
   };
 }
 
@@ -95,6 +111,7 @@ function fieldsFromCustom(l: CustomLektion): EditableFields {
     abschluss: l.abschluss || "",
     stolpersteine: l.stolpersteine || "",
     material: Array.isArray(l.material) ? l.material.join("\n") : "",
+    websiteTools: toolsFrom(l.websiteTools),
   };
 }
 
@@ -108,6 +125,7 @@ function fieldsFromOverride(o: SchoolLektionOverride): EditableFields {
     abschluss: o.abschluss || "",
     stolpersteine: o.stolpersteine || "",
     material: Array.isArray(o.material) ? o.material.join("\n") : "",
+    websiteTools: toolsFrom(o.websiteTools),
   };
 }
 
@@ -252,6 +270,46 @@ export default function SchoolLektionenEditor({
     );
   };
 
+  const updateTool = (
+    key: string,
+    idx: number,
+    field: keyof ToolInput,
+    value: string
+  ) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.key === key
+          ? {
+              ...r,
+              websiteTools: r.websiteTools.map((t, i) =>
+                i === idx ? { ...t, [field]: value } : t
+              ),
+            }
+          : r
+      )
+    );
+  };
+
+  const addTool = (key: string) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.key === key
+          ? { ...r, websiteTools: [...r.websiteTools, { name: "", link: "" }] }
+          : r
+      )
+    );
+  };
+
+  const removeTool = (key: string, idx: number) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.key === key
+          ? { ...r, websiteTools: r.websiteTools.filter((_, i) => i !== idx) }
+          : r
+      )
+    );
+  };
+
   const setMode = (key: string, mode: RowMode) => {
     setRows((prev) =>
       prev.map((r) => {
@@ -290,11 +348,18 @@ export default function SchoolLektionenEditor({
     });
   };
 
+  const buildTools = (row: Row): WebsiteTool[] =>
+    row.websiteTools
+      .map((t) => ({ name: t.name.trim(), link: t.link.trim() }))
+      .filter((t) => t.name || t.link)
+      .map((t, i) => ({ id: String(i), name: t.name, link: t.link || undefined }));
+
   const buildOverridePayload = (row: Row) => {
     const material = row.material
       .split("\n")
       .map((m) => m.trim())
       .filter(Boolean);
+    const tools = buildTools(row);
     return {
       schuleId,
       sourceType,
@@ -307,6 +372,7 @@ export default function SchoolLektionenEditor({
       aufgaben: row.aufgaben || undefined,
       vorwissen: row.vorwissen || undefined,
       material: material.length > 0 ? material : undefined,
+      websiteTools: tools.length > 0 ? tools : undefined,
       einstieg: row.einstieg || undefined,
       hauptteil: row.hauptteil || undefined,
       abschluss: row.abschluss || undefined,
@@ -392,6 +458,7 @@ export default function SchoolLektionenEditor({
                 aufgaben: payload.aufgaben ?? null,
                 vorwissen: payload.vorwissen ?? null,
                 material: payload.material ?? null,
+                websiteTools: payload.websiteTools ?? null,
                 einstieg: payload.einstieg ?? null,
                 hauptteil: payload.hauptteil ?? null,
                 abschluss: payload.abschluss ?? null,
@@ -419,6 +486,7 @@ export default function SchoolLektionenEditor({
               aufgaben: payload.aufgaben ?? null,
               vorwissen: payload.vorwissen ?? null,
               material: payload.material ?? null,
+              websiteTools: payload.websiteTools ?? null,
               einstieg: payload.einstieg ?? null,
               hauptteil: payload.hauptteil ?? null,
               abschluss: payload.abschluss ?? null,
@@ -504,6 +572,49 @@ export default function SchoolLektionenEditor({
           value={row.material}
           onChange={(e) => updateRow(row.key, { material: e.target.value })}
         />
+      </div>
+      <div>
+        <Label className="text-xs">Websites &amp; Tools</Label>
+        <div className="space-y-2 mt-1">
+          {row.websiteTools.map((tool, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <Input
+                className="flex-1"
+                placeholder="Name (z.B. Code.org)"
+                value={tool.name}
+                onChange={(e) =>
+                  updateTool(row.key, idx, "name", e.target.value)
+                }
+              />
+              <Input
+                className="flex-1"
+                placeholder="https://..."
+                value={tool.link}
+                onChange={(e) =>
+                  updateTool(row.key, idx, "link", e.target.value)
+                }
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
+                onClick={() => removeTool(row.key, idx)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => addTool(row.key)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Tool hinzufügen
+          </Button>
+        </div>
       </div>
       <div>
         <Label className="text-xs">Stolpersteine</Label>
