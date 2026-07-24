@@ -1,3 +1,4 @@
+import { randomInt } from "crypto";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { Student, AvatarConfig } from "@/types";
 import { updateClassStudentCount, getClassById } from "./classes";
@@ -41,14 +42,16 @@ const docToStudent = (
 });
 
 /**
- * Generiert ein sicheres zufälliges Passwort
+ * Generiert ein sicheres zufälliges Passwort.
+ * Nutzt einen kryptografisch sicheren Zufallsgenerator (crypto.randomInt),
+ * da Math.random() nicht kryptografisch sicher und damit vorhersagbar ist.
  */
 function generateSecurePassword(length: number = 12): string {
   const chars =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let password = "";
   for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+    password += chars.charAt(randomInt(chars.length));
   }
   return password;
 }
