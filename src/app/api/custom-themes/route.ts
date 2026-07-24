@@ -107,6 +107,27 @@ export async function GET(request: NextRequest) {
       filters.isSystemWide = isSystemWideParam === "true";
     }
 
+    // SICHERHEIT: Ohne Scoping könnte jeder authentifizierte Nutzer die noch
+    // nicht freigegebenen (draft/pending/rejected) Themen fremder Schulen und
+    // Lehrpersonen auslesen. Deshalb den Filter serverseitig einschränken:
+    // - Reine systemweite (approved) Abfragen sind öffentlich lesbar.
+    // - Sonst: normale Lehrpersonen sehen nur eigene Themen; PICTS-Admins nur
+    //   die ihrer eigenen Schule; Super-Admins uneingeschränkt.
+    if (filters.isSystemWide !== true) {
+      const teacher = await getTeacherProfile(userId);
+      const role = teacher?.role ?? "teacher";
+
+      if (role === "super_admin") {
+        // uneingeschränkt
+      } else if (role === "picts_admin") {
+        // Nur die eigene Schule; angefragte fremde Schule wird überschrieben
+        filters.schuleId = teacher?.schuleId ?? "__none__";
+      } else {
+        // Normale Lehrperson: ausschliesslich eigene Themen
+        filters.createdBy = userId;
+      }
+    }
+
     const themes = await getCustomThemes(filters);
 
     return NextResponse.json({ themes }, { status: 200 });

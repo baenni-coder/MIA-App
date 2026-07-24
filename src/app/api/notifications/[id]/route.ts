@@ -22,13 +22,14 @@ export async function PUT(
 
     const token = authHeader.substring(7);
     const adminAuth = getAdminAuth();
-    await adminAuth.verifyIdToken(token);
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const userId = decodedToken.uid;
 
     const { id } = await params;
     const notificationId = id;
 
-    // Markiere als gelesen
-    await markNotificationAsRead(notificationId);
+    // Markiere als gelesen (nur wenn die Notification dem User gehört)
+    await markNotificationAsRead(notificationId, userId);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
@@ -36,6 +37,13 @@ export async function PUT(
 
     if ((error as any).code === "auth/argument-error") {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    if (error instanceof Error && error.message === "Forbidden") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === "Notification not found") {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     return NextResponse.json(

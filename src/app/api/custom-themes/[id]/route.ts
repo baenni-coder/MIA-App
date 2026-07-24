@@ -137,11 +137,36 @@ export async function PUT(
 
     // Request Body
     const body = await request.json();
-    const { submitForReview, lektionen, ...updates } = body as {
+    const { submitForReview, lektionen } = body as {
       submitForReview?: boolean;
       lektionen?: LektionInput[];
       [key: string]: any;
     };
+
+    // SICHERHEIT: Nur explizit erlaubte, inhaltliche Felder übernehmen.
+    // Felder wie status, isSystemWide, createdBy, schuleId, reviewedBy dürfen
+    // NICHT vom Client gesetzt werden (sonst könnte ein Ersteller sein Thema
+    // selbst systemweit freischalten und den Review-Workflow umgehen).
+    const ALLOWED_UPDATE_FIELDS = [
+      "thema",
+      "beschreibung",
+      "lehrmittel",
+      "bildLehrmittel",
+      "anzahlLektionen",
+      "schuljahr",
+      "zeitraum",
+      "kompetenzenIds",
+      "fileRouge",
+      "unterlagen",
+      "empfohleneIntegrationsfaecher",
+    ] as const;
+
+    const updates: Record<string, any> = {};
+    for (const field of ALLOWED_UPDATE_FIELDS) {
+      if (body[field] !== undefined) {
+        updates[field] = body[field];
+      }
+    }
 
     // Wenn submitForReview = true, ändere Status
     if (submitForReview && theme.createdBy === userId) {

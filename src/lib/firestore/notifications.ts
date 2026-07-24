@@ -177,15 +177,36 @@ export async function getNotificationsByRecipient(
 /**
  * Markiert eine Notification als gelesen
  */
-export async function markNotificationAsRead(id: string): Promise<void> {
+export async function markNotificationAsRead(
+  id: string,
+  expectedRecipientId?: string
+): Promise<void> {
   try {
     const adminDb = getAdminDb();
-    await adminDb.collection(NOTIFICATIONS_COLLECTION).doc(id).update({
+    const docRef = adminDb.collection(NOTIFICATIONS_COLLECTION).doc(id);
+
+    // SICHERHEIT: Wenn ein Empfänger erwartet wird, sicherstellen, dass die
+    // Notification auch diesem User gehört (verhindert, dass beliebige fremde
+    // Benachrichtigungen als gelesen markiert werden können).
+    if (expectedRecipientId) {
+      const snapshot = await docRef.get();
+      if (!snapshot.exists) {
+        throw new Error("Notification not found");
+      }
+      if (snapshot.data()?.recipientId !== expectedRecipientId) {
+        throw new Error("Forbidden");
+      }
+    }
+
+    await docRef.update({
       read: true,
       readAt: new Date(),
     });
   } catch (error) {
     console.error("Error marking notification as read:", error);
+    if (error instanceof Error && (error.message === "Forbidden" || error.message === "Notification not found")) {
+      throw error;
+    }
     throw new Error("Failed to mark notification as read");
   }
 }
