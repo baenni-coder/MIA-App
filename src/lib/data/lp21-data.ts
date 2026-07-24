@@ -304,19 +304,50 @@ export function formatDatumKurz(date: Date): string {
 }
 
 /**
- * Gibt das aktuelle Schuljahr zurück
- * (August bis Juli des nächsten Jahres)
+ * Ermittelt den Startzeitpunkt der Sommerferien eines Schuljahrs aus einem
+ * Ferien-Preset. Die Sommerferien am Ende von Schuljahr "X/X+1" sind unter
+ * dem Schlüssel "X/X+1" abgelegt und liegen im Kalenderjahr X+1.
+ * Gibt null zurück, wenn keine Daten vorhanden sind.
  */
-export function getAktuellesSchuljahr(): string {
+function getSommerferienStart(
+  presetId: string,
+  schuljahr: string
+): Date | null {
+  const ferien = getFerien(presetId, schuljahr);
+  if (!ferien) return null;
+
+  // Schlüssel, der "sommer" enthält (z.B. "sommerferien")
+  const entry = Object.entries(ferien).find(([key]) =>
+    key.toLowerCase().includes("sommer")
+  );
+  if (!entry) return null;
+
+  return parseLocalDate(entry[1].start);
+}
+
+/**
+ * Gibt das aktuelle Schuljahr zurück.
+ *
+ * Der Wechsel auf das neue Schuljahr erfolgt am ersten Tag der Sommerferien
+ * (aus dem Ferien-Preset). Solange für das Preset keine Feriendaten vorliegen,
+ * wird als Fallback der 1. Juli verwendet (typischer Sommerferienbeginn in der
+ * Deutschschweiz).
+ */
+export function getAktuellesSchuljahr(presetId: string = "SO_BeLoSe"): string {
   const now = new Date();
-  const month = now.getMonth(); // 0-11
   const year = now.getFullYear();
 
-  // Wenn vor August, gehört es noch zum vorherigen Schuljahr
-  if (month < 7) {
-    return `${year - 1}/${year}`;
+  // Die Sommerferien, die den Wechsel markieren, gehören zum ablaufenden
+  // Schuljahr (Y-1)/Y und finden im Kalenderjahr Y statt.
+  const endingSchuljahr = `${year - 1}/${year}`;
+  const sommerStart =
+    getSommerferienStart(presetId, endingSchuljahr) ?? new Date(year, 6, 1); // Fallback: 1. Juli
+
+  // Ab dem ersten Ferientag zählt das neue Schuljahr.
+  if (now >= sommerStart) {
+    return `${year}/${year + 1}`;
   }
-  return `${year}/${year + 1}`;
+  return `${year - 1}/${year}`;
 }
 
 /**

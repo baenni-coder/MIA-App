@@ -8,6 +8,32 @@ import { getSystemLektionenByThemaName, getSystemLektionenByThemaId } from "@/li
 const USE_FIRESTORE_CACHE = process.env.ENABLE_FIRESTORE_CACHE === "true";
 
 /**
+ * Extrahiert die erste Zahl aus einem String (z.B. "Lektion 2" -> 2).
+ * Für die natürliche Sortierung der Lektionen.
+ */
+function extractLektionNumber(l: Lektionsplanung): number {
+  const source = l.lektion || l.eindeutigeBezeichnung || "";
+  const match = source.match(/\d+/);
+  return match ? parseInt(match[0], 10) : Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * Sortiert Lektionen natürlich nach ihrer Nummer ("Lektion 1" vor "Lektion 2"
+ * vor "Lektion 10"). Der Firestore-Cache liefert die Dokumente sonst in
+ * beliebiger Reihenfolge zurück.
+ */
+function sortLektionen(lektionen: Lektionsplanung[]): Lektionsplanung[] {
+  return [...lektionen].sort((a, b) => {
+    const diff = extractLektionNumber(a) - extractLektionNumber(b);
+    if (diff !== 0) return diff;
+    // Fallback: alphabetisch nach eindeutiger Bezeichnung
+    return (a.eindeutigeBezeichnung || "").localeCompare(
+      b.eindeutigeBezeichnung || ""
+    );
+  });
+}
+
+/**
  * Konvertiert SystemLektion zu Lektionsplanung
  */
 function convertSystemLektionToLektionsplanung(systemLektion: any): Lektionsplanung {
@@ -38,20 +64,22 @@ export async function getLektionenByThemaName(themaName: string): Promise<Lektio
       console.log(`📦 Loading lektionen for "${themaName}" from Firestore cache...`);
       const systemLektionen = await getSystemLektionenByThemaName(themaName);
 
-      const lektionen = systemLektionen.map(convertSystemLektionToLektionsplanung);
+      const lektionen = sortLektionen(
+        systemLektionen.map(convertSystemLektionToLektionsplanung)
+      );
 
       console.log(`✅ Loaded ${lektionen.length} lektionen from Firestore`);
       return lektionen;
     } catch (error) {
       console.error("❌ Error loading from Firestore, falling back to Airtable:", error);
       // Fallback zu Airtable
-      return getLektionsplanungByThemaName(themaName);
+      return sortLektionen(await getLektionsplanungByThemaName(themaName));
     }
   }
 
   // Standard: Airtable
   console.log(`📋 Loading lektionen for "${themaName}" from Airtable...`);
-  return getLektionsplanungByThemaName(themaName);
+  return sortLektionen(await getLektionsplanungByThemaName(themaName));
 }
 
 /**
@@ -63,7 +91,9 @@ export async function getLektionenByThemaId(themaId: string): Promise<Lektionspl
       console.log(`📦 Loading lektionen for thema ${themaId} from Firestore cache...`);
       const systemLektionen = await getSystemLektionenByThemaId(themaId);
 
-      const lektionen = systemLektionen.map(convertSystemLektionToLektionsplanung);
+      const lektionen = sortLektionen(
+        systemLektionen.map(convertSystemLektionToLektionsplanung)
+      );
 
       console.log(`✅ Loaded ${lektionen.length} lektionen from Firestore`);
       return lektionen;
