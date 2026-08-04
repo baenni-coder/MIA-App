@@ -58,6 +58,21 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Initial-Befüllung**: Ein-Klick-Zuordnung aller Pool-Themen inkl. nachträglicher Entfernungsmöglichkeit
 - **Abwärtskompatibel**: Schulen ohne gesetzten Modus bleiben auf `open`; Lehrer-Jahresplan funktioniert unverändert
 
+**NEU (2026-08)** – Vereinheitlichung „Einheit erstellen" + Menü-Vereinfachung:
+- **Jahresplanung als einziger Erstellungs-Einstieg**: Lehrpersonen erstellen Unterrichtseinheiten in der Jahresplanung. Aus einer gespeicherten Einheit heraus gibt es die Aktion **„Als MIA-Thema einreichen"** (`/dashboard/jahresplanung/einheit/[id]/als-mia-thema`), die das bestehende `CustomThemeForm` (aus der Einheit vorbefüllt: Titel, Lernziele, Zeitraum via `kwToZeitraum()`, Stufe aus Profil) wiederverwendet und den bestehenden PICTS-Review-/Pool-Workflow anstösst. Nach Freigabe erscheint das Thema im Jahresplan MIA.
+- **Kompetenzen kontextabhängig**: Die Einheit nutzt weiter LP21-Kompetenzen, das MIA-Thema weiter Airtable-Kompetenzen. Beim Einreichen werden die MIA-Kompetenzen im Formular neu gewählt (kein LP21→Airtable-Auto-Mapping). Kein Datenmodell-Merge, keine Migration.
+- **Neue Verknüpfungsfelder**: `JahresplanEinheit.publishedThemeId/publishedThemeName/publishedThemeStatus` (Einheit → veröffentlichtes Thema) und `CustomTheme.sourceEinheitId` (Rückverweis). Additiv, abwärtskompatibel. Die Einheit-Seite zeigt den Freigabe-Status (`ThemeStatusBadge`) und verlinkt auf das Thema.
+- **Menü vereinfacht**: „Thema erstellen" als Menüpunkt entfernt; Gruppe „Eigene Inhalte" aufgelöst → „Meine Themen" → **„Meine MIA-Themen"** (Gruppe *Übersicht*, Status-/Verwaltungsansicht mit „+ Neues MIA-Thema" für den Direkt-Fall ohne Einheit), „Schul-Dateien" → Gruppe *Unterricht*. Der bestehende `linkedMiaThemeId`-Vorlagenfluss (Einheit übernimmt ein MIA-Thema als Vorlage) bleibt komplementär bestehen.
+
+**Wichtige Dateien:**
+- `src/lib/data/lp21-data.ts` – `kwToZeitraum(kw, schuljahr, presetId)`
+- `src/app/dashboard/jahresplanung/einheit/[id]/als-mia-thema/page.tsx` – Publish-Seite
+- `src/app/dashboard/jahresplanung/einheit/[id]/page.tsx` – „Als MIA-Thema einreichen"-Karte + Status
+- `src/components/CustomThemeForm.tsx` – neue Prop `sourceEinheitId`
+- `src/app/api/custom-themes/route.ts` (POST) / `src/lib/firestore/custom-themes.ts` – `sourceEinheitId`
+- `src/app/api/jahresplanung/[id]/route.ts` (PUT) / `src/lib/firestore/jahresplanung.ts` – `publishedTheme*`-Felder
+- `src/components/DashboardLayout.tsx`, `src/app/dashboard/page.tsx`, `src/app/dashboard/meine-themen/page.tsx` – Menü/Kacheln/Verwaltungsansicht
+
 **NEU (2026-07)**:
 - **Pool-Fix – freigegebene Custom Themes sichtbar**: Die Jahresplan-Pool-Verwaltung lud nur System-Themen (`/api/themen?grouped=false` → `getThemes()`), sodass systemweit freigegebene eigene Themen nie als Pool-Zeile erschienen (auch nicht nach „Alle Pool-Themen zuordnen"). `/api/themen` erhält den Flag `includeCustom=true`, der System-Themen + approved Custom Themes kombiniert; die Pool-Seite nutzt ihn.
 - **Schulspezifische Lektionsplanung (Overrides)**: PICTS-/Super-Admin können im Pool-Edit-Dialog pro Lektion zwischen Original und eigener Fassung umschalten („original / eigene"), Lektionen ausblenden oder eigene schuleigene Lektionen ergänzen. Override-Pattern (Original bleibt Source of Truth). Lehrpersonen sehen die angepasste Planung im Jahresplan MIA (Badges „Schul-Anpassung" / „Schuleigen").
@@ -551,13 +566,13 @@ ENABLE_FIRESTORE_CACHE=true
   - Zustand wird in localStorage gespeichert
   - Zeigt Icons + Labels (erweitert) oder nur Icons (eingeklappt)
 - **Mobile Navigation**: Sheet/Drawer für kleine Bildschirme
-- **Gruppierte Menüstruktur** (NEU):
-  - **Übersicht**: Dashboard, Jahresplan MIA, Jahresplanung
-  - **Unterricht**: Lehrmittel, Lehrplan, Regelstandards (nur SO)
-  - **Eigene Inhalte**: Thema erstellen, Meine Themen, Schul-Dateien
+- **Gruppierte Menüstruktur** (aktualisiert 2026-08):
+  - **Übersicht**: Dashboard, Jahresplan MIA, Jahresplanung, MIA-Abdeckung, Meine MIA-Themen
+  - **Unterricht**: Lehrmittel, Lehrplan, Regelstandards (nur SO), Schul-Dateien
   - **Kompetenzenpass**: Meine Klassen, Indikatoren, Badges, Statistiken
   - **Hilfe**: FAQ
-  - **Administration** (nur Admins): Themen-Prüfung, Schulen, Schulanfragen, Daten-Sync
+  - **Administration** (nur Admins): Themen-Prüfung, Jahresplan-Pool, Schulen, Schulanfragen, Daten-Sync
+  - Hinweis: Die frühere Gruppe „Eigene Inhalte" und der separate Menüpunkt „Thema erstellen" sind entfallen (siehe „NEU (2026-08)").
 - **Profil-Übersicht**: Anzeige von Name, E-Mail, Schule, Kanton, Stufe
 - **Profil-Bearbeitung**: Lehrpersonen können bearbeiten:
   - Schule (Dropdown mit allen verfügbaren Schulen)

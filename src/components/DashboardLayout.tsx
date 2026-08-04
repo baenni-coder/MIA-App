@@ -14,7 +14,6 @@ import {
   CalendarRange,
   CalendarDays,
   BookOpen,
-  PlusCircle,
   FolderOpen,
   Shield,
   Menu,
@@ -146,6 +145,11 @@ export default function DashboardLayout({
           icon: <Target className="h-5 w-5" />,
           path: "/dashboard/jahresplanung/mia-abdeckung",
         },
+        {
+          label: "Meine MIA-Themen",
+          icon: <FolderOpen className="h-5 w-5" />,
+          path: "/dashboard/meine-themen",
+        },
       ],
     },
     {
@@ -167,22 +171,6 @@ export default function DashboardLayout({
           icon: <Scale className="h-5 w-5" />,
           path: "/dashboard/regelstandards",
           kantonOnly: "SO",
-        },
-      ],
-    },
-    {
-      label: "Eigene Inhalte",
-      icon: <PlusCircle className="h-4 w-4" />,
-      items: [
-        {
-          label: "Thema erstellen",
-          icon: <PlusCircle className="h-5 w-5" />,
-          path: "/dashboard/thema-erstellen",
-        },
-        {
-          label: "Meine Themen",
-          icon: <FolderOpen className="h-5 w-5" />,
-          path: "/dashboard/meine-themen",
         },
         {
           label: "Schul-Dateien",

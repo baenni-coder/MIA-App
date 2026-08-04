@@ -127,18 +127,30 @@ export default function MeineThemenPage() {
       <DashboardLayout>
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-2">
             <div>
-              <h1 className="text-3xl font-bold">Meine Themen</h1>
+              <h1 className="text-3xl font-bold">Meine MIA-Themen</h1>
               <p className="text-gray-600 mt-2">
-                Verwalten Sie Ihre eigenen MIA-Themen
+                Ihre eingereichten MIA-Themen und deren Freigabe-Status
               </p>
             </div>
             <Button onClick={() => router.push("/dashboard/thema-erstellen")}>
               <Plus className="mr-2 h-4 w-4" />
-              Neues Thema
+              Neues MIA-Thema
             </Button>
           </div>
+          <p className="text-sm text-gray-500 mb-6">
+            Tipp: MIA-Themen entstehen normalerweise aus einer Einheit in der{" "}
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard/jahresplanung")}
+              className="underline hover:text-gray-700"
+            >
+              Jahresplanung
+            </button>{" "}
+            (&bdquo;Als MIA-Thema einreichen&ldquo;). Hier können Sie zusätzlich
+            ein Thema direkt erstellen.
+          </p>
 
           {/* Themen Liste */}
           {themes.length === 0 ? (
