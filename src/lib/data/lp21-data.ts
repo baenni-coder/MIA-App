@@ -9,6 +9,7 @@ import type {
   FerienPreset,
   QuartalSchema,
   SchulferienCustom,
+  Zeitraum,
 } from "@/types";
 
 // JSON-Daten mit korrekten Typen
@@ -363,6 +364,52 @@ export function getSchuljahrListe(futureCount: number = 3, pastCount: number = 1
   }
 
   return schuljahre;
+}
+
+/**
+ * Bildet eine Kalenderwoche eines Schuljahrs auf eine der 6 Zeitraum-Spalten
+ * des Jahresplan MIA ab ("von Ferien zu Ferien"). Wird genutzt, um beim
+ * Veröffentlichen einer Jahresplanungs-Einheit als MIA-Thema einen sinnvollen
+ * Zeitraum-Default vorzuschlagen (im Formular editierbar).
+ *
+ * Der Vergleich erfolgt anhand der Ferien-Startdaten aus dem Preset. Liegen
+ * keine Daten vor, wird "Zusatz" zurückgegeben.
+ */
+export function kwToZeitraum(
+  kw: number,
+  schuljahr: string,
+  presetId: string = "SO_BeLoSe"
+): Zeitraum {
+  const [startYearStr] = schuljahr.split("/");
+  const startYear = parseInt(startYearStr, 10);
+  if (!Number.isFinite(startYear)) return "Zusatz";
+
+  // Schuljahr beginnt ~KW 33: hohe KW-Werte liegen im Startjahr, niedrige im Folgejahr.
+  const jahr = kw >= 30 ? startYear : startYear + 1;
+  const montag = getMondayOfWeek(kw, jahr);
+
+  const ferien = getFerien(presetId, schuljahr);
+  if (!ferien) return "Zusatz";
+
+  const startOf = (key: string): Date | null => {
+    const entry = Object.entries(ferien).find(([k]) =>
+      k.toLowerCase().includes(key)
+    );
+    return entry ? parseLocalDate(entry[1].start) : null;
+  };
+
+  const herbst = startOf("herbst");
+  const weihnacht = startOf("weihnacht");
+  const sport = startOf("sport"); // "Winterferien" im Zeitraum-Schema
+  const fruehling = startOf("fruehling") || startOf("frühling");
+  const sommer = startOf("sommer");
+
+  if (herbst && montag < herbst) return "Sommerferien-Herbstferien";
+  if (weihnacht && montag < weihnacht) return "Herbstferien-Weihnachtsferien";
+  if (sport && montag < sport) return "Weihnachtsferien-Winterferien";
+  if (fruehling && montag < fruehling) return "Winterferien-Frühlingsferien";
+  if (sommer && montag < sommer) return "Frühlingsferien-Sommerferien";
+  return "Zusatz";
 }
 
 /**

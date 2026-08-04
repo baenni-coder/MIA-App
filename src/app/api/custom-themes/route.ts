@@ -205,6 +205,7 @@ export async function POST(request: NextRequest) {
       fileRouge,
       unterlagen,
       empfohleneIntegrationsfaecher,
+      sourceEinheitId,
       submitForReview,
       lektionen, // NEU: Array von Lektionen
     } = body as {
@@ -219,6 +220,7 @@ export async function POST(request: NextRequest) {
       fileRouge?: string;
       unterlagen?: string;
       empfohleneIntegrationsfaecher?: Fachbereich[];
+      sourceEinheitId?: string;
       submitForReview?: boolean;
       lektionen?: LektionInput[];
     };
@@ -277,6 +279,9 @@ export async function POST(request: NextRequest) {
       createdByName: teacher.name,
       schuleId: teacher.schuleId,
       status,
+      ...(typeof sourceEinheitId === "string" && sourceEinheitId
+        ? { sourceEinheitId }
+        : {}),
     });
 
     // Lektionen erstellen (wenn vorhanden)

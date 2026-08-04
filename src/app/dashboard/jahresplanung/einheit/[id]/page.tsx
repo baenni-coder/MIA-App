@@ -36,7 +36,8 @@ import {
   findFachbereich,
   getQuartalSchema,
 } from "@/lib/data/lp21-data";
-import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema, Beurteilung } from "@/types";
+import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema, Beurteilung, ThemeStatus } from "@/types";
+import ThemeStatusBadge from "@/components/ThemeStatusBadge";
 
 // Quartal berechnen (von Ferien zu Ferien)
 // Q2 erweitert: Herbst→Sport (inkl. Weihnachten→Sport)
@@ -106,6 +107,13 @@ export default function EinheitFormPage() {
   const [linkedMiaThemeId, setLinkedMiaThemeId] = useState<string>("");
   const [linkedMiaThemeName, setLinkedMiaThemeName] = useState<string>("");
   const [showMiaPicker, setShowMiaPicker] = useState(false);
+
+  // Veröffentlichung als MIA-Thema (Custom Theme)
+  const [publishedThemeId, setPublishedThemeId] = useState<string>("");
+  const [publishedThemeName, setPublishedThemeName] = useState<string>("");
+  const [publishedThemeStatus, setPublishedThemeStatus] = useState<
+    ThemeStatus | ""
+  >("");
   const [teacherSchuleId, setTeacherSchuleId] = useState<string | undefined>(
     undefined
   );
@@ -292,6 +300,11 @@ export default function EinheitFormPage() {
           if (einheit.linkedMiaThemeId) {
             setLinkedMiaThemeId(einheit.linkedMiaThemeId);
             setLinkedMiaThemeName(einheit.linkedMiaThemeName || "");
+          }
+          if (einheit.publishedThemeId) {
+            setPublishedThemeId(einheit.publishedThemeId);
+            setPublishedThemeName(einheit.publishedThemeName || "");
+            setPublishedThemeStatus(einheit.publishedThemeStatus || "");
           }
           if (einheit.linkedFileIds) {
             setLinkedFileIds(einheit.linkedFileIds);
@@ -597,6 +610,51 @@ export default function EinheitFormPage() {
                 schuleId={teacherSchuleId}
                 onSelect={handleMiaThemeSelect}
               />
+
+              {/* Als MIA-Thema veröffentlichen (nur für gespeicherte Einheiten) */}
+              {!isNew && (
+                <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-3">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-emerald-600" />
+                    Als MIA-Thema für den Jahresplan MIA einreichen
+                  </label>
+                  <p className="text-xs text-gray-500 mt-0.5 mb-2">
+                    Reichen Sie diese Einheit als MIA-Thema ein. Nach der Freigabe
+                    durch die PICTS-Verantwortlichen erscheint sie im Jahresplan
+                    MIA und steht der ganzen Schule zur Verfügung.
+                  </p>
+                  {publishedThemeId ? (
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      {publishedThemeStatus && (
+                        <ThemeStatusBadge status={publishedThemeStatus} />
+                      )}
+                      <span className="text-gray-700 truncate">
+                        {publishedThemeName || "MIA-Thema"}
+                      </span>
+                      <Link
+                        href={`/dashboard/thema-bearbeiten/${publishedThemeId}`}
+                        className="text-emerald-700 underline hover:text-emerald-800"
+                      >
+                        Thema ansehen
+                      </Link>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/jahresplanung/einheit/${einheitId}/als-mia-thema`
+                        )
+                      }
+                    >
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      Als MIA-Thema einreichen
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* Zeitraum */}
               <div className="grid grid-cols-2 gap-4">

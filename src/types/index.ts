@@ -270,6 +270,9 @@ export interface CustomTheme {
   // System-Integration
   airtableId?: string; // Falls zu Airtable exportiert
   isSystemWide: boolean; // true nach Freigabe
+
+  // Herkunft: aus einer Jahresplanungs-Einheit veröffentlicht (Rückverweis)
+  sourceEinheitId?: string;
 }
 
 // Custom Lektion (gehört zu Custom Thema ODER Systemthema)
@@ -1122,9 +1125,13 @@ export interface JahresplanEinheit {
   sharedWith?: string[]; // User-IDs mit Schreibzugriff (Legacy)
   schuleId?: string; // Schule der Einheit (für Zugriffskontrolle)
   teamId?: string; // Planungsteam-ID (wenn Team-Einheit)
-  // MIA-Thema Verknüpfung
+  // MIA-Thema Verknüpfung (Vorlage: Einheit übernimmt ein bestehendes MIA-Thema)
   linkedMiaThemeId?: string; // Verknüpftes MIA-Thema (Airtable oder Custom Theme ID)
   linkedMiaThemeName?: string; // Name des verknüpften Themas
+  // Veröffentlichung: diese Einheit wurde als MIA-Thema (Custom Theme) eingereicht
+  publishedThemeId?: string; // Firestore-ID des daraus erstellten Custom Themes
+  publishedThemeName?: string; // Name des veröffentlichten Themas
+  publishedThemeStatus?: ThemeStatus; // Zuletzt bekannter Review-Status
   // Schul-Dateien Verknüpfung
   linkedFileIds?: string[]; // Verknüpfte Schul-Dateien (Firestore IDs)
   linkedFileNames?: string[]; // Dateinamen für Anzeige

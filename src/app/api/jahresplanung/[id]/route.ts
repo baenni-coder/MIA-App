@@ -139,6 +139,9 @@ export async function PUT(
     if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
     if (body.linkedMiaThemeId !== undefined) updateData.linkedMiaThemeId = body.linkedMiaThemeId;
     if (body.linkedMiaThemeName !== undefined) updateData.linkedMiaThemeName = body.linkedMiaThemeName;
+    if (body.publishedThemeId !== undefined) updateData.publishedThemeId = body.publishedThemeId;
+    if (body.publishedThemeName !== undefined) updateData.publishedThemeName = body.publishedThemeName;
+    if (body.publishedThemeStatus !== undefined) updateData.publishedThemeStatus = body.publishedThemeStatus;
     if (body.linkedFileIds !== undefined) updateData.linkedFileIds = body.linkedFileIds;
     if (body.linkedFileNames !== undefined) updateData.linkedFileNames = body.linkedFileNames;
 

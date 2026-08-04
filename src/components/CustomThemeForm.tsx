@@ -57,6 +57,8 @@ interface CustomThemeFormProps {
   initialLektionen?: TempLektion[];
   mode?: "create" | "edit";
   themeId?: string;
+  /** Wird beim Veröffentlichen aus einer Jahresplanungs-Einheit gesetzt (Rückverweis). */
+  sourceEinheitId?: string;
 }
 
 // Hilfsfunktion: Erstellt eine leere Lektion
@@ -75,6 +77,7 @@ export default function CustomThemeForm({
   initialLektionen,
   mode = "create",
   themeId,
+  sourceEinheitId,
 }: CustomThemeFormProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -351,6 +354,8 @@ export default function CustomThemeForm({
         unterlagen,
         empfohleneIntegrationsfaecher,
         submitForReview,
+        // Rückverweis auf die Ursprungs-Einheit (nur beim Erstellen relevant)
+        ...(sourceEinheitId ? { sourceEinheitId } : {}),
         // Lektionen mitsenden (ohne tempId)
         lektionen: lektionen.map(({ tempId, ...rest }) => rest),
       };
