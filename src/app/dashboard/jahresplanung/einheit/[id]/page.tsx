@@ -38,6 +38,7 @@ import {
 } from "@/lib/data/lp21-data";
 import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema, Beurteilung, ThemeStatus } from "@/types";
 import ThemeStatusBadge from "@/components/ThemeStatusBadge";
+import LehrmittelSelect from "@/components/LehrmittelSelect";
 
 // Quartal berechnen (von Ferien zu Ferien)
 // Q2 erweitert: Herbst→Sport (inkl. Weihnachten→Sport)
@@ -100,6 +101,7 @@ export default function EinheitFormPage() {
   const [beurteilungen, setBeurteilungen] = useState<Beurteilung[]>([]);
   const [materialien, setMaterialien] = useState<string[]>([]);
   const [newMaterial, setNewMaterial] = useState("");
+  const [lehrmittel, setLehrmittel] = useState("");
   const [istPufferwoche, setIstPufferwoche] = useState(false);
   const [einheitTeamId, setEinheitTeamId] = useState<string>("");
 
@@ -295,6 +297,7 @@ export default function EinheitFormPage() {
           setZeitraumEnde(einheit.zeitraumEnde);
           setBeurteilungen(einheit.beurteilungen || []);
           setMaterialien(einheit.materialien || []);
+          setLehrmittel(einheit.lehrmittel || "");
           setIstPufferwoche(einheit.istPufferwoche);
           setEinheitTeamId(einheit.teamId || "");
           if (einheit.linkedMiaThemeId) {
@@ -374,6 +377,9 @@ export default function EinheitFormPage() {
       // Schul-Dateien Verknüpfung
       body.linkedFileIds = linkedFileIds;
       body.linkedFileNames = linkedFileNames;
+
+      // Lehrmittel-Zuordnung (Name-basiert)
+      body.lehrmittel = lehrmittel || null;
 
       const url = isNew
         ? "/api/jahresplanung"
@@ -655,6 +661,16 @@ export default function EinheitFormPage() {
                   )}
                 </div>
               )}
+
+              {/* Lehrmittel */}
+              <div>
+                <label className="text-sm font-medium">Lehrmittel</label>
+                <p className="text-xs text-gray-500 mt-0.5 mb-2">
+                  Optional: Ordnen Sie die Einheit einem Lehrmittel zu. Sie
+                  erscheint dann im Modul &bdquo;Lehrmittel&ldquo; gesammelt.
+                </p>
+                <LehrmittelSelect value={lehrmittel} onChange={setLehrmittel} />
+              </div>
 
               {/* Zeitraum */}
               <div className="grid grid-cols-2 gap-4">

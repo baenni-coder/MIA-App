@@ -28,6 +28,7 @@ import InlineLektionEditor from "./InlineLektionEditor";
 import FileSelector from "./FileSelector";
 import KompetenzSelector from "./KompetenzSelector";
 import IntegrationsfaecherMultiSelect from "./IntegrationsfaecherMultiSelect";
+import LehrmittelSelect from "./LehrmittelSelect";
 
 const STUFEN: Stufe[] = [
   "KiGa",
@@ -454,10 +455,10 @@ export default function CustomThemeForm({
           {/* Lehrmittel */}
           <div>
             <Label htmlFor="lehrmittel">Lehrmittel</Label>
-            <Input
+            <LehrmittelSelect
               id="lehrmittel"
               value={lehrmittel}
-              onChange={(e) => setLehrmittel(e.target.value)}
+              onChange={setLehrmittel}
               placeholder="z.B. Medienkompass 1"
             />
           </div>

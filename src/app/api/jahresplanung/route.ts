@@ -175,6 +175,7 @@ export async function POST(request: NextRequest) {
       linkedMiaThemeName: body.linkedMiaThemeName,
       linkedFileIds: body.linkedFileIds,
       linkedFileNames: body.linkedFileNames,
+      lehrmittel: body.lehrmittel,
     });
 
     return NextResponse.json({ id }, { status: 201 });
