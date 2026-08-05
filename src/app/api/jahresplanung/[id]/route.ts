@@ -144,6 +144,7 @@ export async function PUT(
     if (body.publishedThemeStatus !== undefined) updateData.publishedThemeStatus = body.publishedThemeStatus;
     if (body.linkedFileIds !== undefined) updateData.linkedFileIds = body.linkedFileIds;
     if (body.linkedFileNames !== undefined) updateData.linkedFileNames = body.linkedFileNames;
+    if (body.lehrmittel !== undefined) updateData.lehrmittel = body.lehrmittel;
 
     // Sharing-Felder nur vom Owner änderbar
     if (isOwner) {

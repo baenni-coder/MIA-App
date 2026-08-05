@@ -437,6 +437,27 @@ service cloud.firestore {
     }
 
     // ============================================
+    // Lehrmittel Collection (von Lehrpersonen erfassbares Register)
+    // ============================================
+
+    match /lehrmittel/{lehrmittelId} {
+      // Lesen: alle authentifizierten User (Filter system-/schulweit auf API-Ebene)
+      allow read: if isAuthenticated();
+
+      // Erstellen: jeder authentifizierte User als Ersteller (immer schulweit)
+      allow create: if isAuthenticated()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.isSystemWide == false;
+
+      // Aktualisieren/Löschen: Ersteller oder Admin (systemweite Freigabe
+      // wird zusätzlich im API-Layer auf Admins beschränkt)
+      allow update, delete: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid ||
+        isPICTSAdmin(request.auth.uid)
+      );
+    }
+
+    // ============================================
     // School Jahresplan Assignments Collection
     // (Zuordnung von Pool-Themen zum Schul-Jahresplan inkl. Overrides)
     // ============================================

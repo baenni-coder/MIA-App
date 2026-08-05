@@ -106,6 +106,7 @@ function docToEinheit(
     publishedThemeStatus: data.publishedThemeStatus || undefined,
     linkedFileIds: data.linkedFileIds || undefined,
     linkedFileNames: data.linkedFileNames || undefined,
+    lehrmittel: data.lehrmittel || undefined,
     createdAt: timestampToDate(data.createdAt),
     updatedAt: timestampToDate(data.updatedAt),
   };
@@ -143,6 +144,7 @@ export async function createJahresplanEinheit(data: {
   linkedMiaThemeName?: string | null;
   linkedFileIds?: string[];
   linkedFileNames?: string[];
+  lehrmittel?: string;
 }): Promise<string> {
   try {
     const adminDb = getAdminDb();
@@ -181,6 +183,7 @@ export async function createJahresplanEinheit(data: {
       ...(data.linkedMiaThemeName ? { linkedMiaThemeName: data.linkedMiaThemeName } : {}),
       ...(data.linkedFileIds && data.linkedFileIds.length > 0 ? { linkedFileIds: data.linkedFileIds } : {}),
       ...(data.linkedFileNames && data.linkedFileNames.length > 0 ? { linkedFileNames: data.linkedFileNames } : {}),
+      ...(data.lehrmittel ? { lehrmittel: data.lehrmittel } : {}),
       createdAt: now,
       updatedAt: now,
     };

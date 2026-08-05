@@ -309,6 +309,30 @@ export interface CustomLektion {
 }
 
 // ============================================
+// Lehrmittel (von Lehrpersonen erfassbares Register)
+// ============================================
+
+// Ein Lehrmittel-Eintrag im Register. Themen/Einheiten verweisen weiterhin
+// per Name-String (kein ID-Bezug) – das Register liefert Anzeige (Bild) und
+// Scope (schulweit / systemweit).
+export interface Lehrmittel {
+  id: string;
+  name: string;
+  bildUrl?: string; // Firebase Storage URL (optional)
+  beschreibung?: string;
+  isSystemWide: boolean; // false = nur eigene Schule; true = alle Schulen (Admin-Freigabe)
+  schuleId: string; // Schule des Erstellers
+  createdBy: string;
+  createdByName: string;
+  createdAt: Date;
+  updatedAt: Date;
+  // Freigabe systemweit (durch Admin)
+  approvedBy?: string;
+  approvedByName?: string;
+  approvedAt?: Date;
+}
+
+// ============================================
 // School Jahresplan Assignments (Themen-Pool → Schul-Jahresplan)
 // ============================================
 
@@ -1135,6 +1159,8 @@ export interface JahresplanEinheit {
   // Schul-Dateien Verknüpfung
   linkedFileIds?: string[]; // Verknüpfte Schul-Dateien (Firestore IDs)
   linkedFileNames?: string[]; // Dateinamen für Anzeige
+  // Lehrmittel-Zuordnung (Name-basiert, siehe Lehrmittel-Register)
+  lehrmittel?: string;
   createdAt: Date;
   updatedAt: Date;
 }

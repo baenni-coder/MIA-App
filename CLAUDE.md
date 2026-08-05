@@ -58,6 +58,19 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Initial-Befüllung**: Ein-Klick-Zuordnung aller Pool-Themen inkl. nachträglicher Entfernungsmöglichkeit
 - **Abwärtskompatibel**: Schulen ohne gesetzten Modus bleiben auf `open`; Lehrer-Jahresplan funktioniert unverändert
 
+**NEU (2026-08)** – Lehrmittel-Register:
+- **Lehrpersonen erfassen eigene Lehrmittel**: Neue Firestore-Collection `lehrmittel` (Name, Bild, Beschreibung, Scope). Erfasste Lehrmittel sind sofort **schulweit** sichtbar; ein PICTS-/Super-Admin kann sie **systemweit** freigeben (`isSystemWide`) – analog zum Badges-Muster (`getAllBadges`).
+- **Sammlung unter Lehrmittel**: Die Seite `/dashboard/lehrmittel` gruppiert nach Lehrmittel-Namen (normalisiert) und listet darunter **systemweite + schulweite Themen** (`/api/themen?includeCustom=true&curated=true&schuleId=…`) **sowie die eigenen Jahresplanungs-Einheiten** der Lehrperson. Register-Einträge ohne Inhalte erscheinen als leere Gruppe. Admins sehen „Systemweit freigeben".
+- **Leichtgewichtig, keine Migration**: Themen behalten das Text-Feld `lehrmittel`; neu ist ein additives `JahresplanEinheit.lehrmittel` (Name-basiert). Formulare (CustomThemeForm + Einheit-Editor) nutzen die Combobox `LehrmittelSelect` (Vorschläge aus dem Register, Freitext weiterhin möglich).
+
+**Wichtige Dateien (Lehrmittel-Register):**
+- `src/types/index.ts` – `Lehrmittel`, `JahresplanEinheit.lehrmittel`
+- `src/lib/firestore/lehrmittel.ts` – CRUD (`getAllLehrmittel(schoolId?)`, create/update/delete)
+- `src/app/api/lehrmittel/route.ts` (GET/POST), `src/app/api/lehrmittel/[id]/route.ts` (PUT/DELETE, isSystemWide nur Admin)
+- `src/components/LehrmittelSelect.tsx` – Combobox (datalist)
+- `src/app/dashboard/lehrmittel/page.tsx` – Register-Verwaltung + Gruppierung
+- `firestore.rules` – Collection `lehrmittel`
+
 **NEU (2026-08)** – Vereinheitlichung „Einheit erstellen" + Menü-Vereinfachung:
 - **Jahresplanung als einziger Erstellungs-Einstieg**: Lehrpersonen erstellen Unterrichtseinheiten in der Jahresplanung. Aus einer gespeicherten Einheit heraus gibt es die Aktion **„Als MIA-Thema einreichen"** (`/dashboard/jahresplanung/einheit/[id]/als-mia-thema`), die das bestehende `CustomThemeForm` (aus der Einheit vorbefüllt: Titel, Lernziele, Zeitraum via `kwToZeitraum()`, Stufe aus Profil) wiederverwendet und den bestehenden PICTS-Review-/Pool-Workflow anstösst. Nach Freigabe erscheint das Thema im Jahresplan MIA.
 - **Kompetenzen kontextabhängig**: Die Einheit nutzt weiter LP21-Kompetenzen, das MIA-Thema weiter Airtable-Kompetenzen. Beim Einreichen werden die MIA-Kompetenzen im Formular neu gewählt (kein LP21→Airtable-Auto-Mapping). Kein Datenmodell-Merge, keine Migration.
