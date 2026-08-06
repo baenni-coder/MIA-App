@@ -141,6 +141,12 @@ function SortableEinheitCard({
                   Puffer
                 </Badge>
               )}
+
+              {einheit.istSpezialwoche && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-violet-50 text-violet-700 border-violet-200">
+                  Spezialwoche
+                </Badge>
+              )}
             </div>
           </Link>
         </div>

@@ -19,6 +19,7 @@ import {
   Loader2,
   List,
   LayoutGrid,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import KanbanQuartal from "@/components/jahresplanung/KanbanQuartal";
@@ -479,6 +480,9 @@ export default function QuartalsansichtPage() {
                                           className="text-[10px] leading-tight truncate"
                                           style={{ color: einheit.fachbereichFarbe || "#6b7280" }}
                                         >
+                                          {einheit.istSpezialwoche && (
+                                            <Sparkles className="h-2.5 w-2.5 inline-block mr-0.5 -mt-0.5" />
+                                          )}
                                           {kompetenzLabel}
                                         </p>
                                         <p className="text-xs font-medium truncate text-gray-800">

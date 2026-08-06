@@ -135,6 +135,7 @@ export async function PUT(
     if (body.beurteilungen !== undefined) updateData.beurteilungen = body.beurteilungen;
     if (body.materialien !== undefined) updateData.materialien = body.materialien;
     if (body.istPufferwoche !== undefined) updateData.istPufferwoche = body.istPufferwoche;
+    if (body.istSpezialwoche !== undefined) updateData.istSpezialwoche = body.istSpezialwoche === true;
     if (body.farbe !== undefined) updateData.farbe = body.farbe;
     if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
     if (body.linkedMiaThemeId !== undefined) updateData.linkedMiaThemeId = body.linkedMiaThemeId;
