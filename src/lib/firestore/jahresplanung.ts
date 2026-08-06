@@ -6,7 +6,6 @@ import {
   Beurteilung,
   SchulferienCustom,
   JahresplanFilter,
-  PlanungsTeam,
 } from "@/types";
 
 const JAHRESPLANUNG_COLLECTION = "jahresplanung";
@@ -320,38 +319,6 @@ export async function getTeamEinheiten(
   } catch (error) {
     console.error("Error getting team einheiten:", error);
     throw new Error("Failed to get team einheiten");
-  }
-}
-
-/**
- * Lädt alle Planungen eines Unterrichtsteams: die Einheiten sämtlicher
- * Team-Mitglieder plus explizit dem Team zugeordnete Einheiten (teamId),
- * z.B. von ehemaligen Mitgliedern. Dedupliziert nach Einheit-ID.
- */
-export async function getTeamPlanungen(
-  team: PlanungsTeam,
-  filter?: JahresplanFilter
-): Promise<JahresplanEinheit[]> {
-  try {
-    const results = await Promise.all([
-      getTeamEinheiten(team.id, filter),
-      ...team.members.map((m) => getJahresplanEinheiten(m.userId, filter)),
-    ]);
-
-    const seen = new Set<string>();
-    const einheiten: JahresplanEinheit[] = [];
-    for (const list of results) {
-      for (const einheit of list) {
-        if (!seen.has(einheit.id)) {
-          seen.add(einheit.id);
-          einheiten.push(einheit);
-        }
-      }
-    }
-    return einheiten;
-  } catch (error) {
-    console.error("Error getting team planungen:", error);
-    throw new Error("Failed to get team planungen");
   }
 }
 

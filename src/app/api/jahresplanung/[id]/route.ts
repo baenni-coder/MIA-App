@@ -5,32 +5,21 @@ import {
   updateJahresplanEinheit,
   deleteJahresplanEinheit,
 } from "@/lib/firestore/jahresplanung";
-import {
-  getPlanungsTeamById,
-  getPlanungsTeamsForUser,
-} from "@/lib/firestore/planungsteams";
+import { getPlanungsTeamById } from "@/lib/firestore/planungsteams";
 import type { JahresplanEinheit } from "@/types";
 
 /**
- * Prüft, ob der User über ein Unterrichtsteam Zugriff auf die Einheit hat:
- * entweder als Mitglied des Teams, dem die Einheit zugeordnet ist (teamId),
- * oder weil er mit dem Ersteller ein Planungsteam im selben Schuljahr teilt.
+ * Prüft, ob der User über ein Unterrichtsteam Zugriff auf die Einheit hat.
+ * Nur Einheiten, die explizit einem Team zugeordnet sind (teamId), sind für
+ * dessen Mitglieder zugänglich – die private Planung bleibt privat.
  */
 async function isTeamColleague(
   userId: string,
   einheit: JahresplanEinheit
 ): Promise<boolean> {
-  if (einheit.teamId) {
-    const team = await getPlanungsTeamById(einheit.teamId);
-    if (team?.members.some((m) => m.userId === userId)) {
-      return true;
-    }
-  }
-
-  const teams = await getPlanungsTeamsForUser(userId, einheit.schuljahr);
-  return teams.some((t) =>
-    t.members.some((m) => m.userId === einheit.teacherId)
-  );
+  if (!einheit.teamId) return false;
+  const team = await getPlanungsTeamById(einheit.teamId);
+  return team?.members.some((m) => m.userId === userId) || false;
 }
 
 /**
@@ -175,6 +164,24 @@ export async function PUT(
     if (isOwner) {
       if (body.isShared !== undefined) updateData.isShared = body.isShared;
       if (body.sharedWith !== undefined) updateData.sharedWith = body.sharedWith;
+
+      // Team-Zuordnung (teilen/privat stellen); Ziel-Team muss eigenes Team sein
+      if (body.teamId !== undefined) {
+        if (body.teamId) {
+          const zielTeam = await getPlanungsTeamById(body.teamId);
+          const istMitglied =
+            zielTeam?.members.some((m) => m.userId === userId) || false;
+          if (!istMitglied) {
+            return NextResponse.json(
+              { error: "Keine Berechtigung für dieses Team" },
+              { status: 403 }
+            );
+          }
+          updateData.teamId = body.teamId;
+        } else {
+          updateData.teamId = null;
+        }
+      }
     }
 
     await updateJahresplanEinheit(id, updateData);

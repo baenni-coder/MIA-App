@@ -88,13 +88,14 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 
 **NEU (2026-08)** – Jahresplanung: Mehrwöchige Beurteilungen & Unterrichtsteam-Ansicht:
 - **Beurteilungen über mehrere Wochen**: `Beurteilung` erhält optionales `kalenderwocheEnde` (abwärtskompatibel; fehlt = einwöchig). Editor mit „Von KW / Bis KW"; Marker erscheinen in allen Wochen des Bereichs (Quartals-Liste, Wochenansicht, Quartals-/Jahres-PDF); Labels zeigen „KW x–y".
-- **Team-Planungen in Spalten**: Im Team-Modus lädt `GET /api/jahresplanung?teamId=` via `getTeamPlanungen()` die Einheiten **aller Team-Mitglieder** (plus teamId-markierte Einheiten von Ex-Mitgliedern, dedupliziert) – nicht mehr nur explizit team-markierte. Quartals-Listenansicht zeigt pro Woche eine **Spalte pro Lehrperson** (Spaltenkopf mit Namen, Fallback-Spalte „Weitere"); Kanban gruppiert im Team-Modus nach Lehrperson statt Fachbereich (Karten behalten Fachbereich-Farben).
-- **Zugriff im Unterrichtsteam**: GET/PUT `/api/jahresplanung/[id]` erlauben zusätzlich Kolleg:innen, die mit dem Ersteller ein Planungsteam **im selben Schuljahr** teilen (`isTeamColleague()`); Löschen bleibt Owner/teamId-Team vorbehalten. Die Wochenansicht unterstützt `teamId` (lud vorher nur eigene Einheiten – deshalb konnten Team-Kolleg:innen Einheiten nicht öffnen), zeigt den Namen der Lehrperson pro Einheit und reicht den Team-Kontext durch alle Links (Quartal ↔ Woche ↔ Einheit-Editor inkl. Redirect nach Speichern).
+- **Team-Planungen in Spalten**: Die Team-Ansicht zeigt **nur explizit dem Team zugeordnete Einheiten** (`teamId`) – die private Planung der Mitglieder bleibt privat. Quartals-Listenansicht zeigt pro Woche eine **Spalte pro Lehrperson** (Spaltenkopf mit Namen, Fallback-Spalte „Weitere"); Kanban gruppiert im Team-Modus nach Lehrperson statt Fachbereich (Karten behalten Fachbereich-Farben).
+- **Team-Zuordnung pro Einheit**: Im Einheit-Editor wählt der Owner unter „Weitere Optionen" das Planungsteam („Kein Team (privat)" oder eines der eigenen Teams des Schuljahrs). So lassen sich auch bestehende Einheiten nachträglich teilen oder wieder privat stellen. PUT validiert die Mitgliedschaft im Ziel-Team; nur der Owner darf die Zuordnung ändern.
+- **Zugriff im Unterrichtsteam**: GET/PUT `/api/jahresplanung/[id]` erlauben Mitgliedern des Teams, dem die Einheit zugeordnet ist (`isTeamColleague()` prüft `einheit.teamId`), Anzeigen und Bearbeiten; Löschen bleibt Owner/teamId-Team vorbehalten. Die Wochenansicht unterstützt `teamId` (lud vorher nur eigene Einheiten – deshalb konnten Team-Kolleg:innen Einheiten nicht öffnen), zeigt den Namen der Lehrperson pro Einheit und reicht den Team-Kontext durch alle Links (Quartal ↔ Woche ↔ Einheit-Editor inkl. Redirect nach Speichern).
 
 **Wichtige Dateien:**
 - `src/types/index.ts` – `Beurteilung.kalenderwocheEnde`
-- `src/lib/firestore/jahresplanung.ts` – `getTeamPlanungen()`, Range-Auswertung in `getBeurteilungenProWoche()`
-- `src/app/api/jahresplanung/route.ts` (Team-Union), `src/app/api/jahresplanung/[id]/route.ts` (`isTeamColleague()`)
+- `src/lib/firestore/jahresplanung.ts` – Range-Auswertung in `getBeurteilungenProWoche()`
+- `src/app/api/jahresplanung/route.ts` (nur teamId-Einheiten im Team-Modus), `src/app/api/jahresplanung/[id]/route.ts` (`isTeamColleague()`, Team-Zuordnung im PUT)
 - `src/app/dashboard/jahresplanung/quartal/[q]/page.tsx` – Team-Spalten + `renderEinheitChip()`
 - `src/app/dashboard/jahresplanung/woche/[kw]/page.tsx` – teamId-Unterstützung
 - `src/components/jahresplanung/KanbanQuartal.tsx` – `teamMembers`-Prop (Gruppierung nach Lehrperson)
