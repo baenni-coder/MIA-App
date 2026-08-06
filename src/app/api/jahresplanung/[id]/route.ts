@@ -6,6 +6,7 @@ import {
   deleteJahresplanEinheit,
 } from "@/lib/firestore/jahresplanung";
 import { getPlanungsTeamById } from "@/lib/firestore/planungsteams";
+import { deleteEinheitLektionsplanungenByEinheit } from "@/lib/firestore/einheit-lektionsplanungen";
 
 /**
  * GET /api/jahresplanung/[id]
@@ -210,6 +211,9 @@ export async function DELETE(
         { status: 403 }
       );
     }
+
+    // Cascade: zugehörige Lektionsplanungen inkl. ihrer Lektionen löschen
+    await deleteEinheitLektionsplanungenByEinheit(id);
 
     await deleteJahresplanEinheit(id);
 

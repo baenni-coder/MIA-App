@@ -725,6 +725,39 @@ export default function EinheitFormPage() {
             </CardContent>
           </Card>
 
+          {/* Lektionsplanungen (nur für gespeicherte Einheiten) */}
+          {!isNew && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-blue-600" />
+                  Lektionsplanungen
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-500 mb-3">
+                  Erfassen Sie eine oder mehrere Lektionsplanungen zu dieser
+                  Einheit. Jede Planung hat ihre eigene Liste von Lektionen –
+                  ideal, um z.B. Fachinhalt und integrative MIA-Umsetzung
+                  getrennt zu planen.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/jahresplanung/einheit/${einheitId}/lektionen`
+                    )
+                  }
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Lektionsplanungen verwalten
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Kompetenzen */}
           <Card>
             <CardHeader>

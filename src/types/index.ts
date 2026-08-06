@@ -279,10 +279,13 @@ export interface CustomTheme {
 export interface CustomLektion {
   id: string;
 
-  // Verknüpfung - entweder Custom Theme ODER Systemthema
+  // Verknüpfung - Custom Theme ODER Systemthema ODER Jahresplan-Einheit
   themeId?: string; // Custom Theme ID (optional, wenn systemThemeId gesetzt)
   systemThemeId?: string; // Airtable Theme ID (für Lektionen zu Systemthemen)
   systemThemeName?: string; // Name des Systemthemas
+  // Jahresplanung: Lektion gehört zu einer Lektionsplanung einer Einheit
+  einheitId?: string; // Jahresplan-Einheit (jahresplanung-Collection)
+  lektionsplanungId?: string; // Lektionsplanung innerhalb der Einheit
   lektion: string; // "Lektion 1", "Lektion 2"
   eindeutigeBezeichnung: string; // "Lektion 1 - Titel"
 
@@ -1161,6 +1164,22 @@ export interface JahresplanEinheit {
   linkedFileNames?: string[]; // Dateinamen für Anzeige
   // Lehrmittel-Zuordnung (Name-basiert, siehe Lehrmittel-Register)
   lehrmittel?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Eine benannte Lektionsplanung innerhalb einer Jahresplan-Einheit.
+// Eine Einheit kann mehrere Lektionsplanungen enthalten (z.B. "Deutsch",
+// "Integrativ MIA"), jede mit ihrer eigenen Liste von Lektionen
+// (custom_lektionen mit lektionsplanungId).
+export interface EinheitLektionsplanung {
+  id: string;
+  einheitId: string; // Zugehörige Jahresplan-Einheit
+  teacherId: string; // Ersteller (= Owner der Einheit)
+  schuleId?: string; // Schule (für Sichtbarkeit/Filter)
+  name: string; // z.B. "Lektionsplanung Deutsch"
+  beschreibung?: string; // Optionale Kurzbeschreibung
+  order: number; // Reihenfolge innerhalb der Einheit
   createdAt: Date;
   updatedAt: Date;
 }

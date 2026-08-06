@@ -5,10 +5,30 @@ import {
   createMultipleCustomLektionen,
   getCustomLektionenByThemeId,
   getCustomLektionenBySystemThemeName,
+  getCustomLektionenByLektionsplanungId,
 } from "@/lib/firestore/custom-lektionen";
 import { getCustomThemeById } from "@/lib/firestore/custom-themes";
 import { canReadCustomTheme } from "@/lib/firestore/permissions";
-import { WebsiteTool } from "@/types";
+import { getJahresplanEinheitById } from "@/lib/firestore/jahresplanung";
+import { getEinheitLektionsplanungById } from "@/lib/firestore/einheit-lektionsplanungen";
+import { getPlanungsTeamById } from "@/lib/firestore/planungsteams";
+import { JahresplanEinheit, WebsiteTool } from "@/types";
+
+/**
+ * Prüft, ob der User die Einheit bearbeiten darf (Owner, sharedWith, Team).
+ */
+async function canEditEinheit(
+  einheit: JahresplanEinheit,
+  userId: string
+): Promise<boolean> {
+  if (einheit.teacherId === userId) return true;
+  if (einheit.sharedWith?.includes(userId)) return true;
+  if (einheit.teamId) {
+    const team = await getPlanungsTeamById(einheit.teamId);
+    if (team?.members.some((m) => m.userId === userId)) return true;
+  }
+  return false;
+}
 
 /**
  * GET /api/custom-lektionen
@@ -38,17 +58,43 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const themeId = searchParams.get("themeId");
     const systemThemeName = searchParams.get("systemThemeName");
+    const lektionsplanungId = searchParams.get("lektionsplanungId");
 
-    if (!themeId && !systemThemeName) {
+    if (!themeId && !systemThemeName && !lektionsplanungId) {
       return NextResponse.json(
-        { error: "themeId or systemThemeName is required" },
+        { error: "themeId, systemThemeName or lektionsplanungId is required" },
         { status: 400 }
       );
     }
 
     let lektionen;
 
-    if (systemThemeName) {
+    if (lektionsplanungId) {
+      // Jahresplan-Einheit: Lektionen einer Lektionsplanung
+      const planung = await getEinheitLektionsplanungById(lektionsplanungId);
+      if (!planung) {
+        return NextResponse.json(
+          { error: "Lektionsplanung not found" },
+          { status: 404 }
+        );
+      }
+
+      const einheit = await getJahresplanEinheitById(planung.einheitId);
+      if (!einheit) {
+        return NextResponse.json(
+          { error: "Einheit not found" },
+          { status: 404 }
+        );
+      }
+
+      const canRead =
+        (await canEditEinheit(einheit, userId)) || einheit.isShared;
+      if (!canRead) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      lektionen = await getCustomLektionenByLektionsplanungId(lektionsplanungId);
+    } else if (systemThemeName) {
       // Systemthema: Lade Custom Lektionen für dieses Thema
       // Hole die SchuleId des Users für Filterung
       const adminDb = getAdminDb();
@@ -185,6 +231,8 @@ export async function POST(request: NextRequest) {
         themeId,
         systemThemeId,
         systemThemeName,
+        einheitId,
+        lektionsplanungId,
         lektion,
         eindeutigeBezeichnung,
         aufgaben,
@@ -199,15 +247,16 @@ export async function POST(request: NextRequest) {
         order,
       } = body;
 
-      // Validierung - entweder themeId ODER systemThemeId/systemThemeName
+      // Validierung - themeId ODER systemThemeId/systemThemeName ODER Einheit
+      const isEinheit = !!einheitId && !!lektionsplanungId;
       const isSystemTheme = !!systemThemeId && !!systemThemeName;
-      const isCustomTheme = !!themeId && !systemThemeId;
+      const isCustomTheme = !!themeId && !systemThemeId && !einheitId;
 
-      if (!isSystemTheme && !isCustomTheme) {
+      if (!isEinheit && !isSystemTheme && !isCustomTheme) {
         return NextResponse.json(
           {
             error:
-              "Either themeId OR (systemThemeId and systemThemeName) is required",
+              "Either themeId OR (systemThemeId and systemThemeName) OR (einheitId and lektionsplanungId) is required",
           },
           { status: 400 }
         );
@@ -223,7 +272,53 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (isCustomTheme) {
+      if (isEinheit) {
+        // Jahresplan-Einheit: Lektion einer Lektionsplanung
+        const planung = await getEinheitLektionsplanungById(lektionsplanungId);
+        if (!planung || planung.einheitId !== einheitId) {
+          return NextResponse.json(
+            { error: "Lektionsplanung not found" },
+            { status: 404 }
+          );
+        }
+
+        const einheit = await getJahresplanEinheitById(einheitId);
+        if (!einheit) {
+          return NextResponse.json(
+            { error: "Einheit not found" },
+            { status: 404 }
+          );
+        }
+
+        if (!(await canEditEinheit(einheit, userId))) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const lektionId = await createCustomLektion({
+          einheitId,
+          lektionsplanungId,
+          lektion,
+          eindeutigeBezeichnung,
+          aufgaben,
+          vorwissen,
+          material,
+          websiteTools,
+          einstieg,
+          hauptteil,
+          abschluss,
+          stolpersteine,
+          kiZusammenfassung,
+          createdBy: userId,
+          createdByName: userName,
+          schuleId,
+          order,
+        });
+
+        return NextResponse.json(
+          { success: true, lektionId },
+          { status: 201 }
+        );
+      } else if (isCustomTheme) {
         // Custom Theme: Berechtigung prüfen
         const theme = await getCustomThemeById(themeId);
         if (!theme) {

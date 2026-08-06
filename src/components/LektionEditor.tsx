@@ -12,7 +12,10 @@ import { CustomLektion, WebsiteTool } from "@/types";
 import { Loader2, Plus, X } from "lucide-react";
 
 interface LektionEditorProps {
-  themeId: string;
+  themeId?: string;
+  // Alternativ zum Custom Theme: Lektion einer Jahresplan-Einheit-Lektionsplanung
+  einheitId?: string;
+  lektionsplanungId?: string;
   onSuccess?: (lektionId: string) => void;
   onCancel?: () => void;
   initialData?: CustomLektion;
@@ -23,6 +26,8 @@ interface LektionEditorProps {
 
 export default function LektionEditor({
   themeId,
+  einheitId,
+  lektionsplanungId,
   onSuccess,
   onCancel,
   initialData,
@@ -105,8 +110,14 @@ export default function LektionEditor({
       const token = await user?.getIdToken();
       if (!token) throw new Error("Not authenticated");
 
+      // Ziel-Verknüpfung: entweder Custom Theme oder Jahresplan-Einheit
+      const target =
+        einheitId && lektionsplanungId
+          ? { einheitId, lektionsplanungId }
+          : { themeId };
+
       const body = {
-        themeId,
+        ...target,
         lektion,
         eindeutigeBezeichnung,
         aufgaben,
