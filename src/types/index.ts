@@ -1116,7 +1116,8 @@ export type BeurteilungsTyp = "keine" | "formativ" | "summativ";
 // Einzelne Beurteilung mit KW-Zuordnung
 export interface Beurteilung {
   typ: "formativ" | "summativ";
-  kalenderwoche: number; // KW in der die Beurteilung stattfindet
+  kalenderwoche: number; // KW in der die Beurteilung stattfindet (bzw. beginnt)
+  kalenderwocheEnde?: number; // Optional: End-KW bei Beurteilungen über mehrere Wochen
   notiz: string; // Details zur Beurteilung
 }
 
