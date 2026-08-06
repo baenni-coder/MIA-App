@@ -23,7 +23,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { JahresplanEinheit, JahresplanStatus } from "@/types";
+import type { JahresplanEinheit, JahresplanStatus, TeamMember } from "@/types";
 
 // Status-Labels
 const STATUS_LABELS: Record<JahresplanStatus, string> = {
@@ -43,6 +43,8 @@ interface KanbanQuartalProps {
   schuljahr: string;
   quartal: number;
   teamId?: string;
+  // Wenn gesetzt: Spalten pro Team-Mitglied statt pro Fachbereich
+  teamMembers?: TeamMember[];
   onEinheitUpdate?: (id: string, data: Record<string, unknown>) => Promise<void>;
 }
 
@@ -51,10 +53,12 @@ function SortableEinheitCard({
   einheit,
   schuljahr,
   farbe,
+  teamParam = "",
 }: {
   einheit: JahresplanEinheit;
   schuljahr: string;
   farbe: string;
+  teamParam?: string;
 }) {
   const {
     attributes,
@@ -95,7 +99,7 @@ function SortableEinheitCard({
 
           {/* Content */}
           <Link
-            href={`/dashboard/jahresplanung/einheit/${einheit.id}?schuljahr=${schuljahr}`}
+            href={`/dashboard/jahresplanung/einheit/${einheit.id}?schuljahr=${schuljahr}${teamParam}`}
             className="flex-1 min-w-0"
           >
             <p className="text-sm font-medium truncate">{einheit.titel}</p>
@@ -185,10 +189,18 @@ export default function KanbanQuartal({
   schuljahr,
   quartal,
   teamId,
+  teamMembers,
   onEinheitUpdate,
 }: KanbanQuartalProps) {
   const teamParam = teamId ? `&teamId=${teamId}` : "";
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Team-Modus: Spalten pro Lehrperson statt pro Fachbereich
+  const groupByMember = !!teamMembers && teamMembers.length > 0;
+  const groupKey = useCallback(
+    (e: JahresplanEinheit) => (groupByMember ? e.teacherId : e.fachbereichId),
+    [groupByMember]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -201,7 +213,7 @@ export default function KanbanQuartal({
     })
   );
 
-  // Group einheiten by fachbereichId
+  // Group einheiten by fachbereichId (bzw. teacherId im Team-Modus)
   const columns = useMemo(() => {
     const map = new Map<
       string,
@@ -213,16 +225,31 @@ export default function KanbanQuartal({
       }
     >();
 
+    // Team-Modus: Spalten für alle Mitglieder vorbereiten (auch leere)
+    if (groupByMember) {
+      teamMembers!.forEach((m) => {
+        map.set(m.userId, {
+          id: m.userId,
+          name: m.name,
+          farbe: "#64748b",
+          einheiten: [],
+        });
+      });
+    }
+
     einheiten.forEach((e) => {
-      if (!map.has(e.fachbereichId)) {
-        map.set(e.fachbereichId, {
-          id: e.fachbereichId,
-          name: e.fachbereichName || e.fachbereichId,
-          farbe: e.fachbereichFarbe || "#6b7280",
+      const key = groupKey(e);
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          name: groupByMember
+            ? "Weitere"
+            : e.fachbereichName || e.fachbereichId,
+          farbe: groupByMember ? "#64748b" : e.fachbereichFarbe || "#6b7280",
           einheiten: [],
         });
       }
-      map.get(e.fachbereichId)!.einheiten.push(e);
+      map.get(key)!.einheiten.push(e);
     });
 
     // Sort einheiten within each column by zeitraumStart
@@ -230,11 +257,14 @@ export default function KanbanQuartal({
       col.einheiten.sort((a, b) => a.zeitraumStart - b.zeitraumStart);
     });
 
-    // Sort columns alphabetically by name
+    // Team-Modus: Mitglieder-Reihenfolge beibehalten, sonst alphabetisch
+    if (groupByMember) {
+      return Array.from(map.values());
+    }
     return Array.from(map.values()).sort((a, b) =>
       a.name.localeCompare(b.name, "de")
     );
-  }, [einheiten]);
+  }, [einheiten, groupByMember, teamMembers, groupKey]);
 
   // Find active einheit for drag overlay
   const activeEinheit = useMemo(() => {
@@ -244,8 +274,8 @@ export default function KanbanQuartal({
 
   const activeColumn = useMemo(() => {
     if (!activeEinheit) return null;
-    return columns.find((c) => c.id === activeEinheit.fachbereichId) || null;
-  }, [activeEinheit, columns]);
+    return columns.find((c) => c.id === groupKey(activeEinheit)) || null;
+  }, [activeEinheit, columns, groupKey]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -263,7 +293,7 @@ export default function KanbanQuartal({
       const overItem = einheiten.find((e) => e.id === over.id);
 
       if (!activeItem || !overItem) return;
-      if (activeItem.fachbereichId !== overItem.fachbereichId) return;
+      if (groupKey(activeItem) !== groupKey(overItem)) return;
 
       // Reorder within the same column: swap sortOrder or KW positions
       if (onEinheitUpdate) {
@@ -274,7 +304,7 @@ export default function KanbanQuartal({
         });
       }
     },
-    [einheiten, onEinheitUpdate]
+    [einheiten, onEinheitUpdate, groupKey]
   );
 
   // Summarize stats
@@ -334,20 +364,27 @@ export default function KanbanQuartal({
                       key={einheit.id}
                       einheit={einheit}
                       schuljahr={schuljahr}
-                      farbe={col.farbe}
+                      farbe={
+                        groupByMember
+                          ? einheit.fachbereichFarbe || col.farbe
+                          : col.farbe
+                      }
+                      teamParam={teamParam}
                     />
                   ))}
                 </div>
               </SortableContext>
 
-              {/* Add Einheit Button */}
-              <Link
-                href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}&fachbereichId=${col.id}${teamParam}`}
-              >
-                <div className="border border-dashed rounded-lg p-2 text-center hover:bg-gray-50 cursor-pointer mt-2 transition-colors">
-                  <Plus className="h-4 w-4 mx-auto text-gray-400" />
-                </div>
-              </Link>
+              {/* Add Einheit Button (im Team-Modus nur über "Neue Einheit"-Spalte) */}
+              {!groupByMember && (
+                <Link
+                  href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&quartal=${quartal}&fachbereichId=${col.id}${teamParam}`}
+                >
+                  <div className="border border-dashed rounded-lg p-2 text-center hover:bg-gray-50 cursor-pointer mt-2 transition-colors">
+                    <Plus className="h-4 w-4 mx-auto text-gray-400" />
+                  </div>
+                </Link>
+              )}
             </div>
           ))}
 
@@ -355,7 +392,7 @@ export default function KanbanQuartal({
           <div className="min-w-[200px]">
             <div className="flex items-center gap-2 mb-3 pb-2 border-b-2 border-dashed border-gray-300">
               <span className="font-medium text-sm text-gray-400">
-                + Fachbereich
+                {groupByMember ? "+ Einheit" : "+ Fachbereich"}
               </span>
             </div>
             <Link
@@ -375,7 +412,11 @@ export default function KanbanQuartal({
         {activeEinheit && activeColumn ? (
           <EinheitCardOverlay
             einheit={activeEinheit}
-            farbe={activeColumn.farbe}
+            farbe={
+              groupByMember
+                ? activeEinheit.fachbereichFarbe || activeColumn.farbe
+                : activeColumn.farbe
+            }
           />
         ) : null}
       </DragOverlay>

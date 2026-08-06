@@ -5,7 +5,33 @@ import {
   updateJahresplanEinheit,
   deleteJahresplanEinheit,
 } from "@/lib/firestore/jahresplanung";
-import { getPlanungsTeamById } from "@/lib/firestore/planungsteams";
+import {
+  getPlanungsTeamById,
+  getPlanungsTeamsForUser,
+} from "@/lib/firestore/planungsteams";
+import type { JahresplanEinheit } from "@/types";
+
+/**
+ * Prüft, ob der User über ein Unterrichtsteam Zugriff auf die Einheit hat:
+ * entweder als Mitglied des Teams, dem die Einheit zugeordnet ist (teamId),
+ * oder weil er mit dem Ersteller ein Planungsteam im selben Schuljahr teilt.
+ */
+async function isTeamColleague(
+  userId: string,
+  einheit: JahresplanEinheit
+): Promise<boolean> {
+  if (einheit.teamId) {
+    const team = await getPlanungsTeamById(einheit.teamId);
+    if (team?.members.some((m) => m.userId === userId)) {
+      return true;
+    }
+  }
+
+  const teams = await getPlanungsTeamsForUser(userId, einheit.schuljahr);
+  return teams.some((t) =>
+    t.members.some((m) => m.userId === einheit.teacherId)
+  );
+}
 
 /**
  * GET /api/jahresplanung/[id]
@@ -38,17 +64,16 @@ export async function GET(
       );
     }
 
-    // Berechtigung prüfen: Owner, Team-Mitglied, sharedWith oder isShared
+    // Berechtigung prüfen: Owner, Team-Kolleg:in, sharedWith oder isShared
     const isOwner = einheit.teacherId === userId;
     const isSharedWithUser = einheit.sharedWith?.includes(userId) || false;
 
-    let isTeamMember = false;
-    if (einheit.teamId) {
-      const team = await getPlanungsTeamById(einheit.teamId);
-      isTeamMember = team?.members.some((m) => m.userId === userId) || false;
+    let hatTeamZugriff = false;
+    if (!isOwner && !einheit.isShared && !isSharedWithUser) {
+      hatTeamZugriff = await isTeamColleague(userId, einheit);
     }
 
-    if (!isOwner && !einheit.isShared && !isSharedWithUser && !isTeamMember) {
+    if (!isOwner && !einheit.isShared && !isSharedWithUser && !hatTeamZugriff) {
       return NextResponse.json(
         { error: "Keine Berechtigung" },
         { status: 403 }
@@ -100,14 +125,13 @@ export async function PUT(
     const isOwner = einheit.teacherId === userId;
     const isSharedWithUser = einheit.sharedWith?.includes(userId) || false;
 
-    let isTeamMember = false;
-    if (einheit.teamId) {
-      const team = await getPlanungsTeamById(einheit.teamId);
-      isTeamMember = team?.members.some((m) => m.userId === userId) || false;
+    // Owner, Team-Kolleg:in oder sharedWith-User dürfen bearbeiten
+    let hatTeamZugriff = false;
+    if (!isOwner && !isSharedWithUser) {
+      hatTeamZugriff = await isTeamColleague(userId, einheit);
     }
 
-    // Owner, Team-Mitglied oder sharedWith-User dürfen bearbeiten
-    if (!isOwner && !isSharedWithUser && !isTeamMember) {
+    if (!isOwner && !isSharedWithUser && !hatTeamZugriff) {
       return NextResponse.json(
         { error: "Keine Berechtigung zum Bearbeiten" },
         { status: 403 }

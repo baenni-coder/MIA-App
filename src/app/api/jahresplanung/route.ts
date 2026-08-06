@@ -3,7 +3,7 @@ import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import {
   createJahresplanEinheit,
   getJahresplanEinheiten,
-  getTeamEinheiten,
+  getTeamPlanungen,
   getSharedEinheiten,
 } from "@/lib/firestore/jahresplanung";
 import { getPlanungsTeamById } from "@/lib/firestore/planungsteams";
@@ -70,7 +70,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
       }
 
-      const einheiten = await getTeamEinheiten(teamId, filter);
+      // Planungen aller Team-Mitglieder laden (nicht nur teamId-markierte
+      // Einheiten), damit das Team die Planungen nebeneinander sieht
+      const einheiten = await getTeamPlanungen(team, filter);
       return NextResponse.json({ einheiten, sharedEinheiten: [] });
     }
 

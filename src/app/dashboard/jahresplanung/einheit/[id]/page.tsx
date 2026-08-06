@@ -435,8 +435,11 @@ export default function EinheitFormPage() {
 
       if (response.ok) {
         const quartal = calculateQuartal(zeitraumStart);
+        const aktivesTeamId = teamId || einheitTeamId;
         router.push(
-          `/dashboard/jahresplanung/quartal/${quartal}?schuljahr=${schuljahr}`
+          `/dashboard/jahresplanung/quartal/${quartal}?schuljahr=${schuljahr}${
+            aktivesTeamId ? `&teamId=${aktivesTeamId}` : ""
+          }`
         );
       } else {
         const error = await response.json();
@@ -901,8 +904,8 @@ export default function EinheitFormPage() {
                       <X className="h-4 w-4" />
                     </button>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      <div className="col-span-2 sm:col-span-1">
                         <label className="text-sm font-medium">Typ</label>
                         <Select
                           value={b.typ}
@@ -927,14 +930,22 @@ export default function EinheitFormPage() {
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium">
-                          Kalenderwoche
-                        </label>
+                        <label className="text-sm font-medium">Von KW</label>
                         <Select
                           value={b.kalenderwoche.toString()}
                           onValueChange={(v) => {
+                            const neueKw = parseInt(v);
                             const updated = [...beurteilungen];
-                            updated[idx] = { ...updated[idx], kalenderwoche: parseInt(v) };
+                            updated[idx] = {
+                              ...updated[idx],
+                              kalenderwoche: neueKw,
+                              // Ende darf nicht vor dem Start liegen
+                              kalenderwocheEnde:
+                                updated[idx].kalenderwocheEnde &&
+                                updated[idx].kalenderwocheEnde > neueKw
+                                  ? updated[idx].kalenderwocheEnde
+                                  : undefined,
+                            };
                             setBeurteilungen(updated);
                           }}
                         >
@@ -945,6 +956,39 @@ export default function EinheitFormPage() {
                             {Array.from(
                               { length: zeitraumEnde - zeitraumStart + 1 },
                               (_, i) => zeitraumStart + i
+                            ).map((kwOpt) => (
+                              <SelectItem key={kwOpt} value={kwOpt.toString()}>
+                                KW {kwOpt}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium">Bis KW</label>
+                        <Select
+                          value={(b.kalenderwocheEnde ?? b.kalenderwoche).toString()}
+                          onValueChange={(v) => {
+                            const neueEnde = parseInt(v);
+                            const updated = [...beurteilungen];
+                            updated[idx] = {
+                              ...updated[idx],
+                              kalenderwocheEnde:
+                                neueEnde > updated[idx].kalenderwoche
+                                  ? neueEnde
+                                  : undefined,
+                            };
+                            setBeurteilungen(updated);
+                          }}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from(
+                              { length: zeitraumEnde - b.kalenderwoche + 1 },
+                              (_, i) => b.kalenderwoche + i
                             ).map((kwOpt) => (
                               <SelectItem key={kwOpt} value={kwOpt.toString()}>
                                 KW {kwOpt}
@@ -976,11 +1020,13 @@ export default function EinheitFormPage() {
                         <Badge variant="outline" className="text-xs">
                           <Circle className="h-3 w-3 fill-blue-500 text-blue-500 mr-1" />
                           Formativ · KW {b.kalenderwoche}
+                          {b.kalenderwocheEnde ? `–${b.kalenderwocheEnde}` : ""}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-xs">
                           <Diamond className="h-3 w-3 fill-orange-500 text-orange-500 mr-1" />
                           Summativ · KW {b.kalenderwoche}
+                          {b.kalenderwocheEnde ? `–${b.kalenderwocheEnde}` : ""}
                         </Badge>
                       )}
                     </div>

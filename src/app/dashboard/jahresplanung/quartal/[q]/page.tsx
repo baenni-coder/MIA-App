@@ -37,7 +37,7 @@ const Q2_ABSCHNITT_LABELS: Record<string, { label: string; beschreibung: string 
   a: { label: "Herbst → Weihnachten", beschreibung: "Herbstferien bis Weihnachtsferien" },
   b: { label: "Weihnachten → Sport", beschreibung: "Weihnachtsferien bis Sportferien" },
 };
-import type { JahresplanEinheit, JahresplanStatus, SchulferienCustom } from "@/types";
+import type { JahresplanEinheit, JahresplanStatus, SchulferienCustom, TeamMember } from "@/types";
 
 // Status-Farben
 const STATUS_COLORS: Record<JahresplanStatus, string> = {
@@ -57,6 +57,7 @@ export default function QuartalsansichtPage() {
   const teamId = searchParams.get("teamId") || "";
 
   const [einheiten, setEinheiten] = useState<JahresplanEinheit[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
   const [klassenBezeichnung, setKlassenBezeichnung] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -153,6 +154,19 @@ export default function QuartalsansichtPage() {
             setKlassenBezeichnung(klassen[0].displayName || klassen[0].name || "");
           }
         }
+
+        // Team-Mitglieder laden (für Spalten-Ansicht pro Lehrperson)
+        if (teamId) {
+          const teamRes = await fetch(`/api/planungsteams/${teamId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (teamRes.ok) {
+            const data = await teamRes.json();
+            setTeamMembers(data.team?.members || []);
+          }
+        } else {
+          setTeamMembers([]);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -162,6 +176,19 @@ export default function QuartalsansichtPage() {
 
     fetchData();
   }, [user, schuljahr, quartal, teamId]);
+
+  // Spalten pro Team-Mitglied (plus "Weitere" für Einheiten von Ex-Mitgliedern)
+  const teamSpalten = useMemo(() => {
+    if (!teamId || teamMembers.length === 0) return [];
+    const spalten: Array<{ userId: string; name: string }> = teamMembers.map(
+      (m) => ({ userId: m.userId, name: m.name })
+    );
+    const memberIds = new Set(teamMembers.map((m) => m.userId));
+    if (einheiten.some((e) => !memberIds.has(e.teacherId))) {
+      spalten.push({ userId: "__other__", name: "Weitere" });
+    }
+    return spalten;
+  }, [teamId, teamMembers, einheiten]);
 
   // Einheiten filtern (bei Q2-Abschnitt)
   const gefilterteEinheiten = useMemo(() => {
@@ -201,15 +228,19 @@ export default function QuartalsansichtPage() {
       // Neue beurteilungen-Array nutzen
       if (einheit.beurteilungen && einheit.beurteilungen.length > 0) {
         for (const b of einheit.beurteilungen) {
-          const current = map.get(b.kalenderwoche) || { formativ: 0, summativ: 0, details: [] };
-          if (b.typ === "formativ") current.formativ++;
-          else if (b.typ === "summativ") current.summativ++;
-          current.details.push({
-            typ: b.typ === "formativ" ? "Formativ" : "Summativ",
-            titel: einheit.titel,
-            notiz: b.notiz,
-          });
-          map.set(b.kalenderwoche, current);
+          // Beurteilung kann sich über mehrere Wochen erstrecken
+          const bEnde = b.kalenderwocheEnde ?? b.kalenderwoche;
+          for (let bkw = b.kalenderwoche; bkw <= bEnde; bkw++) {
+            const current = map.get(bkw) || { formativ: 0, summativ: 0, details: [] };
+            if (b.typ === "formativ") current.formativ++;
+            else if (b.typ === "summativ") current.summativ++;
+            current.details.push({
+              typ: b.typ === "formativ" ? "Formativ" : "Summativ",
+              titel: einheit.titel,
+              notiz: b.notiz,
+            });
+            map.set(bkw, current);
+          }
         }
       } else if (einheit.beurteilungstyp && einheit.beurteilungstyp !== "keine") {
         // Legacy-Fallback
@@ -268,6 +299,41 @@ export default function QuartalsansichtPage() {
   const toggleView = (mode: "list" | "kanban") => {
     setViewMode(mode);
     localStorage.setItem("jahresplanung-view", mode);
+  };
+
+  // Einheiten-Chip (Listenansicht); fullWidth für Team-Spalten
+  const renderEinheitChip = (einheit: JahresplanEinheit, fullWidth = false) => {
+    // Kompetenzbereich oder Fachbereich anzeigen
+    const kompetenzLabel =
+      einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
+        ? einheit.kompetenzenNamen[0]
+        : einheit.fachbereichName || einheit.fachbereichId;
+
+    return (
+      <div
+        key={einheit.id}
+        className={`rounded-md border px-2.5 py-1 ${
+          fullWidth ? "w-full" : "max-w-[250px]"
+        }`}
+        style={{
+          backgroundColor: `${einheit.fachbereichFarbe || "#6b7280"}10`,
+          borderColor: `${einheit.fachbereichFarbe || "#6b7280"}40`,
+        }}
+      >
+        <p
+          className="text-[10px] leading-tight truncate"
+          style={{ color: einheit.fachbereichFarbe || "#6b7280" }}
+        >
+          {einheit.istSpezialwoche && (
+            <Sparkles className="h-2.5 w-2.5 inline-block mr-0.5 -mt-0.5" />
+          )}
+          {kompetenzLabel}
+        </p>
+        <p className="text-xs font-medium truncate text-gray-800">
+          {einheit.titel}
+        </p>
+      </div>
+    );
   };
 
   // Einheit update (für Drag & Drop Reorder)
@@ -407,12 +473,38 @@ export default function QuartalsansichtPage() {
                 schuljahr={schuljahr}
                 quartal={quartal}
                 teamId={teamId || undefined}
+                teamMembers={
+                  teamId && teamMembers.length > 0 ? teamMembers : undefined
+                }
                 onEinheitUpdate={handleEinheitUpdate}
               />
             )
           ) : (
             /* Listenansicht */
             <>
+              {/* Team-Modus: Spalten-Überschriften mit Mitglieder-Namen */}
+              {teamSpalten.length > 0 && (
+                <div className="flex items-center gap-4 px-6">
+                  <div className="w-16 flex-shrink-0" />
+                  <div className="w-px" />
+                  <div
+                    className="flex-1 min-w-0 grid gap-2"
+                    style={{
+                      gridTemplateColumns: `repeat(${teamSpalten.length}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {teamSpalten.map((spalte) => (
+                      <p
+                        key={spalte.userId}
+                        className="text-xs font-semibold text-gray-600 truncate border-l border-gray-200 pl-2 first:border-l-0 first:pl-0"
+                      >
+                        {spalte.name}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 {quartalWochen.map((woche) => {
                   const wochenEinheiten = einheitenProWoche.get(woche.kw) || [];
@@ -458,39 +550,41 @@ export default function QuartalsansichtPage() {
                                 <p className="text-gray-400 italic">
                                   Keine Einheiten geplant
                                 </p>
-                              ) : (
-                                <div className="flex flex-wrap gap-2">
-                                  {wochenEinheiten.map((einheit) => {
-                                    // Kompetenzbereich oder Fachbereich anzeigen
-                                    const kompetenzLabel =
-                                      einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
-                                        ? einheit.kompetenzenNamen[0]
-                                        : einheit.fachbereichName || einheit.fachbereichId;
-
+                              ) : teamSpalten.length > 0 ? (
+                                /* Team-Modus: eine Spalte pro Lehrperson */
+                                <div
+                                  className="grid gap-2"
+                                  style={{
+                                    gridTemplateColumns: `repeat(${teamSpalten.length}, minmax(0, 1fr))`,
+                                  }}
+                                >
+                                  {teamSpalten.map((spalte) => {
+                                    const memberIds = new Set(
+                                      teamMembers.map((m) => m.userId)
+                                    );
+                                    const spaltenEinheiten = wochenEinheiten.filter(
+                                      (e) =>
+                                        spalte.userId === "__other__"
+                                          ? !memberIds.has(e.teacherId)
+                                          : e.teacherId === spalte.userId
+                                    );
                                     return (
                                       <div
-                                        key={einheit.id}
-                                        className="rounded-md border px-2.5 py-1 max-w-[250px]"
-                                        style={{
-                                          backgroundColor: `${einheit.fachbereichFarbe || "#6b7280"}10`,
-                                          borderColor: `${einheit.fachbereichFarbe || "#6b7280"}40`,
-                                        }}
+                                        key={spalte.userId}
+                                        className="min-w-0 space-y-1 border-l border-gray-100 pl-2 first:border-l-0 first:pl-0"
                                       >
-                                        <p
-                                          className="text-[10px] leading-tight truncate"
-                                          style={{ color: einheit.fachbereichFarbe || "#6b7280" }}
-                                        >
-                                          {einheit.istSpezialwoche && (
-                                            <Sparkles className="h-2.5 w-2.5 inline-block mr-0.5 -mt-0.5" />
-                                          )}
-                                          {kompetenzLabel}
-                                        </p>
-                                        <p className="text-xs font-medium truncate text-gray-800">
-                                          {einheit.titel}
-                                        </p>
+                                        {spaltenEinheiten.map((einheit) =>
+                                          renderEinheitChip(einheit, true)
+                                        )}
                                       </div>
                                     );
                                   })}
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap gap-2">
+                                  {wochenEinheiten.map((einheit) =>
+                                    renderEinheitChip(einheit)
+                                  )}
                                 </div>
                               )}
                             </div>
