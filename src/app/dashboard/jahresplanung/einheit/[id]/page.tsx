@@ -117,6 +117,12 @@ export default function EinheitFormPage() {
     initialFachbereichId === SPEZIALWOCHE_FACHBEREICH.id
   );
   const [einheitTeamId, setEinheitTeamId] = useState<string>("");
+  const [einheitTeacherId, setEinheitTeacherId] = useState<string>("");
+  // Team-Zuordnung: eigene Teams im Schuljahr + gewähltes Team (leer = privat)
+  const [meineTeams, setMeineTeams] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>(teamId);
 
   // MIA-Thema Verknüpfung
   const [linkedMiaThemeId, setLinkedMiaThemeId] = useState<string>("");
@@ -171,6 +177,32 @@ export default function EinheitFormPage() {
     }
     loadTeacher();
   }, [user]);
+
+  // Eigene Planungsteams des Schuljahrs laden (für Team-Zuordnung)
+  useEffect(() => {
+    async function loadTeams() {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch(
+          `/api/planungsteams?schuljahr=${encodeURIComponent(schuljahr)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setMeineTeams(
+            (data.teams || []).map((t: { id: string; name: string }) => ({
+              id: t.id,
+              name: t.name,
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Error loading planungsteams:", error);
+      }
+    }
+    loadTeams();
+  }, [user, schuljahr]);
 
   // MIA-Thema-Auswahl: Felder vorbefüllen
   const handleMiaThemeSelect = (theme: Thema) => {
@@ -317,6 +349,8 @@ export default function EinheitFormPage() {
               einheit.fachbereichId === SPEZIALWOCHE_FACHBEREICH.id
           );
           setEinheitTeamId(einheit.teamId || "");
+          setSelectedTeamId(einheit.teamId || "");
+          setEinheitTeacherId(einheit.teacherId || "");
           if (einheit.linkedMiaThemeId) {
             setLinkedMiaThemeId(einheit.linkedMiaThemeId);
             setLinkedMiaThemeName(einheit.linkedMiaThemeName || "");
@@ -402,9 +436,15 @@ export default function EinheitFormPage() {
         farbe: effektiverFachbereich.farbe,
       };
 
-      // TeamId nur bei neuen Einheiten setzen
-      if (isNew && teamId) {
-        body.teamId = teamId;
+      // Team-Zuordnung: bei neuen Einheiten das gewählte Team setzen,
+      // bei bestehenden nur als Owner änderbar (leer = privat)
+      const istOwner = isNew || !einheitTeacherId || einheitTeacherId === user.uid;
+      if (isNew) {
+        if (selectedTeamId) {
+          body.teamId = selectedTeamId;
+        }
+      } else if (istOwner) {
+        body.teamId = selectedTeamId || null;
       }
 
       // MIA-Thema Verknüpfung (für alle Fachbereiche – integrative Umsetzung
@@ -435,7 +475,7 @@ export default function EinheitFormPage() {
 
       if (response.ok) {
         const quartal = calculateQuartal(zeitraumStart);
-        const aktivesTeamId = teamId || einheitTeamId;
+        const aktivesTeamId = teamId || selectedTeamId;
         router.push(
           `/dashboard/jahresplanung/quartal/${quartal}?schuljahr=${schuljahr}${
             aktivesTeamId ? `&teamId=${aktivesTeamId}` : ""
@@ -1277,12 +1317,45 @@ export default function EinheitFormPage() {
                 </div>
               )}
 
-              {/* Team-Info */}
-              {(teamId || einheitTeamId) && (
-                <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
-                  <Users className="h-4 w-4" />
-                  <span>Diese Einheit gehört zu einem Planungsteam</span>
+              {/* Team-Zuordnung */}
+              {meineTeams.length > 0 &&
+              (isNew || !einheitTeacherId || einheitTeacherId === user?.uid) ? (
+                <div>
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    Planungsteam
+                  </label>
+                  <p className="text-xs text-gray-500 mt-0.5 mb-1">
+                    Einem Team zugeordnete Einheiten sind für alle
+                    Team-Mitglieder sichtbar und bearbeitbar. Ohne Zuordnung
+                    bleibt die Einheit privat.
+                  </p>
+                  <Select
+                    value={selectedTeamId || "none"}
+                    onValueChange={(v) =>
+                      setSelectedTeamId(v === "none" ? "" : v)
+                    }
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Kein Team (privat)</SelectItem>
+                      {meineTeams.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+              ) : (
+                (teamId || einheitTeamId) && (
+                  <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-2 rounded">
+                    <Users className="h-4 w-4" />
+                    <span>Diese Einheit gehört zu einem Planungsteam</span>
+                  </div>
+                )
               )}
             </CardContent>
           </Card>
