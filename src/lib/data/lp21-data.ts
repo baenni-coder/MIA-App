@@ -44,7 +44,21 @@ const LP21_FACHBEREICH_FARBEN: Record<string, string> = {
   BS: "#0891B2",    // Cyan
   // Berufliche Orientierung
   BO: "#64748B",    // Slate/Grau
+  // Spezialwochen (Pseudo-Fachbereich)
+  SPEZIAL: "#8B5CF6", // Violett
 };
+
+/**
+ * Pseudo-Fachbereich für Spezialwochen (Projektwoche, Skilager etc.).
+ * Spezialwochen sind fächerübergreifend und werden keinem LP21-Fachbereich
+ * zugeordnet; über diese Konstante fügen sie sich trotzdem in alle
+ * bestehenden Render-Pfade (Farbe/Name pro Einheit) ein.
+ */
+export const SPEZIALWOCHE_FACHBEREICH = {
+  id: "SPEZIAL",
+  name: "Spezialwoche",
+  farbe: LP21_FACHBEREICH_FARBEN.SPEZIAL,
+} as const;
 
 /**
  * Gibt die Farbe für einen LP21 Fachbereich-Code zurück.

@@ -1142,6 +1142,9 @@ export interface JahresplanEinheit {
   beurteilungen: Beurteilung[]; // Array von Beurteilungen mit KW-Zuordnung
   materialien: string[]; // Links, Lehrmittelseiten etc.
   istPufferwoche: boolean; // Markierung als Pufferwoche
+  // Spezialwoche (z.B. Projektwoche, Skilager): fächerübergreifend, ohne
+  // Fachbereich-Zuordnung. fachbereichId ist dann der Pseudo-Code "SPEZIAL".
+  istSpezialwoche?: boolean;
   farbe: string; // Wird vom Fachbereich übernommen
   sortOrder: number; // Reihenfolge innerhalb einer Woche
   // Sharing

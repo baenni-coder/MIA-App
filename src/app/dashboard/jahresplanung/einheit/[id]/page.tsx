@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Save, Trash2, Plus, X, BookOpen, LinkIcon, Circle, Diamond, Paperclip, FileText, Upload, ExternalLink, Users } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, X, BookOpen, LinkIcon, Circle, Diamond, Paperclip, FileText, Upload, ExternalLink, Users, Sparkles } from "lucide-react";
 import Link from "next/link";
 import KompetenzPicker from "@/components/jahresplanung/KompetenzPicker";
 import MiaThemePickerDialog from "@/components/jahresplanung/MiaThemePickerDialog";
@@ -35,6 +35,7 @@ import {
   getAlleFachbereiche,
   findFachbereich,
   getQuartalSchema,
+  SPEZIALWOCHE_FACHBEREICH,
 } from "@/lib/data/lp21-data";
 import type { JahresplanEinheit, BeurteilungsTyp, JahresplanStatus, Thema, Beurteilung, ThemeStatus } from "@/types";
 import ThemeStatusBadge from "@/components/ThemeStatusBadge";
@@ -50,6 +51,15 @@ function calculateQuartal(kw: number, sportferienEndeKW: number = 7): number {
   if (kw >= 15 && kw <= 32) return 4;
   return 1;
 }
+
+// Vorschläge für häufige Spezialwochen (per Klick als Titel übernehmbar)
+const SPEZIALWOCHEN_VORSCHLAEGE = [
+  "Projektwoche",
+  "Skilager",
+  "Klassenlager",
+  "Sportwoche",
+  "Exkursionswoche",
+];
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -103,6 +113,9 @@ export default function EinheitFormPage() {
   const [newMaterial, setNewMaterial] = useState("");
   const [lehrmittel, setLehrmittel] = useState("");
   const [istPufferwoche, setIstPufferwoche] = useState(false);
+  const [istSpezialwoche, setIstSpezialwoche] = useState(
+    initialFachbereichId === SPEZIALWOCHE_FACHBEREICH.id
+  );
   const [einheitTeamId, setEinheitTeamId] = useState<string>("");
 
   // MIA-Thema Verknüpfung
@@ -299,6 +312,10 @@ export default function EinheitFormPage() {
           setMaterialien(einheit.materialien || []);
           setLehrmittel(einheit.lehrmittel || "");
           setIstPufferwoche(einheit.istPufferwoche);
+          setIstSpezialwoche(
+            einheit.istSpezialwoche ||
+              einheit.fachbereichId === SPEZIALWOCHE_FACHBEREICH.id
+          );
           setEinheitTeamId(einheit.teamId || "");
           if (einheit.linkedMiaThemeId) {
             setLinkedMiaThemeId(einheit.linkedMiaThemeId);
@@ -329,8 +346,12 @@ export default function EinheitFormPage() {
 
   // Speichern
   const handleSave = async () => {
-    if (!user || !titel || !fachbereichId) {
-      alert("Bitte füllen Sie Titel und Fachbereich aus");
+    if (!user || !titel || (!istSpezialwoche && !fachbereichId)) {
+      alert(
+        istSpezialwoche
+          ? "Bitte geben Sie einen Titel ein"
+          : "Bitte füllen Sie Titel und Fachbereich aus"
+      );
       return;
     }
 
@@ -345,23 +366,40 @@ export default function EinheitFormPage() {
 
       const fb = fachbereiche.find((f) => f.code === fachbereichId);
 
+      // Spezialwochen: Pseudo-Fachbereich, keine Kompetenzen/Beurteilungen
+      const effektiverFachbereich = istSpezialwoche
+        ? {
+            id: SPEZIALWOCHE_FACHBEREICH.id,
+            name: SPEZIALWOCHE_FACHBEREICH.name,
+            farbe: SPEZIALWOCHE_FACHBEREICH.farbe as string,
+          }
+        : {
+            id: fachbereichId,
+            name: fb?.name || fachbereichId,
+            farbe: fb?.farbe || "#6b7280",
+          };
+      const effektiveBeurteilungen = istSpezialwoche ? [] : beurteilungen;
+
       const body: Record<string, unknown> = {
         schuljahr,
         titel,
-        fachbereichId,
-        fachbereichName: fb?.name || fachbereichId,
-        fachbereichFarbe: fb?.farbe || fb?.farbe || "#6b7280",
+        fachbereichId: effektiverFachbereich.id,
+        fachbereichName: effektiverFachbereich.name,
+        fachbereichFarbe: effektiverFachbereich.farbe,
+        istSpezialwoche,
         lernziele,
-        kompetenzenIds,
-        kompetenzenNamen,
+        kompetenzenIds: istSpezialwoche ? [] : kompetenzenIds,
+        kompetenzenNamen: istSpezialwoche ? [] : kompetenzenNamen,
         zeitraumStart,
         zeitraumEnde,
-        beurteilungen,
-        beurteilungstyp: beurteilungen.length > 0 ? beurteilungen[0].typ : "keine",
-        beurteilungsNotiz: beurteilungen.length > 0 ? beurteilungen[0].notiz : "",
+        beurteilungen: effektiveBeurteilungen,
+        beurteilungstyp:
+          effektiveBeurteilungen.length > 0 ? effektiveBeurteilungen[0].typ : "keine",
+        beurteilungsNotiz:
+          effektiveBeurteilungen.length > 0 ? effektiveBeurteilungen[0].notiz : "",
         materialien,
-        istPufferwoche,
-        farbe: fb?.farbe || fb?.farbe || "#6b7280",
+        istPufferwoche: istSpezialwoche ? false : istPufferwoche,
+        farbe: effektiverFachbereich.farbe,
       };
 
       // TeamId nur bei neuen Einheiten setzen
@@ -371,8 +409,8 @@ export default function EinheitFormPage() {
 
       // MIA-Thema Verknüpfung (für alle Fachbereiche – integrative Umsetzung
       // der MIA-Kompetenzen ist auch in anderen Fächern möglich)
-      body.linkedMiaThemeId = linkedMiaThemeId || null;
-      body.linkedMiaThemeName = linkedMiaThemeName || null;
+      body.linkedMiaThemeId = istSpezialwoche ? null : linkedMiaThemeId || null;
+      body.linkedMiaThemeName = istSpezialwoche ? null : linkedMiaThemeName || null;
 
       // Schul-Dateien Verknüpfung
       body.linkedFileIds = linkedFileIds;
@@ -490,7 +528,13 @@ export default function EinheitFormPage() {
                 </Button>
               </Link>
               <h1 className="text-2xl font-bold">
-                {isNew ? "Neue Einheit" : "Einheit bearbeiten"}
+                {isNew
+                  ? istSpezialwoche
+                    ? "Neue Spezialwoche"
+                    : "Neue Einheit"
+                  : istSpezialwoche
+                    ? "Spezialwoche bearbeiten"
+                    : "Einheit bearbeiten"}
               </h1>
             </div>
 
@@ -519,49 +563,106 @@ export default function EinheitFormPage() {
               <CardTitle>Grundinformationen</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Art der Einheit: Unterrichtseinheit oder Spezialwoche */}
+              <div>
+                <label className="text-sm font-medium">Art der Einheit</label>
+                <div className="flex gap-2 mt-1">
+                  <Button
+                    type="button"
+                    variant={!istSpezialwoche ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setIstSpezialwoche(false);
+                      if (fachbereichId === SPEZIALWOCHE_FACHBEREICH.id) {
+                        setFachbereichId("");
+                      }
+                    }}
+                  >
+                    <BookOpen className="h-4 w-4 mr-1.5" />
+                    Unterrichtseinheit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={istSpezialwoche ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setIstSpezialwoche(true)}
+                  >
+                    <Sparkles className="h-4 w-4 mr-1.5" />
+                    Spezialwoche
+                  </Button>
+                </div>
+                {istSpezialwoche && (
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    Spezialwochen wie Projektwoche oder Skilager sind
+                    fächerübergreifend und benötigen keinen Fachbereich. Sie
+                    erscheinen mit eigener Farbe in der Jahresplanung.
+                  </p>
+                )}
+              </div>
+
               {/* Titel */}
               <div>
                 <label className="text-sm font-medium">Titel *</label>
                 <Input
                   value={titel}
                   onChange={(e) => setTitel(e.target.value)}
-                  placeholder="z.B. Märchen lesen und schreiben"
+                  placeholder={
+                    istSpezialwoche
+                      ? "z.B. Projektwoche, Skilager"
+                      : "z.B. Märchen lesen und schreiben"
+                  }
                   className="mt-1"
                 />
-              </div>
-
-              {/* Fachbereich */}
-              <div>
-                <label className="text-sm font-medium">Fachbereich *</label>
-                {loadingFachbereiche ? (
-                  <div className="flex items-center gap-2 py-2 text-sm text-gray-500 mt-1">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
-                    Fachbereiche werden geladen...
+                {istSpezialwoche && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {SPEZIALWOCHEN_VORSCHLAEGE.map((vorschlag) => (
+                      <button
+                        key={vorschlag}
+                        type="button"
+                        onClick={() => setTitel(vorschlag)}
+                        className="text-xs px-2 py-1 rounded-full border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition-colors"
+                      >
+                        {vorschlag}
+                      </button>
+                    ))}
                   </div>
-                ) : (
-                  <Select value={fachbereichId} onValueChange={setFachbereichId}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Fachbereich wählen..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fachbereiche.map((fb) => (
-                        <SelectItem key={fb.code} value={fb.code}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: fb.farbe }}
-                            />
-                            {fb.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 )}
               </div>
 
+              {/* Fachbereich (entfällt bei Spezialwochen) */}
+              {!istSpezialwoche && (
+                <div>
+                  <label className="text-sm font-medium">Fachbereich *</label>
+                  {loadingFachbereiche ? (
+                    <div className="flex items-center gap-2 py-2 text-sm text-gray-500 mt-1">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
+                      Fachbereiche werden geladen...
+                    </div>
+                  ) : (
+                    <Select value={fachbereichId} onValueChange={setFachbereichId}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Fachbereich wählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fachbereiche.map((fb) => (
+                          <SelectItem key={fb.code} value={fb.code}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: fb.farbe }}
+                              />
+                              {fb.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              )}
+
               {/* MIA-Thema als Vorlage (für alle Fachbereiche – integrative MIA-Umsetzung) */}
-              {fachbereichId && (
+              {!istSpezialwoche && fachbereichId && (
                 <div>
                   <label className="text-sm font-medium flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-indigo-600" />
@@ -618,7 +719,7 @@ export default function EinheitFormPage() {
               />
 
               {/* Als MIA-Thema veröffentlichen (nur für gespeicherte Einheiten) */}
-              {!isNew && (
+              {!isNew && !istSpezialwoche && (
                 <div className="rounded-md border border-emerald-200 bg-emerald-50/60 p-3">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-emerald-600" />
@@ -662,15 +763,17 @@ export default function EinheitFormPage() {
                 </div>
               )}
 
-              {/* Lehrmittel */}
-              <div>
-                <label className="text-sm font-medium">Lehrmittel</label>
-                <p className="text-xs text-gray-500 mt-0.5 mb-2">
-                  Optional: Ordnen Sie die Einheit einem Lehrmittel zu. Sie
-                  erscheint dann im Modul &bdquo;Lehrmittel&ldquo; gesammelt.
-                </p>
-                <LehrmittelSelect value={lehrmittel} onChange={setLehrmittel} />
-              </div>
+              {/* Lehrmittel (bei Spezialwochen nicht relevant) */}
+              {!istSpezialwoche && (
+                <div>
+                  <label className="text-sm font-medium">Lehrmittel</label>
+                  <p className="text-xs text-gray-500 mt-0.5 mb-2">
+                    Optional: Ordnen Sie die Einheit einem Lehrmittel zu. Sie
+                    erscheint dann im Modul &bdquo;Lehrmittel&ldquo; gesammelt.
+                  </p>
+                  <LehrmittelSelect value={lehrmittel} onChange={setLehrmittel} />
+                </div>
+              )}
 
               {/* Zeitraum */}
               <div className="grid grid-cols-2 gap-4">
@@ -712,38 +815,47 @@ export default function EinheitFormPage() {
                 </div>
               </div>
 
-              {/* Lernziele */}
+              {/* Lernziele / Beschreibung */}
               <div>
-                <label className="text-sm font-medium">Lernziele</label>
+                <label className="text-sm font-medium">
+                  {istSpezialwoche ? "Beschreibung / Programm" : "Lernziele"}
+                </label>
                 <Textarea
                   value={lernziele}
                   onChange={(e) => setLernziele(e.target.value)}
-                  placeholder="Was sollen die SuS am Ende können?"
+                  placeholder={
+                    istSpezialwoche
+                      ? "z.B. Programm, Ziele oder organisatorische Hinweise zur Spezialwoche"
+                      : "Was sollen die SuS am Ende können?"
+                  }
                   className="mt-1 min-h-[100px]"
                 />
               </div>
             </CardContent>
           </Card>
 
-          {/* Kompetenzen */}
-          <Card>
-            <CardHeader>
-              <CardTitle>LP21-Kompetenzen</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <KompetenzPicker
-                selectedKompetenzen={kompetenzenIds}
-                selectedKompetenzenNamen={kompetenzenNamen}
-                onKompetenzenChange={(ids, namen) => {
-                  setKompetenzenIds(ids);
-                  setKompetenzenNamen(namen);
-                }}
-                defaultFachbereich={fachbereichId}
-              />
-            </CardContent>
-          </Card>
+          {/* Kompetenzen (entfallen bei Spezialwochen) */}
+          {!istSpezialwoche && (
+            <Card>
+              <CardHeader>
+                <CardTitle>LP21-Kompetenzen</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <KompetenzPicker
+                  selectedKompetenzen={kompetenzenIds}
+                  selectedKompetenzenNamen={kompetenzenNamen}
+                  onKompetenzenChange={(ids, namen) => {
+                    setKompetenzenIds(ids);
+                    setKompetenzenNamen(namen);
+                  }}
+                  defaultFachbereich={fachbereichId}
+                />
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Beurteilungen */}
+          {/* Beurteilungen (entfallen bei Spezialwochen) */}
+          {!istSpezialwoche && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -877,6 +989,7 @@ export default function EinheitFormPage() {
               )}
             </CardContent>
           </Card>
+          )}
 
           {/* Materialien */}
           <Card>
@@ -1094,18 +1207,29 @@ export default function EinheitFormPage() {
               <CardTitle>Weitere Optionen</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="pufferwoche"
-                  checked={istPufferwoche}
-                  onCheckedChange={(checked) =>
-                    setIstPufferwoche(checked as boolean)
-                  }
-                />
-                <label htmlFor="pufferwoche" className="text-sm">
-                  Als Pufferwoche markieren (Vertiefung, Repetition)
-                </label>
-              </div>
+              {!istSpezialwoche && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="pufferwoche"
+                    checked={istPufferwoche}
+                    onCheckedChange={(checked) =>
+                      setIstPufferwoche(checked as boolean)
+                    }
+                  />
+                  <label htmlFor="pufferwoche" className="text-sm">
+                    Als Pufferwoche markieren (Vertiefung, Repetition)
+                  </label>
+                </div>
+              )}
+              {istSpezialwoche && (
+                <div className="flex items-center gap-2 text-sm text-violet-700 bg-violet-50 p-2 rounded">
+                  <Sparkles className="h-4 w-4 flex-shrink-0" />
+                  <span>
+                    Diese Einheit ist als Spezialwoche markiert und keinem
+                    Fachbereich zugeordnet
+                  </span>
+                </div>
+              )}
 
               {/* Team-Info */}
               {(teamId || einheitTeamId) && (
