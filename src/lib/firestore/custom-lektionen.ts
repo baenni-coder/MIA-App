@@ -24,6 +24,8 @@ export async function createCustomLektion(
     themeId?: string; // Optional - für Custom Themes
     systemThemeId?: string; // Optional - für Systemthemen (Airtable)
     systemThemeName?: string; // Name des Systemthemas
+    einheitId?: string; // Optional - für Jahresplan-Einheiten
+    lektionsplanungId?: string; // Optional - Lektionsplanung innerhalb der Einheit
     lektion: string;
     eindeutigeBezeichnung: string;
     aufgaben?: string;
@@ -85,6 +87,8 @@ export async function getCustomLektionById(
       themeId: data.themeId,
       systemThemeId: data.systemThemeId,
       systemThemeName: data.systemThemeName,
+      einheitId: data.einheitId,
+      lektionsplanungId: data.lektionsplanungId,
       lektion: data.lektion,
       eindeutigeBezeichnung: data.eindeutigeBezeichnung,
       aufgaben: data.aufgaben,
@@ -220,6 +224,117 @@ export async function getCustomLektionenBySystemThemeName(
   } catch (error) {
     console.error("Error fetching custom lektionen by system theme:", error);
     return [];
+  }
+}
+
+/**
+ * Lädt alle Lektionen einer Lektionsplanung (innerhalb einer Jahresplan-Einheit)
+ */
+export async function getCustomLektionenByLektionsplanungId(
+  lektionsplanungId: string
+): Promise<CustomLektion[]> {
+  try {
+    const adminDb = getAdminDb();
+    let snapshot;
+    try {
+      // Compound query benötigt Composite Index (lektionsplanungId + order)
+      snapshot = await adminDb
+        .collection(CUSTOM_LEKTIONEN_COLLECTION)
+        .where("lektionsplanungId", "==", lektionsplanungId)
+        .orderBy("order", "asc")
+        .get();
+    } catch (indexError: unknown) {
+      // Fallback: Query ohne orderBy, sortiere in-memory
+      console.warn(
+        "Composite index missing for custom_lektionen (lektionsplanungId + order), using fallback:",
+        (indexError as Error).message
+      );
+      snapshot = await adminDb
+        .collection(CUSTOM_LEKTIONEN_COLLECTION)
+        .where("lektionsplanungId", "==", lektionsplanungId)
+        .get();
+    }
+
+    const results = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        themeId: data.themeId,
+        systemThemeId: data.systemThemeId,
+        systemThemeName: data.systemThemeName,
+        einheitId: data.einheitId,
+        lektionsplanungId: data.lektionsplanungId,
+        lektion: data.lektion,
+        eindeutigeBezeichnung: data.eindeutigeBezeichnung,
+        aufgaben: data.aufgaben,
+        vorwissen: data.vorwissen,
+        material: data.material,
+        websiteTools: data.websiteTools,
+        einstieg: data.einstieg,
+        hauptteil: data.hauptteil,
+        abschluss: data.abschluss,
+        stolpersteine: data.stolpersteine,
+        kiZusammenfassung: data.kiZusammenfassung,
+        createdBy: data.createdBy,
+        createdByName: data.createdByName,
+        schuleId: data.schuleId,
+        createdAt: timestampToDate(data.createdAt),
+        updatedAt: timestampToDate(data.updatedAt),
+        order: data.order,
+      };
+    });
+
+    return results.sort((a, b) => (a.order || 0) - (b.order || 0));
+  } catch (error) {
+    console.error("Error fetching custom lektionen by lektionsplanung:", error);
+    return [];
+  }
+}
+
+/**
+ * Löscht alle Lektionen einer Lektionsplanung (Cascade beim Löschen der Planung)
+ */
+export async function deleteCustomLektionenByLektionsplanungId(
+  lektionsplanungId: string
+): Promise<void> {
+  try {
+    const adminDb = getAdminDb();
+    const snapshot = await adminDb
+      .collection(CUSTOM_LEKTIONEN_COLLECTION)
+      .where("lektionsplanungId", "==", lektionsplanungId)
+      .get();
+
+    const batch = adminDb.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+  } catch (error) {
+    console.error(
+      "Error deleting custom lektionen by lektionsplanung:",
+      error
+    );
+    throw new Error("Failed to delete custom lektionen by lektionsplanung");
+  }
+}
+
+/**
+ * Löscht alle Lektionen einer Jahresplan-Einheit (Cascade beim Löschen der Einheit)
+ */
+export async function deleteCustomLektionenByEinheitId(
+  einheitId: string
+): Promise<void> {
+  try {
+    const adminDb = getAdminDb();
+    const snapshot = await adminDb
+      .collection(CUSTOM_LEKTIONEN_COLLECTION)
+      .where("einheitId", "==", einheitId)
+      .get();
+
+    const batch = adminDb.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+  } catch (error) {
+    console.error("Error deleting custom lektionen by einheit:", error);
+    throw new Error("Failed to delete custom lektionen by einheit");
   }
 }
 

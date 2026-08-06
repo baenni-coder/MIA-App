@@ -47,6 +47,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "lektionsplanungId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "custom_lektionen",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "systemThemeName",
           "order": "ASCENDING"
         },

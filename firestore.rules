@@ -113,14 +113,27 @@ service cloud.firestore {
                isPICTSAdminOfSchule(request.auth.uid, theme.data.schuleId);
       }
 
-      // Lesen: Wenn User das zugehörige Theme lesen darf
-      allow read: if isAuthenticated() && canAccessTheme(resource.data.themeId);
+      // Lesen: Theme-Lektionen wenn User das Theme lesen darf; Einheit-Lektionen
+      // wenn User die Lektion erstellt hat (Owner der Einheit). Der Haupt-Zugriff
+      // läuft ohnehin über die API (Admin SDK umgeht Rules).
+      allow read: if isAuthenticated() && (
+        (resource.data.themeId != null && canAccessTheme(resource.data.themeId)) ||
+        (resource.data.einheitId != null && resource.data.createdBy == request.auth.uid)
+      );
 
-      // Erstellen: Wenn User das zugehörige Theme erstellt hat
+      // Erstellen: Theme-Lektion (User besitzt Theme) ODER Einheit-Lektion
+      // (User besitzt die zugehörige Jahresplan-Einheit).
       allow create: if isAuthenticated()
                     && request.resource.data.createdBy == request.auth.uid
-                    && exists(/databases/$(database)/documents/custom_themes/$(request.resource.data.themeId))
-                    && get(/databases/$(database)/documents/custom_themes/$(request.resource.data.themeId)).data.createdBy == request.auth.uid;
+                    && (
+                      (request.resource.data.themeId != null
+                        && exists(/databases/$(database)/documents/custom_themes/$(request.resource.data.themeId))
+                        && get(/databases/$(database)/documents/custom_themes/$(request.resource.data.themeId)).data.createdBy == request.auth.uid)
+                      ||
+                      (request.resource.data.einheitId != null
+                        && exists(/databases/$(database)/documents/jahresplanung/$(request.resource.data.einheitId))
+                        && get(/databases/$(database)/documents/jahresplanung/$(request.resource.data.einheitId)).data.teacherId == request.auth.uid)
+                    );
 
       // Aktualisieren: Nur Ersteller
       allow update: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
@@ -407,6 +420,31 @@ service cloud.firestore {
 
       // Löschen: Nur der Ersteller
       allow delete: if isAuthenticated() &&
+        resource.data.teacherId == request.auth.uid;
+    }
+
+    // ============================================
+    // Jahresplan Lektionsplanungen (mehrere Lektionsplanungen pro Einheit)
+    // ============================================
+
+    match /jahresplan_lektionsplanungen/{planungId} {
+      // Lesen: Owner der Planung ODER geteilte Einheit derselben Schule.
+      // Haupt-Zugriff läuft über die API (Admin SDK umgeht Rules).
+      allow read: if isAuthenticated() && (
+        resource.data.teacherId == request.auth.uid ||
+        (resource.data.schuleId != null &&
+         exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+         getTeacher(request.auth.uid).data.schuleId == resource.data.schuleId)
+      );
+
+      // Erstellen: Der Ersteller muss Owner der zugehörigen Einheit sein.
+      allow create: if isAuthenticated()
+        && request.resource.data.teacherId == request.auth.uid
+        && exists(/databases/$(database)/documents/jahresplanung/$(request.resource.data.einheitId))
+        && get(/databases/$(database)/documents/jahresplanung/$(request.resource.data.einheitId)).data.teacherId == request.auth.uid;
+
+      // Aktualisieren/Löschen: Nur der Ersteller
+      allow update, delete: if isAuthenticated() &&
         resource.data.teacherId == request.auth.uid;
     }
 
