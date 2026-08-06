@@ -7,6 +7,21 @@ import {
 } from "@/lib/firestore/jahresplanung";
 import { getPlanungsTeamById } from "@/lib/firestore/planungsteams";
 import { deleteEinheitLektionsplanungenByEinheit } from "@/lib/firestore/einheit-lektionsplanungen";
+import type { JahresplanEinheit } from "@/types";
+
+/**
+ * Prüft, ob der User über ein Unterrichtsteam Zugriff auf die Einheit hat.
+ * Nur Einheiten, die explizit einem Team zugeordnet sind (teamId), sind für
+ * dessen Mitglieder zugänglich – die private Planung bleibt privat.
+ */
+async function isTeamColleague(
+  userId: string,
+  einheit: JahresplanEinheit
+): Promise<boolean> {
+  if (!einheit.teamId) return false;
+  const team = await getPlanungsTeamById(einheit.teamId);
+  return team?.members.some((m) => m.userId === userId) || false;
+}
 
 /**
  * GET /api/jahresplanung/[id]
@@ -39,17 +54,16 @@ export async function GET(
       );
     }
 
-    // Berechtigung prüfen: Owner, Team-Mitglied, sharedWith oder isShared
+    // Berechtigung prüfen: Owner, Team-Kolleg:in, sharedWith oder isShared
     const isOwner = einheit.teacherId === userId;
     const isSharedWithUser = einheit.sharedWith?.includes(userId) || false;
 
-    let isTeamMember = false;
-    if (einheit.teamId) {
-      const team = await getPlanungsTeamById(einheit.teamId);
-      isTeamMember = team?.members.some((m) => m.userId === userId) || false;
+    let hatTeamZugriff = false;
+    if (!isOwner && !einheit.isShared && !isSharedWithUser) {
+      hatTeamZugriff = await isTeamColleague(userId, einheit);
     }
 
-    if (!isOwner && !einheit.isShared && !isSharedWithUser && !isTeamMember) {
+    if (!isOwner && !einheit.isShared && !isSharedWithUser && !hatTeamZugriff) {
       return NextResponse.json(
         { error: "Keine Berechtigung" },
         { status: 403 }
@@ -101,14 +115,13 @@ export async function PUT(
     const isOwner = einheit.teacherId === userId;
     const isSharedWithUser = einheit.sharedWith?.includes(userId) || false;
 
-    let isTeamMember = false;
-    if (einheit.teamId) {
-      const team = await getPlanungsTeamById(einheit.teamId);
-      isTeamMember = team?.members.some((m) => m.userId === userId) || false;
+    // Owner, Team-Kolleg:in oder sharedWith-User dürfen bearbeiten
+    let hatTeamZugriff = false;
+    if (!isOwner && !isSharedWithUser) {
+      hatTeamZugriff = await isTeamColleague(userId, einheit);
     }
 
-    // Owner, Team-Mitglied oder sharedWith-User dürfen bearbeiten
-    if (!isOwner && !isSharedWithUser && !isTeamMember) {
+    if (!isOwner && !isSharedWithUser && !hatTeamZugriff) {
       return NextResponse.json(
         { error: "Keine Berechtigung zum Bearbeiten" },
         { status: 403 }
@@ -136,6 +149,7 @@ export async function PUT(
     if (body.beurteilungen !== undefined) updateData.beurteilungen = body.beurteilungen;
     if (body.materialien !== undefined) updateData.materialien = body.materialien;
     if (body.istPufferwoche !== undefined) updateData.istPufferwoche = body.istPufferwoche;
+    if (body.istSpezialwoche !== undefined) updateData.istSpezialwoche = body.istSpezialwoche === true;
     if (body.farbe !== undefined) updateData.farbe = body.farbe;
     if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
     if (body.linkedMiaThemeId !== undefined) updateData.linkedMiaThemeId = body.linkedMiaThemeId;
@@ -151,6 +165,24 @@ export async function PUT(
     if (isOwner) {
       if (body.isShared !== undefined) updateData.isShared = body.isShared;
       if (body.sharedWith !== undefined) updateData.sharedWith = body.sharedWith;
+
+      // Team-Zuordnung (teilen/privat stellen); Ziel-Team muss eigenes Team sein
+      if (body.teamId !== undefined) {
+        if (body.teamId) {
+          const zielTeam = await getPlanungsTeamById(body.teamId);
+          const istMitglied =
+            zielTeam?.members.some((m) => m.userId === userId) || false;
+          if (!istMitglied) {
+            return NextResponse.json(
+              { error: "Keine Berechtigung für dieses Team" },
+              { status: 403 }
+            );
+          }
+          updateData.teamId = body.teamId;
+        } else {
+          updateData.teamId = null;
+        }
+      }
     }
 
     await updateJahresplanEinheit(id, updateData);

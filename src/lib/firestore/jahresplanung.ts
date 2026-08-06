@@ -93,6 +93,7 @@ function docToEinheit(
     beurteilungen,
     materialien: data.materialien || [],
     istPufferwoche: data.istPufferwoche || false,
+    istSpezialwoche: data.istSpezialwoche || false,
     farbe: data.farbe || "#6b7280",
     sortOrder: data.sortOrder || 0,
     isShared: data.isShared || false,
@@ -137,6 +138,7 @@ export async function createJahresplanEinheit(data: {
   beurteilungen?: Beurteilung[];
   materialien?: string[];
   istPufferwoche?: boolean;
+  istSpezialwoche?: boolean;
   farbe?: string;
   schuleId?: string;
   teamId?: string;
@@ -173,6 +175,7 @@ export async function createJahresplanEinheit(data: {
       beurteilungen: data.beurteilungen || [],
       materialien: data.materialien || [],
       istPufferwoche: data.istPufferwoche || false,
+      istSpezialwoche: data.istSpezialwoche || false,
       farbe: data.farbe || data.fachbereichFarbe || "#6b7280",
       sortOrder: 0,
       isShared: false,
@@ -509,6 +512,7 @@ export async function kopiereJahresplan(
         beurteilungen: einheit.beurteilungen.map(b => ({ ...b, notiz: "" })),
         materialien: einheit.materialien,
         istPufferwoche: einheit.istPufferwoche,
+        istSpezialwoche: einheit.istSpezialwoche || false,
         farbe: einheit.farbe,
         sortOrder: einheit.sortOrder,
         isShared: false, // Reset sharing
@@ -659,13 +663,17 @@ export async function getBeurteilungenProWoche(
       // Neue beurteilungen-Array nutzen
       if (einheit.beurteilungen && einheit.beurteilungen.length > 0) {
         for (const b of einheit.beurteilungen) {
-          const current = beurteilungenMap.get(b.kalenderwoche) || { formativ: 0, summativ: 0 };
-          if (b.typ === "formativ") {
-            current.formativ++;
-          } else if (b.typ === "summativ") {
-            current.summativ++;
+          // Beurteilung kann sich über mehrere Wochen erstrecken
+          const bEnde = b.kalenderwocheEnde ?? b.kalenderwoche;
+          for (let bkw = b.kalenderwoche; bkw <= bEnde; bkw++) {
+            const current = beurteilungenMap.get(bkw) || { formativ: 0, summativ: 0 };
+            if (b.typ === "formativ") {
+              current.formativ++;
+            } else if (b.typ === "summativ") {
+              current.summativ++;
+            }
+            beurteilungenMap.set(bkw, current);
           }
-          beurteilungenMap.set(b.kalenderwoche, current);
         }
       } else if (einheit.beurteilungstyp !== "keine") {
         // Legacy-Fallback: alle Wochen der Einheit markieren

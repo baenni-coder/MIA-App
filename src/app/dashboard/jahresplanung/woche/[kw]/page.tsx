@@ -35,7 +35,7 @@ import {
   istFerienWoche,
   istFerienWocheCustom,
 } from "@/lib/data/lp21-data";
-import type { JahresplanEinheit, JahresplanStatus, SchulferienCustom } from "@/types";
+import type { JahresplanEinheit, JahresplanStatus, SchulferienCustom, TeamMember } from "@/types";
 
 // Status-Konfiguration
 const STATUS_CONFIG: Record<
@@ -67,8 +67,11 @@ export default function WochenansichtPage() {
   const kw = parseInt(params.kw as string) || 1;
   const schuljahr = searchParams.get("schuljahr") || getAktuellesSchuljahr();
   const jahr = parseInt(searchParams.get("jahr") || new Date().getFullYear().toString());
+  const teamId = searchParams.get("teamId") || "";
+  const teamParam = teamId ? `&teamId=${teamId}` : "";
 
   const [einheiten, setEinheiten] = useState<JahresplanEinheit[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [customFerien, setCustomFerien] = useState<SchulferienCustom[]>([]);
   const [klassenBezeichnung, setKlassenBezeichnung] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -97,7 +100,7 @@ export default function WochenansichtPage() {
 
         const [einheitenRes, ferienRes, klassenRes] = await Promise.all([
           fetch(
-            `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}`,
+            `/api/jahresplanung?schuljahr=${encodeURIComponent(schuljahr)}${teamParam}`,
             { headers: { Authorization: `Bearer ${token}` } }
           ),
           fetch(
@@ -131,6 +134,19 @@ export default function WochenansichtPage() {
             setKlassenBezeichnung(klassen[0].displayName || klassen[0].name || "");
           }
         }
+
+        // Team-Mitglieder laden (für Namens-Anzeige pro Einheit)
+        if (teamId) {
+          const teamRes = await fetch(`/api/planungsteams/${teamId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (teamRes.ok) {
+            const data = await teamRes.json();
+            setTeamMembers(data.team?.members || []);
+          }
+        } else {
+          setTeamMembers([]);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -139,7 +155,7 @@ export default function WochenansichtPage() {
     }
 
     fetchData();
-  }, [user, schuljahr, kw]);
+  }, [user, schuljahr, kw, teamId, teamParam]);
 
   // Status ändern
   const handleStatusChange = async (einheitId: string, newStatus: JahresplanStatus) => {
@@ -254,7 +270,7 @@ export default function WochenansichtPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
-                href={`/dashboard/jahresplanung/quartal/${kw >= 33 && kw <= 41 ? 1 : kw >= 42 || kw <= 7 ? 2 : kw <= 14 ? 3 : 4}?schuljahr=${schuljahr}`}
+                href={`/dashboard/jahresplanung/quartal/${kw >= 33 && kw <= 41 ? 1 : kw >= 42 || kw <= 7 ? 2 : kw <= 14 ? 3 : 4}?schuljahr=${schuljahr}${teamParam}`}
               >
                 <Button variant="ghost" size="icon">
                   <ArrowLeft className="h-5 w-5" />
@@ -263,7 +279,7 @@ export default function WochenansichtPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <Link
-                    href={`/dashboard/jahresplanung/woche/${prevWeek.kw}?schuljahr=${schuljahr}&jahr=${prevWeek.jahr}`}
+                    href={`/dashboard/jahresplanung/woche/${prevWeek.kw}?schuljahr=${schuljahr}&jahr=${prevWeek.jahr}${teamParam}`}
                   >
                     <Button variant="ghost" size="icon" className="h-8 w-8">
                       <ChevronLeft className="h-5 w-5" />
@@ -274,7 +290,7 @@ export default function WochenansichtPage() {
                     Kalenderwoche {kw}
                   </h1>
                   <Link
-                    href={`/dashboard/jahresplanung/woche/${nextWeek.kw}?schuljahr=${schuljahr}&jahr=${nextWeek.jahr}`}
+                    href={`/dashboard/jahresplanung/woche/${nextWeek.kw}?schuljahr=${schuljahr}&jahr=${nextWeek.jahr}${teamParam}`}
                   >
                     <Button variant="ghost" size="icon" className="h-8 w-8">
                       <ChevronRight className="h-5 w-5" />
@@ -302,7 +318,7 @@ export default function WochenansichtPage() {
               </Button>
               {!ferienInfo.istFerien && (
                 <Link
-                  href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&kw=${kw}`}
+                  href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&kw=${kw}${teamParam}`}
                 >
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
@@ -344,7 +360,7 @@ export default function WochenansichtPage() {
                   Fügen Sie Unterrichtseinheiten für diese Woche hinzu
                 </p>
                 <Link
-                  href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&kw=${kw}`}
+                  href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}&kw=${kw}${teamParam}`}
                 >
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
@@ -374,6 +390,13 @@ export default function WochenansichtPage() {
                           <p className="text-sm text-gray-500">
                             {einheit.fachbereichName} · KW {einheit.zeitraumStart}
                             –{einheit.zeitraumEnde}
+                            {teamId &&
+                              (() => {
+                                const member = teamMembers.find(
+                                  (m) => m.userId === einheit.teacherId
+                                );
+                                return member ? ` · ${member.name}` : "";
+                              })()}
                           </p>
                         </div>
                       </div>
@@ -381,7 +404,11 @@ export default function WochenansichtPage() {
                       <div className="flex items-center gap-2">
                         {/* Beurteilungs-Marker für diese KW */}
                         {(einheit.beurteilungen || [])
-                          .filter((b) => b.kalenderwoche === kw)
+                          .filter(
+                            (b) =>
+                              kw >= b.kalenderwoche &&
+                              kw <= (b.kalenderwocheEnde ?? b.kalenderwoche)
+                          )
                           .map((b, bIdx) => (
                             <Badge key={bIdx} variant="outline" className="flex items-center gap-1">
                               {b.typ === "formativ" ? (
@@ -527,7 +554,7 @@ export default function WochenansichtPage() {
                     {/* Bearbeiten-Link */}
                     <div className="flex justify-end">
                       <Link
-                        href={`/dashboard/jahresplanung/einheit/${einheit.id}?schuljahr=${schuljahr}`}
+                        href={`/dashboard/jahresplanung/einheit/${einheit.id}?schuljahr=${schuljahr}${teamParam}`}
                       >
                         <Button variant="outline" size="sm">
                           Bearbeiten

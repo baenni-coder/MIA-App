@@ -7,6 +7,7 @@ import {
   getSharedEinheiten,
 } from "@/lib/firestore/jahresplanung";
 import { getPlanungsTeamById } from "@/lib/firestore/planungsteams";
+import { SPEZIALWOCHE_FACHBEREICH } from "@/lib/data/lp21-data";
 import { JahresplanFilter } from "@/types";
 
 /**
@@ -69,6 +70,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Keine Berechtigung" }, { status: 403 });
       }
 
+      // Nur dem Team zugeordnete Einheiten (teamId) laden – die private
+      // Planung der Mitglieder bleibt privat
       const einheiten = await getTeamEinheiten(teamId, filter);
       return NextResponse.json({ einheiten, sharedEinheiten: [] });
     }
@@ -118,8 +121,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Validierung
-    if (!body.schuljahr || !body.fachbereichId || !body.titel) {
+    // Validierung: Spezialwochen (Projektwoche, Skilager …) brauchen keinen Fachbereich
+    const istSpezialwoche = body.istSpezialwoche === true;
+    if (!body.schuljahr || !body.titel || (!body.fachbereichId && !istSpezialwoche)) {
       return NextResponse.json(
         { error: "Schuljahr, Fachbereich und Titel sind erforderlich" },
         { status: 400 }
@@ -153,9 +157,14 @@ export async function POST(request: NextRequest) {
     const id = await createJahresplanEinheit({
       teacherId: userId,
       schuljahr: body.schuljahr,
-      fachbereichId: body.fachbereichId,
-      fachbereichName: body.fachbereichName,
-      fachbereichFarbe: body.fachbereichFarbe,
+      fachbereichId: body.fachbereichId || SPEZIALWOCHE_FACHBEREICH.id,
+      fachbereichName:
+        body.fachbereichName ||
+        (istSpezialwoche ? SPEZIALWOCHE_FACHBEREICH.name : undefined),
+      fachbereichFarbe:
+        body.fachbereichFarbe ||
+        (istSpezialwoche ? SPEZIALWOCHE_FACHBEREICH.farbe : undefined),
+      istSpezialwoche,
       titel: body.titel,
       lernziele: body.lernziele,
       kompetenzenIds: body.kompetenzenIds,

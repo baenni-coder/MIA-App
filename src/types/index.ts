@@ -1119,7 +1119,8 @@ export type BeurteilungsTyp = "keine" | "formativ" | "summativ";
 // Einzelne Beurteilung mit KW-Zuordnung
 export interface Beurteilung {
   typ: "formativ" | "summativ";
-  kalenderwoche: number; // KW in der die Beurteilung stattfindet
+  kalenderwoche: number; // KW in der die Beurteilung stattfindet (bzw. beginnt)
+  kalenderwocheEnde?: number; // Optional: End-KW bei Beurteilungen über mehrere Wochen
   notiz: string; // Details zur Beurteilung
 }
 
@@ -1145,6 +1146,9 @@ export interface JahresplanEinheit {
   beurteilungen: Beurteilung[]; // Array von Beurteilungen mit KW-Zuordnung
   materialien: string[]; // Links, Lehrmittelseiten etc.
   istPufferwoche: boolean; // Markierung als Pufferwoche
+  // Spezialwoche (z.B. Projektwoche, Skilager): fächerübergreifend, ohne
+  // Fachbereich-Zuordnung. fachbereichId ist dann der Pseudo-Code "SPEZIAL".
+  istSpezialwoche?: boolean;
   farbe: string; // Wird vom Fachbereich übernommen
   sortOrder: number; // Reihenfolge innerhalb einer Woche
   // Sharing

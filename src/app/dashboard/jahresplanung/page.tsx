@@ -260,10 +260,15 @@ export default function JahresplanungPage() {
     return Array.from(verteilung.entries())
       .map(([id, count]) => {
         const fb = fachbereiche.find((f) => f.code === id);
+        // Fallback auf die Einheit-Daten (z.B. Pseudo-Fachbereich "Spezialwoche")
+        const einheitMitFb = einheiten.find((e) => e.fachbereichId === id);
         return {
           id,
-          name: fb?.name || id,
-          farbe: fb?.farbe || getLp21FachbereichFarbe(id),
+          name: fb?.name || einheitMitFb?.fachbereichName || id,
+          farbe:
+            fb?.farbe ||
+            einheitMitFb?.fachbereichFarbe ||
+            getLp21FachbereichFarbe(id),
           count,
         };
       })

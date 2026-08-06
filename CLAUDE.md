@@ -86,6 +86,35 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - `src/app/api/jahresplanung/[id]/route.ts` (PUT) / `src/lib/firestore/jahresplanung.ts` – `publishedTheme*`-Felder
 - `src/components/DashboardLayout.tsx`, `src/app/dashboard/page.tsx`, `src/app/dashboard/meine-themen/page.tsx` – Menü/Kacheln/Verwaltungsansicht
 
+**NEU (2026-08)** – Jahresplanung: Mehrwöchige Beurteilungen & Unterrichtsteam-Ansicht:
+- **Beurteilungen über mehrere Wochen**: `Beurteilung` erhält optionales `kalenderwocheEnde` (abwärtskompatibel; fehlt = einwöchig). Editor mit „Von KW / Bis KW"; Marker erscheinen in allen Wochen des Bereichs (Quartals-Liste, Wochenansicht, Quartals-/Jahres-PDF); Labels zeigen „KW x–y".
+- **Team-Planungen in Spalten**: Die Team-Ansicht zeigt **nur explizit dem Team zugeordnete Einheiten** (`teamId`) – die private Planung der Mitglieder bleibt privat. Quartals-Listenansicht zeigt pro Woche eine **Spalte pro Lehrperson** (Spaltenkopf mit Namen, Fallback-Spalte „Weitere"); Kanban gruppiert im Team-Modus nach Lehrperson statt Fachbereich (Karten behalten Fachbereich-Farben).
+- **Team-Zuordnung pro Einheit**: Im Einheit-Editor wählt der Owner unter „Weitere Optionen" das Planungsteam („Kein Team (privat)" oder eines der eigenen Teams des Schuljahrs). So lassen sich auch bestehende Einheiten nachträglich teilen oder wieder privat stellen. PUT validiert die Mitgliedschaft im Ziel-Team; nur der Owner darf die Zuordnung ändern.
+- **Zugriff im Unterrichtsteam**: GET/PUT `/api/jahresplanung/[id]` erlauben Mitgliedern des Teams, dem die Einheit zugeordnet ist (`isTeamColleague()` prüft `einheit.teamId`), Anzeigen und Bearbeiten; Löschen bleibt Owner/teamId-Team vorbehalten. Die Wochenansicht unterstützt `teamId` (lud vorher nur eigene Einheiten – deshalb konnten Team-Kolleg:innen Einheiten nicht öffnen), zeigt den Namen der Lehrperson pro Einheit und reicht den Team-Kontext durch alle Links (Quartal ↔ Woche ↔ Einheit-Editor inkl. Redirect nach Speichern).
+
+**Wichtige Dateien:**
+- `src/types/index.ts` – `Beurteilung.kalenderwocheEnde`
+- `src/lib/firestore/jahresplanung.ts` – Range-Auswertung in `getBeurteilungenProWoche()`
+- `src/app/api/jahresplanung/route.ts` (nur teamId-Einheiten im Team-Modus), `src/app/api/jahresplanung/[id]/route.ts` (`isTeamColleague()`, Team-Zuordnung im PUT)
+- `src/app/dashboard/jahresplanung/quartal/[q]/page.tsx` – Team-Spalten + `renderEinheitChip()`
+- `src/app/dashboard/jahresplanung/woche/[kw]/page.tsx` – teamId-Unterstützung
+- `src/components/jahresplanung/KanbanQuartal.tsx` – `teamMembers`-Prop (Gruppierung nach Lehrperson)
+- `src/components/JahresplanungPDF.tsx`, `src/app/dashboard/jahresplanung/einheit/[id]/page.tsx` – Beurteilungs-Zeitraum
+
+**NEU (2026-08)** – Spezialwochen in der Jahresplanung:
+- **Spezialwochen ohne Fachbereich**: In der Jahresplanung können Einheiten als **Spezialwoche** (z.B. Projektwoche, Skilager, Klassenlager) erfasst werden – ohne Zuordnung zu einem einzelnen Fachbereich. Im Einheit-Editor gibt es dafür die Umschaltung „Art der Einheit" (Unterrichtseinheit / Spezialwoche) inkl. Titel-Vorschlägen.
+- **Pseudo-Fachbereich `SPEZIAL`**: Spezialwochen werden mit `fachbereichId="SPEZIAL"`, Name „Spezialwoche" und eigener Farbe (Violett, `SPEZIALWOCHE_FACHBEREICH` in `lp21-data.ts`) gespeichert. Dadurch funktionieren alle bestehenden Render-Pfade (Quartals-/Wochenansicht, Kanban, PDF-Export, Fachbereich-Verteilung) ohne Sonderbehandlung; zusätzlich neues Flag `JahresplanEinheit.istSpezialwoche`.
+- **Reduziertes Formular**: Bei Spezialwochen entfallen Fachbereich, LP21-Kompetenzen, Beurteilungen, Lehrmittel, MIA-Vorlage/-Einreichung und Pufferwoche; Titel, Zeitraum (KW), Beschreibung, Materialien und Schul-Dateien bleiben. Kennzeichnung via Sparkles-Icon (Listenansicht) und Badge „Spezialwoche" (Kanban).
+- **Abwärtskompatibel & kopierbar**: Bestehende Einheiten sind unverändert; „Schuljahr kopieren" übernimmt das Flag.
+
+**Wichtige Dateien (Spezialwochen):**
+- `src/types/index.ts` – `JahresplanEinheit.istSpezialwoche`
+- `src/lib/data/lp21-data.ts` – `SPEZIALWOCHE_FACHBEREICH`
+- `src/lib/firestore/jahresplanung.ts` – Persistenz + Kopieren
+- `src/app/api/jahresplanung/route.ts` (POST ohne Fachbereich-Pflicht), `src/app/api/jahresplanung/[id]/route.ts` (PUT)
+- `src/app/dashboard/jahresplanung/einheit/[id]/page.tsx` – Editor mit Typ-Umschaltung
+- `src/app/dashboard/jahresplanung/quartal/[q]/page.tsx`, `src/components/jahresplanung/KanbanQuartal.tsx`, `src/app/dashboard/jahresplanung/page.tsx` – Anzeige
+
 **NEU (2026-07)**:
 - **Pool-Fix – freigegebene Custom Themes sichtbar**: Die Jahresplan-Pool-Verwaltung lud nur System-Themen (`/api/themen?grouped=false` → `getThemes()`), sodass systemweit freigegebene eigene Themen nie als Pool-Zeile erschienen (auch nicht nach „Alle Pool-Themen zuordnen"). `/api/themen` erhält den Flag `includeCustom=true`, der System-Themen + approved Custom Themes kombiniert; die Pool-Seite nutzt ihn.
 - **Schulspezifische Lektionsplanung (Overrides)**: PICTS-/Super-Admin können im Pool-Edit-Dialog pro Lektion zwischen Original und eigener Fassung umschalten („original / eigene"), Lektionen ausblenden oder eigene schuleigene Lektionen ergänzen. Override-Pattern (Original bleibt Source of Truth). Lehrpersonen sehen die angepasste Planung im Jahresplan MIA (Badges „Schul-Anpassung" / „Schuleigen").

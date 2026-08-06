@@ -393,9 +393,13 @@ export function QuartalsplanungPDF({ schuljahr, quartal, wochen, einheiten, lehr
                 ) : (
                   wochenEinheiten.map((einheit) => {
                     const statusStyle = getStatusStyle(einheit.status);
-                    // Beurteilungen nur für diese KW anzeigen
+                    // Beurteilungen nur für diese KW anzeigen (inkl. mehrwöchiger)
                     const kwBeurteilungen = (einheit.beurteilungen || [])
-                      .filter((b: Beurteilung) => b.kalenderwoche === woche.kw);
+                      .filter(
+                        (b: Beurteilung) =>
+                          woche.kw >= b.kalenderwoche &&
+                          woche.kw <= (b.kalenderwocheEnde ?? b.kalenderwoche)
+                      );
                     const kompetenzLabel =
                       einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
                         ? einheit.kompetenzenNamen[0]
@@ -620,7 +624,9 @@ export function WochenplanungPDF({
                             {b.typ === "formativ" ? "Formativ" : "Summativ"}
                           </Text>
                           <Text style={{ fontSize: 8, color: colors.textSecondary }}>
-                            KW {b.kalenderwoche}{b.notiz ? ` – ${b.notiz}` : ""}
+                            KW {b.kalenderwoche}
+                            {b.kalenderwocheEnde ? `–${b.kalenderwocheEnde}` : ""}
+                            {b.notiz ? ` – ${b.notiz}` : ""}
                           </Text>
                         </View>
                       ))}
@@ -732,7 +738,11 @@ export function JahresplanungPDF({ schuljahr, wochen, einheiten, lehrerName, kla
                       wochenEinheiten.map((einheit) => {
                         const statusStyle = getStatusStyle(einheit.status);
                         const kwBeurteilungen = (einheit.beurteilungen || [])
-                          .filter((b: Beurteilung) => b.kalenderwoche === woche.kw);
+                          .filter(
+                            (b: Beurteilung) =>
+                              woche.kw >= b.kalenderwoche &&
+                              woche.kw <= (b.kalenderwocheEnde ?? b.kalenderwoche)
+                          );
                         const kompetenzLabel =
                           einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
                             ? einheit.kompetenzenNamen[0]
