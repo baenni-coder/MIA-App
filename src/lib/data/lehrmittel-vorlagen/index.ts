@@ -4,13 +4,21 @@ import type {
   LehrmittelVorlageBlock,
 } from "@/types";
 import { findFachbereich, getLp21FachbereichFarbe } from "@/lib/data/lp21-data";
+import { schweizerZahlenbuch3 } from "./schweizer-zahlenbuch-3";
 import { schweizerZahlenbuch4 } from "./schweizer-zahlenbuch-4";
+import { schweizerZahlenbuch5 } from "./schweizer-zahlenbuch-5";
+import { schweizerZahlenbuch6 } from "./schweizer-zahlenbuch-6";
 
 /**
  * Registry aller Lehrmittel-Jahresplanungsvorlagen.
  * Neue Vorlage: Datei in diesem Ordner anlegen und hier eintragen.
  */
-const VORLAGEN: LehrmittelVorlage[] = [schweizerZahlenbuch4];
+const VORLAGEN: LehrmittelVorlage[] = [
+  schweizerZahlenbuch3,
+  schweizerZahlenbuch4,
+  schweizerZahlenbuch5,
+  schweizerZahlenbuch6,
+];
 
 export function getLehrmittelVorlagen(): LehrmittelVorlage[] {
   return VORLAGEN;
@@ -20,10 +28,17 @@ export function getLehrmittelVorlageById(id: string): LehrmittelVorlage | undefi
   return VORLAGEN.find((v) => v.id === id);
 }
 
-/** Standard-Wochenzahl eines Blocks (Mittelwert der Richtwerte, aufgerundet). */
+/**
+ * Standard-Wochenzahl eines Blocks: Mittelwert der Richtwerte, abgerundet
+ * (lässt Luft für Vertiefung/Projekte; die Lehrperson kann erhöhen).
+ */
 export function defaultWochen(block: LehrmittelVorlageBlock): number {
   if (block.optional && block.wochenMin === 0) return Math.max(1, Math.ceil(block.wochenMax / 2));
-  return Math.max(1, Math.ceil((block.wochenMin + block.wochenMax) / 2));
+  return Math.max(1, block.wochenMin, Math.floor((block.wochenMin + block.wochenMax) / 2));
+}
+
+export function uebungenLabel(vorlage: LehrmittelVorlage): string {
+  return vorlage.uebungenLabel || "Blitzrechnen";
 }
 
 export function formatWochenRichtwert(block: LehrmittelVorlageBlock): string {
@@ -123,11 +138,13 @@ export interface VorlageEinheitPayload {
 }
 
 function seitenBereich(block: LehrmittelVorlageBlock): string | null {
-  const seiten = block.kapitel.map((k) => k.seiten).filter(Boolean) as string[];
-  if (seiten.length === 0) return null;
-  const first = seiten[0].split(/[–-]/)[0].trim();
-  const lastParts = seiten[seiten.length - 1].split(/[–-]/);
-  const last = lastParts[lastParts.length - 1].trim();
+  const zahlen = block.kapitel
+    .flatMap((k) => (k.seiten ? k.seiten.split(/[–-]/) : []))
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n));
+  if (zahlen.length === 0) return null;
+  const first = Math.min(...zahlen);
+  const last = Math.max(...zahlen);
   return first === last ? `S. ${first}` : `S. ${first}–${last}`;
 }
 
@@ -141,7 +158,7 @@ function lernzieleText(vorlage: LehrmittelVorlage, block: LehrmittelVorlageBlock
     );
   });
   if (block.blitz && block.blitz.length > 0) {
-    zeilen.push("", `Blitzrechnen: ${block.blitz.map((b) => `«${b}»`).join(", ")}`);
+    zeilen.push("", `${uebungenLabel(vorlage)}: ${block.blitz.map((b) => `«${b}»`).join(", ")}`);
   }
   zeilen.push("", `Richtwert gemäss Verlag: ${formatWochenRichtwert(block)}`);
   return zeilen.join("\n");
