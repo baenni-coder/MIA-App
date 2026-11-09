@@ -35,6 +35,7 @@ import {
   Trash2,
   Check,
   X,
+  BookOpen,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -59,6 +60,12 @@ interface PlanungsPeriode {
 export default function JahresplanungPage() {
   const { user } = useAuth();
   const [schuljahr, setSchuljahr] = useState(getAktuellesSchuljahr());
+
+  // Optionales Schuljahr aus der URL (z.B. nach Übernahme einer Lehrmittel-Vorlage)
+  useEffect(() => {
+    const sj = new URLSearchParams(window.location.search).get("schuljahr");
+    if (sj && /^\d{4}\/\d{4}$/.test(sj)) setSchuljahr(sj);
+  }, []);
   const [einheiten, setEinheiten] = useState<JahresplanEinheit[]>([]);
   const [sharedEinheiten, setSharedEinheiten] = useState<JahresplanEinheit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -522,6 +529,14 @@ export default function JahresplanungPage() {
                 <Copy className="h-4 w-4 mr-2" />
                 Schuljahr kopieren
               </Button>
+
+              {/* Lehrmittel-Vorlage übernehmen */}
+              <Link href="/dashboard/lehrmittel">
+                <Button variant="outline">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Aus Lehrmittel
+                </Button>
+              </Link>
 
               {/* Neue Einheit */}
               <Link href={`/dashboard/jahresplanung/einheit/neu?schuljahr=${schuljahr}${activeTeamId ? `&teamId=${activeTeamId}` : ""}`}>
