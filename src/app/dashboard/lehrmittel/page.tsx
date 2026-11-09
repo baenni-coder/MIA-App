@@ -31,6 +31,7 @@ import type {
 import {
   getLehrmittelVorlagen,
   formatWochenRichtwert,
+  uebungenLabel,
 } from "@/lib/data/lehrmittel-vorlagen";
 import VorlageUebernehmenDialog from "@/components/jahresplanung/VorlageUebernehmenDialog";
 import {
@@ -498,7 +499,7 @@ export default function LehrmittelPage() {
                                 </ul>
                                 {b.blitz && b.blitz.length > 0 && (
                                   <p className="mt-2 text-xs text-muted-foreground">
-                                    Blitzrechnen: {b.blitz.map((x) => `«${x}»`).join(", ")}
+                                    {uebungenLabel(v)}: {b.blitz.map((x) => `«${x}»`).join(", ")}
                                   </p>
                                 )}
                               </details>

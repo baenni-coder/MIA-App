@@ -347,7 +347,9 @@ export type LehrmittelVorlagePhase =
   | "Wiederholung"
   | "Grundlegung"
   | "Weiterführung und Vertiefung"
-  | "Mini-Projekte";
+  | "Vertiefung und Weiterführung"
+  | "Mini-Projekte"
+  | "Projekte";
 
 export interface LehrmittelVorlageKapitel {
   nr: number | string; // Nummer der Lernumgebung / des Kapitels
@@ -363,7 +365,7 @@ export interface LehrmittelVorlageBlock {
   wochenMin: number; // Richtwert untere Grenze
   wochenMax: number; // Richtwert obere Grenze
   kapitel: LehrmittelVorlageKapitel[];
-  blitz?: string[]; // Blitzrechnen-Übungen o.ä.
+  blitz?: string[]; // Begleitende Übungen (Blitzrechnen, Rechentraining …), Label via LehrmittelVorlage.uebungenLabel
   beurteilung?: string; // z.B. "LZK 1" → summative Beurteilung in der letzten Woche
   optional?: boolean; // standardmässig nicht ausgewählt (z.B. Vertiefung)
 }
@@ -377,6 +379,7 @@ export interface LehrmittelVorlage {
   fachbereichId: string; // LP21-Fachbereich, z.B. "MA"
   stufen: Stufe[];
   hinweis?: string; // z.B. "Die Angaben sind Richtwerte…"
+  uebungenLabel?: string; // Bezeichnung der begleitenden Übungen (Default "Blitzrechnen")
   bloecke: LehrmittelVorlageBlock[];
 }
 

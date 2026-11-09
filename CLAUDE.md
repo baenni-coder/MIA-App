@@ -72,9 +72,10 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - `firestore.rules` – Collection `lehrmittel`
 
 **NEU (2026-11)** – Lehrmittel-Jahresplanungsvorlagen:
-- **Verlags-Jahresplanungen als Vorlage**: Vorgefertigte Jahresplanungen von Lehrmitteln (erste: *Schweizer Zahlenbuch 4*, Klett und Balmer) sind als statische, typisierte Daten im Code gepflegt (`src/lib/data/lehrmittel-vorlagen/`). Kein Firestore, keine Migration.
+- **Verlags-Jahresplanungen als Vorlage**: Vorgefertigte Jahresplanungen von Lehrmitteln (*Schweizer Zahlenbuch 3–6*, Klett und Balmer) sind als statische, typisierte Daten im Code gepflegt (`src/lib/data/lehrmittel-vorlagen/`). Kein Firestore, keine Migration.
 - **Anzeige in der Lehrmittel-Übersicht**: Die Vorlage erscheint in der Gruppe des Lehrmittels (Name-Matching wie beim Register) mit allen Blöcken (Phase, Richtwert Wochen, Lernumgebungen + Seiten, Blitzrechnen, LZK/BA).
 - **„In meine Jahresplanung übernehmen"**: Dialog (`VorlageUebernehmenDialog`) mit Schuljahr, Start-KW, Block-Auswahl (Vertiefung/Mini-Projekte optional) und Wochen pro Block; Live-Vorschau der KW-Zeiträume. Blöcke werden nacheinander auf Schulwochen verteilt (Ferien der Lehrperson übersprungen); ein Block über den Jahreswechsel wird in „Teil 1/2" + „Teil 2/2" getrennt, weil Einheiten KW-Start ≤ KW-Ende voraussetzen. Pro Block entsteht eine `JahresplanEinheit` (Fachbereich der Vorlage, `lehrmittel`, Lernumgebungen als Lernziele, Seitenbereich als Material, LZK = summativ in letzter Woche, BA = formativ in der passenden Woche).
+- **Varianten**: Band 3/4 mit Blocktiteln + LZK/BA + „Blitzrechnen"; Band 5/6 ohne Blocktitel (Titel aus den Lernumgebungen abgeleitet), ohne LZK, Übungen als „Rechentraining / Kopfgeometrie" (`LehrmittelVorlage.uebungenLabel`); Vertiefung dort in vier vorausgewählte Teilblöcke gegliedert. Standard-Wochen = Mittelwert der Richtwerte, abgerundet.
 - **Neue Vorlage hinzufügen**: Datei `src/lib/data/lehrmittel-vorlagen/<id>.ts` (Typ `LehrmittelVorlage`) anlegen und im Array `VORLAGEN` in `index.ts` registrieren. `lehrmittel` muss dem Namen im Lehrmittel-Register entsprechen (case-insensitiv), damit Bild/Beschreibung zusammenfallen.
 
 **Wichtige Dateien:**
