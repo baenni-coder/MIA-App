@@ -22,7 +22,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type { Thema, JahresplanEinheit, Lehrmittel } from "@/types";
+import type {
+  Thema,
+  JahresplanEinheit,
+  Lehrmittel,
+  LehrmittelVorlage,
+} from "@/types";
+import {
+  getLehrmittelVorlagen,
+  formatWochenRichtwert,
+} from "@/lib/data/lehrmittel-vorlagen";
+import VorlageUebernehmenDialog from "@/components/jahresplanung/VorlageUebernehmenDialog";
 import {
   BookOpen,
   FileText,
@@ -34,6 +44,8 @@ import {
   Upload,
   Loader2,
   CalendarDays,
+  CalendarPlus,
+  ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -51,6 +63,7 @@ interface LehrmittelGroup {
   themen: Thema[];
   einheiten: JahresplanEinheit[];
   register?: Lehrmittel;
+  vorlagen: LehrmittelVorlage[];
 }
 
 export default function LehrmittelPage() {
@@ -68,6 +81,9 @@ export default function LehrmittelPage() {
   const [formBildUrl, setFormBildUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [aktiveVorlage, setAktiveVorlage] = useState<LehrmittelVorlage | null>(
+    null
+  );
 
   const schuleId = (userProfile as { schuleId?: string } | null)?.schuleId;
 
@@ -121,7 +137,7 @@ export default function LehrmittelPage() {
       const key = normalizeKey(name);
       let g = map.get(key);
       if (!g) {
-        g = { key, displayName: name, themen: [], einheiten: [] };
+        g = { key, displayName: name, themen: [], einheiten: [], vorlagen: [] };
         map.set(key, g);
       }
       return g;
@@ -133,6 +149,11 @@ export default function LehrmittelPage() {
       g.displayName = l.name;
       g.register = l;
       if (l.bildUrl) g.bildUrl = l.bildUrl;
+    });
+
+    // Jahresplanungsvorlagen der Verlage (statisch im Code gepflegt)
+    getLehrmittelVorlagen().forEach((v) => {
+      ensure(v.lehrmittel).vorlagen.push(v);
     });
 
     allThemen.forEach((t) => {
@@ -374,6 +395,7 @@ export default function LehrmittelPage() {
                             {g.themen.length === 1 ? "Thema" : "Themen"} ·{" "}
                             {g.einheiten.length}{" "}
                             {g.einheiten.length === 1 ? "Einheit" : "Einheiten"}
+                            {g.vorlagen.length > 0 && " · Jahresplanung verfügbar"}
                           </div>
                         </div>
                       </div>
@@ -420,10 +442,83 @@ export default function LehrmittelPage() {
                         </p>
                       )}
 
+                      {g.vorlagen.map((v) => (
+                        <div
+                          key={`v-${v.id}`}
+                          className="mb-4 rounded-lg border border-red-200 bg-red-50/40 dark:bg-red-950/10 p-3"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                            <div>
+                              <div className="font-semibold flex items-center gap-2">
+                                <ClipboardCheck className="h-4 w-4 text-red-600" />
+                                {v.titel}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {v.stufen.join(", ")} · {v.bloecke.length} Themen
+                                {v.verlag && <> · {v.verlag}</>}
+                              </div>
+                            </div>
+                            <Button size="sm" onClick={() => setAktiveVorlage(v)}>
+                              <CalendarPlus className="h-4 w-4 mr-1.5" />
+                              In meine Jahresplanung übernehmen
+                            </Button>
+                          </div>
+                          <div className="space-y-1.5">
+                            {v.bloecke.map((b) => (
+                              <details
+                                key={b.id}
+                                className="rounded-md border bg-background px-3 py-2"
+                              >
+                                <summary className="cursor-pointer text-sm flex flex-wrap items-center gap-2">
+                                  <span className="font-medium">{b.titel}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {b.phase}
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {formatWochenRichtwert(b)}
+                                  </Badge>
+                                  {b.beurteilung && (
+                                    <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">
+                                      {b.beurteilung}
+                                    </Badge>
+                                  )}
+                                </summary>
+                                <ul className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                                  {b.kapitel.map((k) => (
+                                    <li key={String(k.nr)}>
+                                      {k.nr} {k.titel}
+                                      {k.seiten && <> (S. {k.seiten})</>}
+                                      {k.beurteilungsanlass && (
+                                        <Badge variant="outline" className="ml-2 text-[10px]">
+                                          {k.beurteilungsanlass}
+                                        </Badge>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                                {b.blitz && b.blitz.length > 0 && (
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    Blitzrechnen: {b.blitz.map((x) => `«${x}»`).join(", ")}
+                                  </p>
+                                )}
+                              </details>
+                            ))}
+                          </div>
+                          {v.hinweis && (
+                            <p className="mt-2 text-xs text-muted-foreground">{v.hinweis}</p>
+                          )}
+                          {v.quelle && (
+                            <p className="mt-1 text-xs text-muted-foreground">Quelle: {v.quelle}</p>
+                          )}
+                        </div>
+                      ))}
+
                       {g.themen.length === 0 && g.einheiten.length === 0 ? (
+                        g.vorlagen.length > 0 ? null : (
                         <p className="text-sm text-muted-foreground py-2">
                           Noch keine Themen oder Einheiten zugeordnet.
                         </p>
+                        )
                       ) : (
                         <div className="space-y-3 pt-1">
                           {[...g.themen]
@@ -536,6 +631,27 @@ export default function LehrmittelPage() {
             </div>
           )}
         </div>
+
+        {aktiveVorlage && (
+          <VorlageUebernehmenDialog
+            vorlage={aktiveVorlage}
+            open={!!aktiveVorlage}
+            onOpenChange={(o) => {
+              if (!o) setAktiveVorlage(null);
+            }}
+            bestehendeEinheitenProSchuljahr={einheiten
+              .filter(
+                (e) =>
+                  e.lehrmittel &&
+                  normalizeKey(e.lehrmittel) ===
+                    normalizeKey(aktiveVorlage.lehrmittel)
+              )
+              .reduce<Record<string, number>>((acc, e) => {
+                acc[e.schuljahr] = (acc[e.schuljahr] || 0) + 1;
+                return acc;
+              }, {})}
+          />
+        )}
 
         {/* Dialog: Lehrmittel hinzufügen/bearbeiten */}
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
