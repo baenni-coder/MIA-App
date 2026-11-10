@@ -464,17 +464,19 @@ export async function getSystemKompetenzenByFachbereich(fachbereichCode: string)
 export async function deactivateSystemKompetenzen(airtableIds: string[]): Promise<number> {
   try {
     const adminDb = getAdminDb();
-    const batch = adminDb.batch();
 
-    airtableIds.forEach((airtableId) => {
-      const docRef = adminDb.collection(SYSTEM_KOMPETENZEN_COLLECTION).doc(airtableId);
-      batch.update(docRef, {
-        isActive: false,
-        lastSyncedAt: new Date(),
+    // Firestore erlaubt max. 500 Schreibvorgänge pro Batch
+    for (let i = 0; i < airtableIds.length; i += 450) {
+      const batch = adminDb.batch();
+      airtableIds.slice(i, i + 450).forEach((airtableId) => {
+        const docRef = adminDb.collection(SYSTEM_KOMPETENZEN_COLLECTION).doc(airtableId);
+        batch.update(docRef, {
+          isActive: false,
+          lastSyncedAt: new Date(),
+        });
       });
-    });
-
-    await batch.commit();
+      await batch.commit();
+    }
     return airtableIds.length;
   } catch (error) {
     console.error("Error deactivating system kompetenzen:", error);

@@ -1394,6 +1394,10 @@ npm start
 - Client-Side Firebase nur im Browser initialisieren (`typeof window !== "undefined"`)
 - Server-Side Firebase Admin und Airtable mit Getter-Funktionen (`getAdminDb()`, `getBase()`)
 
+### Problem: LP21-Fächer nach Daten-Sync „nicht synchronisiert"
+**Ursache**: Der Airtable-Kompetenzen-Sync (UI-Sync und `syncKompetenzen()`) deaktivierte alle `system_kompetenzen`, deren ID nicht in Airtable vorkommt – also auch sämtliche per LP21-Sync geladenen Kompetenzstufen (`source: "lp21"`). `lp21_struktur` blieb erhalten, die Stufen waren aber `isActive=false`.
+**Lösung**: Deaktivierung nur noch für Nicht-LP21-Einträge (`k.source !== "lp21"`); `deactivateSystemKompetenzen()` committet in Batches à 450. Bereits deaktivierte Fächer per `npm run lp21:sync` (lokal) erneut laden – der Upsert setzt `isActive=true`.
+
 ### Problem: Kompetenzen als kryptische IDs
 **Ursache**: Airtable gibt bei verlinkten Records nur Record-IDs zurück
 **Lösung**:

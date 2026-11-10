@@ -119,8 +119,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 8. Identifiziere gelöschte Kompetenzen
+    // Nur Airtable-Kompetenzen deaktivieren: per LP21-Sync geladene Einträge
+    // (source "lp21") stammen nicht aus Airtable und dürfen hier nicht
+    // verschwinden – sonst sind nach jedem Daten-Sync alle Fächer ausser MIA weg.
     const toDeactivate = firestoreKompetenzen
-      .filter((k) => !airtableIds.has(k.airtableId))
+      .filter((k) => k.source !== "lp21" && !airtableIds.has(k.airtableId))
       .map((k) => k.airtableId);
 
     if (toDeactivate.length > 0) {
