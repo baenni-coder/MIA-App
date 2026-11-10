@@ -23,7 +23,9 @@ import {
   getSchulwochenFuerSchuljahr,
 } from "@/lib/data/lp21-data";
 import {
+  blockCodes,
   defaultWochen,
+  type KompetenzModus,
   formatWochenRichtwert,
   miaCodes,
   planeVorlage,
@@ -60,6 +62,10 @@ export default function VorlageUebernehmenDialog({
       )
   );
   const [saving, setSaving] = useState(false);
+  const [kompetenzModus, setKompetenzModus] = useState<KompetenzModus>("schwerpunkte");
+  // Gibt es Fach-Kompetenzen pro Lernumgebung (Kompetenzraster)? Dann ist die Wahl relevant.
+  const hatRaster = vorlage.bloecke.some((b) => b.kapitel.some((k) => k.lp21Codes?.length));
+  const hatCodes = vorlage.bloecke.some((b) => blockCodes(b).length > 0);
 
   // Custom-Ferien der Lehrperson für das Schuljahr laden
   useEffect(() => {
@@ -142,6 +148,7 @@ export default function VorlageUebernehmenDialog({
           schuljahr,
           startKW,
           bloecke: auswahlListe,
+          kompetenzModus,
         }),
       });
       const d = await res.json().catch(() => ({}));
@@ -216,6 +223,30 @@ export default function VorlageUebernehmenDialog({
               </select>
             </div>
           </div>
+
+          {hatCodes && (
+            <div>
+              <Label htmlFor="vorlage-kompetenzen">LP21-Kompetenzen in die Einheiten eintragen</Label>
+              <select
+                id="vorlage-kompetenzen"
+                className={selectClass}
+                value={kompetenzModus}
+                onChange={(e) => setKompetenzModus(e.target.value as KompetenzModus)}
+              >
+                <option value="schwerpunkte">
+                  {hatRaster
+                    ? "Schwerpunkte (in mind. der Hälfte der Lernumgebungen) – empfohlen"
+                    : "Alle Bezüge des Lehrmittels – empfohlen"}
+                </option>
+                {hatRaster && <option value="alle">Alle Bezüge aus dem Kompetenzraster</option>}
+                <option value="keine">Keine Fach-Kompetenzen (MIA-Bezüge bleiben)</option>
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Kompetenzen werden zu den passenden Kompetenzstufen der Stufe aufgelöst. Im
+                Lernziel-Text stehen immer alle Bezüge.
+              </p>
+            </div>
+          )}
 
           {bestehende > 0 && (
             <div className="flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">

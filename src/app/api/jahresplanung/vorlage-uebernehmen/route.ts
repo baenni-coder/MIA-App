@@ -6,50 +6,16 @@ import {
 } from "@/lib/firestore/jahresplanung";
 import { getSchulwochenFuerSchuljahr } from "@/lib/data/lp21-data";
 import { getSystemKompetenzen } from "@/lib/firestore/system-cache";
-import type { SystemKompetenz } from "@/types";
+import { buildResolver } from "@/lib/data/lehrmittel-vorlagen/resolve";
 import {
   getLehrmittelVorlageById,
   planeVorlage,
+  type KompetenzModus,
   vorlageZuEinheiten,
   type VorlageAuswahl,
 } from "@/lib/data/lehrmittel-vorlagen";
 
 const SCHULJAHR_REGEX = /^\d{4}\/\d{4}$/;
-
-const normCode = (c: string) => c.replace(/[\s.]/g, "").toLowerCase();
-
-/**
- * Löst LP21-Codes (z.B. "D.4.B.1.c", "MI.1.3.c") in system_kompetenzen-IDs
- * auf. MI ↔ IB wird je nach Kanton aufgelöst (SO bevorzugt IB). Nicht
- * auffindbare Codes bleiben unaufgelöst (stehen weiterhin im Lernziel-Text).
- */
-function buildResolver(alle: SystemKompetenz[], kanton?: string) {
-  const byCode = new Map<string, SystemKompetenz[]>();
-  alle.forEach((k) => {
-    if (!k.lpCode) return;
-    const key = normCode(k.lpCode);
-    const list = byCode.get(key) || [];
-    list.push(k);
-    byCode.set(key, list);
-  });
-  const pick = (code: string): SystemKompetenz | undefined => {
-    const list = byCode.get(normCode(code));
-    if (!list || list.length === 0) return undefined;
-    // Airtable-Quelle bevorzugen (MIA-kuratiert), sonst erste
-    return list.find((k) => k.source === "airtable") || list[0];
-  };
-  return (code: string): SystemKompetenz | undefined => {
-    const isMia = code.startsWith("MI.") || code.startsWith("IB.");
-    if (!isMia) return pick(code);
-    const rest = code.slice(3);
-    const order = kanton === "SO" ? ["IB.", "MI."] : ["MI.", "IB."];
-    for (const prefix of order) {
-      const k = pick(prefix + rest);
-      if (k) return k;
-    }
-    return undefined;
-  };
-}
 
 /**
  * POST /api/jahresplanung/vorlage-uebernehmen
@@ -109,7 +75,11 @@ export async function POST(request: NextRequest) {
     );
 
     const plan = planeVorlage(vorlage, auswahl, schulwochen, startKW);
-    const payloads = vorlageZuEinheiten(vorlage, plan);
+    const kompetenzModus: KompetenzModus =
+      body.kompetenzModus === "alle" || body.kompetenzModus === "keine"
+        ? body.kompetenzModus
+        : "schwerpunkte";
+    const payloads = vorlageZuEinheiten(vorlage, plan, kompetenzModus);
     const nichtPlatziert = plan.filter((p) => !p.passt).map((p) => p.block.titel);
 
     const teacherDoc = await getAdminDb().collection("teachers").doc(userId).get();
@@ -119,7 +89,7 @@ export async function POST(request: NextRequest) {
     // LP21-Codes → Kompetenz-IDs (nur laden, wenn die Vorlage Codes enthält)
     const brauchtKompetenzen = payloads.some((p) => p.lp21Codes.length > 0);
     const resolve = brauchtKompetenzen
-      ? buildResolver(await getSystemKompetenzen(), teacher?.kanton)
+      ? buildResolver(await getSystemKompetenzen(), vorlage, teacher?.kanton)
       : null;
     const unaufgeloest = new Set<string>();
     let miaZugeordnet = 0;
@@ -129,17 +99,19 @@ export async function POST(request: NextRequest) {
       const kompetenzenIds: string[] = [];
       const kompetenzenNamen: string[] = [];
       for (const code of lp21Codes) {
-        const k = resolve?.(code);
-        if (!k) {
+        const treffer = resolve?.(code) || [];
+        if (treffer.length === 0) {
           unaufgeloest.add(code);
           continue;
         }
-        if (kompetenzenIds.includes(k.id)) continue;
-        kompetenzenIds.push(k.id);
-        kompetenzenNamen.push(
-          k.kompetenzstufe ? `${k.lpCode}: ${k.kompetenzstufe}` : k.lpCode || code
-        );
-        if (code.startsWith("MI.") || code.startsWith("IB.")) miaZugeordnet++;
+        for (const k of treffer) {
+          if (kompetenzenIds.includes(k.id)) continue;
+          kompetenzenIds.push(k.id);
+          kompetenzenNamen.push(
+            k.kompetenzstufe ? `${k.lpCode}: ${k.kompetenzstufe}` : k.lpCode || code
+          );
+          if (code.startsWith("MI.") || code.startsWith("IB.")) miaZugeordnet++;
+        }
       }
       ids.push(
         await createJahresplanEinheit({
