@@ -89,6 +89,17 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - `src/components/jahresplanung/VorlageUebernehmenDialog.tsx`, `src/app/dashboard/lehrmittel/page.tsx`
 - `src/app/dashboard/jahresplanung/page.tsx` – Button „Aus Lehrmittel", `?schuljahr=`-Parameter
 
+**NEU (2026-11)** – Ganzer Lehrplan & Lehrmittel-Kategorisierung:
+- **Lehrplan für alle Fächer** (`/dashboard/lehrplan`): Fach-Auswahl oben („Medien und Informatik" = bisherige MIA-Ansicht mit Unterrichtsideen, Default) plus alle per LP21-Sync geladenen Fachbereiche (`/api/kompetenzen/lp21/struktur`, MI/IB ausgeblendet). Nicht-MIA-Fächer laden `/api/kompetenzen/lp21?fachbereich=` + Struktur und gliedern Kompetenzbereich (Akkordeon, standardmässig zu) → Kompetenz (Überschrift mit Code + Text) → Kompetenzstufen (gleiche Kacheln via `renderCard()`). Suche/Zyklus-Filter gelten für beide Ansichten; `?fach=D` ist teilbar, `?search=D.4.B.1.c` wechselt Fach und öffnet die Stufe.
+- **„In Lehrmitteln"**: Kacheln und Detail-Dialog zeigen, in welchen Jahresplanungsvorlagen eine Kompetenzstufe vorkommt (`getVorlagenBezuege(lpCode)` in `lehrmittel-vorlagen/index.ts`, MI ↔ IB gleichgesetzt).
+- **Lehrmittel nach Fach & Stufe**: Register-Einträge haben optionale Felder `fachbereiche` / `stufen` (Chip-Auswahl im Dialog, validiert via `sanitizeFachbereiche`/`sanitizeStufen`). Ohne Angabe wird abgeleitet: Vorlagen (Fach + Stufen), MIA-Themen (→ MI, Stufen aus `schuljahr`), Einheiten (Fach). Die Übersicht hat Suche + Filter Fach/Stufe („Nur meine Stufe"), gruppiert in Abschnitte pro (Haupt-)Fach und zeigt Fach-/Stufen-Chips pro Lehrmittel.
+
+**Wichtige Dateien:**
+- `src/lib/data/lehrmittel-kategorien.ts` – `normalizeFach()` (IB→MI, FS1F→FS1 …), Labels/Farben, Sanitizer
+- `src/types/index.ts` – `ALLE_STUFEN`, `Lehrmittel.fachbereiche/stufen`
+- `src/app/dashboard/lehrplan/page.tsx`, `src/app/dashboard/lehrmittel/page.tsx`
+- `src/app/api/lehrmittel/route.ts`, `src/app/api/lehrmittel/[id]/route.ts`, `src/lib/firestore/lehrmittel.ts`
+
 **NEU (2026-08)** – Vereinheitlichung „Einheit erstellen" + Menü-Vereinfachung:
 - **Jahresplanung als einziger Erstellungs-Einstieg**: Lehrpersonen erstellen Unterrichtseinheiten in der Jahresplanung. Aus einer gespeicherten Einheit heraus gibt es die Aktion **„Als MIA-Thema einreichen"** (`/dashboard/jahresplanung/einheit/[id]/als-mia-thema`), die das bestehende `CustomThemeForm` (aus der Einheit vorbefüllt: Titel, Lernziele, Zeitraum via `kwToZeitraum()`, Stufe aus Profil) wiederverwendet und den bestehenden PICTS-Review-/Pool-Workflow anstösst. Nach Freigabe erscheint das Thema im Jahresplan MIA.
 - **Kompetenzen kontextabhängig**: Die Einheit nutzt weiter LP21-Kompetenzen, das MIA-Thema weiter Airtable-Kompetenzen. Beim Einreichen werden die MIA-Kompetenzen im Formular neu gewählt (kein LP21→Airtable-Auto-Mapping). Kein Datenmodell-Merge, keine Migration.

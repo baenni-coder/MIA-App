@@ -1,5 +1,5 @@
 import { getAdminDb } from "@/lib/firebase/admin";
-import { Lehrmittel } from "@/types";
+import { Fachbereich, Lehrmittel, Stufe } from "@/types";
 
 const LEHRMITTEL_COLLECTION = "lehrmittel";
 
@@ -21,6 +21,8 @@ function docToLehrmittel(
     name: data.name,
     bildUrl: data.bildUrl || undefined,
     beschreibung: data.beschreibung || undefined,
+    fachbereiche: Array.isArray(data.fachbereiche) && data.fachbereiche.length ? data.fachbereiche : undefined,
+    stufen: Array.isArray(data.stufen) && data.stufen.length ? data.stufen : undefined,
     isSystemWide: data.isSystemWide || false,
     schuleId: data.schuleId || "",
     createdBy: data.createdBy,
@@ -87,6 +89,8 @@ export async function createLehrmittel(data: {
   name: string;
   bildUrl?: string;
   beschreibung?: string;
+  fachbereiche?: Fachbereich[];
+  stufen?: Stufe[];
   schuleId: string;
   createdBy: string;
   createdByName: string;

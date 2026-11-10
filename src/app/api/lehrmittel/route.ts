@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import { getAllLehrmittel, createLehrmittel } from "@/lib/firestore/lehrmittel";
 import { validateStringLength } from "@/lib/validation/input";
+import { sanitizeFachbereiche, sanitizeStufen } from "@/lib/data/lehrmittel-kategorien";
 
 /**
  * GET /api/lehrmittel
@@ -78,6 +79,8 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { name, bildUrl, beschreibung } = body;
+    const fachbereiche = sanitizeFachbereiche(body.fachbereiche);
+    const stufen = sanitizeStufen(body.stufen);
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -101,6 +104,8 @@ export async function POST(request: Request) {
         typeof beschreibung === "string" && beschreibung
           ? beschreibung
           : undefined,
+      fachbereiche: fachbereiche?.length ? fachbereiche : undefined,
+      stufen: stufen?.length ? stufen : undefined,
       schuleId: teacher.schuleId,
       createdBy: userId,
       createdByName: teacher.name || "Unbekannt",

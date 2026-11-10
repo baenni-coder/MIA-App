@@ -6,6 +6,7 @@ import {
   deleteLehrmittel,
 } from "@/lib/firestore/lehrmittel";
 import { validateStringLength } from "@/lib/validation/input";
+import { sanitizeFachbereiche, sanitizeStufen } from "@/lib/data/lehrmittel-kategorien";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -87,6 +88,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
     if (body.bildUrl !== undefined) {
       updates.bildUrl = body.bildUrl || null;
+    }
+    if (body.fachbereiche !== undefined) {
+      const f = sanitizeFachbereiche(body.fachbereiche);
+      updates.fachbereiche = f && f.length ? f : null;
+    }
+    if (body.stufen !== undefined) {
+      const st = sanitizeStufen(body.stufen);
+      updates.stufen = st && st.length ? st : null;
     }
 
     // isSystemWide-Freigabe nur durch Admins

@@ -298,3 +298,38 @@ export function vorlageZuEinheiten(
   }
   return payloads;
 }
+
+// ============================================
+// Rückverweise: In welchen Lehrmitteln kommt eine Kompetenzstufe vor?
+// ============================================
+
+export interface VorlagenBezug {
+  vorlageId: string;
+  lehrmittel: string;
+  blockTitel: string;
+}
+
+const canonCode = (c: string) => c.trim().replace(/^IB\./i, "MI.").toLowerCase();
+
+let bezugIndex: Map<string, VorlagenBezug[]> | null = null;
+
+/** Alle Vorlagen-Blöcke, die einen LP21-Code referenzieren (MI ↔ IB gleichgesetzt). */
+export function getVorlagenBezuege(lpCode: string | undefined): VorlagenBezug[] {
+  if (!lpCode) return [];
+  if (!bezugIndex) {
+    bezugIndex = new Map();
+    for (const v of VORLAGEN) {
+      for (const b of v.bloecke) {
+        for (const c of b.lp21Codes || []) {
+          const key = canonCode(c);
+          const list = bezugIndex.get(key) || [];
+          if (!list.some((x) => x.vorlageId === v.id && x.blockTitel === b.titel)) {
+            list.push({ vorlageId: v.id, lehrmittel: v.lehrmittel, blockTitel: b.titel });
+          }
+          bezugIndex.set(key, list);
+        }
+      }
+    }
+  }
+  return bezugIndex.get(canonCode(lpCode)) || [];
+}

@@ -22,12 +22,23 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type {
-  Thema,
-  JahresplanEinheit,
-  Lehrmittel,
-  LehrmittelVorlage,
+import {
+  ALLE_STUFEN,
+  FACHBEREICHE,
+  type Fachbereich,
+  type Stufe,
+  type Thema,
+  type JahresplanEinheit,
+  type Lehrmittel,
+  type LehrmittelVorlage,
 } from "@/types";
+import {
+  fachFarbe,
+  fachIndex,
+  fachLabel,
+  normalizeFach,
+  stufeIndex,
+} from "@/lib/data/lehrmittel-kategorien";
 import {
   getLehrmittelVorlagen,
   formatWochenRichtwert,
@@ -48,6 +59,7 @@ import {
   CalendarDays,
   CalendarPlus,
   ClipboardCheck,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -66,6 +78,24 @@ interface LehrmittelGroup {
   einheiten: JahresplanEinheit[];
   register?: Lehrmittel;
   vorlagen: LehrmittelVorlage[];
+  fachbereiche: Fachbereich[]; // explizit (Register) oder abgeleitet
+  stufen: Stufe[];
+}
+
+// Fächer, die für Lehrmittel zur Auswahl stehen (ohne überfachliche Kompetenzen)
+const LEHRMITTEL_FAECHER = FACHBEREICHE.filter(
+  (f) => !["PK", "SK", "MK"].includes(f.value)
+);
+
+/** Kompakte Stufen-Anzeige, z.B. "3.–6. Klasse" oder "KiGa, 2. Klasse". */
+function formatStufen(stufen: Stufe[]): string {
+  if (stufen.length === 0) return "";
+  const idx = stufen.map(stufeIndex).sort((a, b) => a - b);
+  const zusammenhaengend = idx.every((v, i) => i === 0 || v === idx[i - 1] + 1);
+  if (stufen.length > 2 && zusammenhaengend && idx[0] > 0) {
+    return `${idx[0]}.–${idx[idx.length - 1]}. Klasse`;
+  }
+  return idx.map((i) => ALLE_STUFEN[i]).join(", ");
 }
 
 export default function LehrmittelPage() {
@@ -86,6 +116,13 @@ export default function LehrmittelPage() {
   const [aktiveVorlage, setAktiveVorlage] = useState<LehrmittelVorlage | null>(
     null
   );
+  const [formFachbereiche, setFormFachbereiche] = useState<Fachbereich[]>([]);
+  const [formStufen, setFormStufen] = useState<Stufe[]>([]);
+
+  // Filter
+  const [filterFach, setFilterFach] = useState<Fachbereich | "alle" | "ohne">("alle");
+  const [filterStufe, setFilterStufe] = useState<Stufe | "alle">("alle");
+  const [filterText, setFilterText] = useState("");
 
   const schuleId = (userProfile as { schuleId?: string } | null)?.schuleId;
 
@@ -139,7 +176,15 @@ export default function LehrmittelPage() {
       const key = normalizeKey(name);
       let g = map.get(key);
       if (!g) {
-        g = { key, displayName: name, themen: [], einheiten: [], vorlagen: [] };
+        g = {
+          key,
+          displayName: name,
+          themen: [],
+          einheiten: [],
+          vorlagen: [],
+          fachbereiche: [],
+          stufen: [],
+        };
         map.set(key, g);
       }
       return g;
@@ -180,8 +225,82 @@ export default function LehrmittelPage() {
           g.vorlagen.find((v) => v.bildUrl)?.bildUrl;
       }
     });
+    // Fach & Stufe: explizite Register-Angaben haben Vorrang, sonst ableiten
+    arr.forEach((g) => {
+      const faecher = new Set<Fachbereich>();
+      const stufen = new Set<Stufe>();
+      g.vorlagen.forEach((v) => {
+        const f = normalizeFach(v.fachbereichId);
+        if (f) faecher.add(f);
+        v.stufen.forEach((st) => stufen.add(st));
+      });
+      // Themen aus /api/themen sind MIA-Themen → Medien und Informatik
+      if (g.themen.length > 0) faecher.add("MI");
+      g.themen.forEach((t) => (t.schuljahr || []).forEach((st) => stufen.add(st)));
+      g.einheiten.forEach((e) => {
+        const f = normalizeFach(e.fachbereichId);
+        if (f) faecher.add(f);
+      });
+      g.fachbereiche = (g.register?.fachbereiche?.length
+        ? g.register.fachbereiche
+        : Array.from(faecher)
+      ).sort((a, b) => fachIndex(a) - fachIndex(b));
+      g.stufen = (g.register?.stufen?.length
+        ? g.register.stufen
+        : Array.from(stufen)
+      ).sort((a, b) => stufeIndex(a) - stufeIndex(b));
+    });
     return arr.sort((a, b) => a.displayName.localeCompare(b.displayName));
   })();
+
+  // Filtern + nach (Haupt-)Fach gruppieren
+  const filteredGroups = groups.filter((g) => {
+    if (filterFach === "ohne" && g.fachbereiche.length > 0) return false;
+    if (filterFach !== "alle" && filterFach !== "ohne" && !g.fachbereiche.includes(filterFach))
+      return false;
+    if (filterStufe !== "alle" && !g.stufen.includes(filterStufe)) return false;
+    if (filterText.trim()) {
+      const q = filterText.trim().toLowerCase();
+      const hit =
+        g.displayName.toLowerCase().includes(q) ||
+        g.themen.some((t) => t.thema.toLowerCase().includes(q)) ||
+        g.einheiten.some((e) => e.titel.toLowerCase().includes(q)) ||
+        g.vorlagen.some((v) => v.bloecke.some((b) => b.titel.toLowerCase().includes(q)));
+      if (!hit) return false;
+    }
+    return true;
+  });
+
+  const sections: { key: string; titel: string; farbe?: string; groups: LehrmittelGroup[] }[] =
+    (() => {
+      const map = new Map<string, LehrmittelGroup[]>();
+      filteredGroups.forEach((g) => {
+        // Bei Fach-Filter: Abschnitt = gefiltertes Fach; sonst Hauptfach (erstes)
+        const key =
+          filterFach !== "alle" && filterFach !== "ohne"
+            ? filterFach
+            : g.fachbereiche[0] || "ohne";
+        map.set(key, [...(map.get(key) || []), g]);
+      });
+      return Array.from(map.entries())
+        .sort(([a], [b]) => {
+          if (a === "ohne") return 1;
+          if (b === "ohne") return -1;
+          return fachIndex(a as Fachbereich) - fachIndex(b as Fachbereich);
+        })
+        .map(([key, gs]) => ({
+          key,
+          titel: key === "ohne" ? "Ohne Fach" : fachLabel(key as Fachbereich),
+          farbe: key === "ohne" ? undefined : fachFarbe(key as Fachbereich),
+          groups: gs,
+        }));
+    })();
+
+  const vorhandeneFaecher = LEHRMITTEL_FAECHER.filter((f) =>
+    groups.some((g) => g.fachbereiche.includes(f.value))
+  );
+  const hatOhneFach = groups.some((g) => g.fachbereiche.length === 0);
+  const filterAktiv = filterFach !== "alle" || filterStufe !== "alle" || !!filterText.trim();
 
   // Dialog öffnen (neu / bearbeiten)
   const openCreate = () => {
@@ -189,6 +308,8 @@ export default function LehrmittelPage() {
     setFormName("");
     setFormBeschreibung("");
     setFormBildUrl("");
+    setFormFachbereiche([]);
+    setFormStufen([]);
     setShowDialog(true);
   };
   const openEdit = (l: Lehrmittel) => {
@@ -196,6 +317,8 @@ export default function LehrmittelPage() {
     setFormName(l.name);
     setFormBeschreibung(l.beschreibung || "");
     setFormBildUrl(l.bildUrl || "");
+    setFormFachbereiche(l.fachbereiche || []);
+    setFormStufen(l.stufen || []);
     setShowDialog(true);
   };
 
@@ -239,6 +362,8 @@ export default function LehrmittelPage() {
         name: formName.trim(),
         beschreibung: formBeschreibung || undefined,
         bildUrl: formBildUrl || undefined,
+        fachbereiche: formFachbereiche,
+        stufen: formStufen,
       };
       const res = await fetch(
         editingId ? `/api/lehrmittel/${editingId}` : "/api/lehrmittel",
@@ -325,6 +450,83 @@ export default function LehrmittelPage() {
             </Button>
           </div>
 
+          {/* Filter: Fach, Stufe, Suche */}
+          {!loading && groups.length > 0 && (
+            <div className="rounded-lg border bg-card p-3 space-y-3">
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                    placeholder="Lehrmittel, Thema oder Einheit suchen…"
+                    className="pl-9"
+                    aria-label="Lehrmittel suchen"
+                  />
+                </div>
+                <select
+                  aria-label="Nach Fach filtern"
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={filterFach}
+                  onChange={(e) => setFilterFach(e.target.value as Fachbereich | "alle" | "ohne")}
+                >
+                  <option value="alle">Alle Fächer</option>
+                  {vorhandeneFaecher.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                  {hatOhneFach && <option value="ohne">Ohne Fach</option>}
+                </select>
+                <select
+                  aria-label="Nach Stufe filtern"
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={filterStufe}
+                  onChange={(e) => setFilterStufe(e.target.value as Stufe | "alle")}
+                >
+                  <option value="alle">Alle Stufen</option>
+                  {ALLE_STUFEN.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span>
+                  {filteredGroups.length} von {groups.length} Lehrmitteln
+                </span>
+                {(userProfile as { stufe?: Stufe } | null)?.stufe &&
+                  filterStufe !== (userProfile as { stufe?: Stufe }).stufe && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0"
+                      onClick={() =>
+                        setFilterStufe((userProfile as { stufe: Stufe }).stufe)
+                      }
+                    >
+                      Nur meine Stufe ({(userProfile as { stufe: Stufe }).stufe})
+                    </Button>
+                  )}
+                {filterAktiv && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0"
+                    onClick={() => {
+                      setFilterFach("alle");
+                      setFilterStufe("alle");
+                      setFilterText("");
+                    }}
+                  >
+                    Filter zurücksetzen
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
@@ -334,9 +536,23 @@ export default function LehrmittelPage() {
                 </p>
               </div>
             </div>
-          ) : groups.length > 0 ? (
+          ) : sections.length > 0 ? (
+            <div className="space-y-8">
+            {sections.map((sec) => (
+            <section key={sec.key} className="space-y-3">
+              <h3 className="flex items-center gap-2 text-lg font-semibold">
+                <span
+                  className="inline-block h-3 w-3 rounded-full"
+                  style={{ backgroundColor: sec.farbe || "#9ca3af" }}
+                  aria-hidden
+                />
+                {sec.titel}
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({sec.groups.length})
+                </span>
+              </h3>
             <Accordion type="multiple" className="space-y-4">
-              {groups.map((g) => {
+              {sec.groups.map((g) => {
                 const reg = g.register;
                 const isOwn = reg && reg.createdBy === user?.uid;
                 const canManage = reg && (isOwn || isAdmin);
@@ -402,6 +618,28 @@ export default function LehrmittelPage() {
                             {g.vorlagen.some((v) => v.bloecke.some((b) => miaCodes(b).length > 0)) &&
                               " · mit MIA-Bezug"}
                           </div>
+                          {(g.fachbereiche.length > 0 || g.stufen.length > 0) && (
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              {g.fachbereiche.map((f) => (
+                                <span
+                                  key={f}
+                                  className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
+                                >
+                                  <span
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: fachFarbe(f) }}
+                                    aria-hidden
+                                  />
+                                  {fachLabel(f)}
+                                </span>
+                              ))}
+                              {g.stufen.length > 0 && (
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                  {formatStufen(g.stufen)}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </AccordionTrigger>
@@ -659,11 +897,15 @@ export default function LehrmittelPage() {
                 );
               })}
             </Accordion>
+            </section>
+            ))}
+            </div>
           ) : (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
-                Noch keine Lehrmittel erfasst. Fügen Sie oben ein Lehrmittel
-                hinzu.
+                {groups.length > 0
+                  ? "Keine Lehrmittel für die gewählten Filter."
+                  : "Noch keine Lehrmittel erfasst. Fügen Sie oben ein Lehrmittel hinzu."}
               </p>
             </div>
           )}
@@ -717,6 +959,64 @@ export default function LehrmittelPage() {
                   placeholder="Optionale Beschreibung"
                   rows={3}
                 />
+              </div>
+              <div>
+                <Label>Fach</Label>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {LEHRMITTEL_FAECHER.map((f) => {
+                    const aktiv = formFachbereiche.includes(f.value);
+                    return (
+                      <button
+                        type="button"
+                        key={f.value}
+                        aria-pressed={aktiv}
+                        onClick={() =>
+                          setFormFachbereiche((prev) =>
+                            aktiv ? prev.filter((x) => x !== f.value) : [...prev, f.value]
+                          )
+                        }
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                          aktiv ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"
+                        }`}
+                      >
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: f.farbe }}
+                          aria-hidden
+                        />
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <Label>Stufen</Label>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {ALLE_STUFEN.map((st) => {
+                    const aktiv = formStufen.includes(st);
+                    return (
+                      <button
+                        type="button"
+                        key={st}
+                        aria-pressed={aktiv}
+                        onClick={() =>
+                          setFormStufen((prev) =>
+                            aktiv ? prev.filter((x) => x !== st) : [...prev, st]
+                          )
+                        }
+                        className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                          aktiv ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Leer lassen = automatisch aus Themen, Vorlagen und Einheiten ermitteln.
+                </p>
               </div>
               <div>
                 <Label>Bild</Label>
