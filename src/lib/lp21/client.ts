@@ -64,8 +64,15 @@ export async function getData(
     if (!response.ok) {
       const responseText = await response.text().catch(() => "");
       const isCloudflare = responseText.includes("Just a moment") || responseText.includes("cloudflare");
+      // Cloudflare blockt Anfragen aus Rechenzentren (z.B. Vercel) häufig per
+      // Bot-Schutz. Workaround: Sync lokal ausführen (scripts/lp21-sync.ts).
       throw new Error(
-        `LP21 API error: ${response.status} ${response.statusText}${isCloudflare ? " (Cloudflare block)" : ""}`
+        `LP21 API error: ${response.status} ${response.statusText}${
+          isCloudflare
+            ? " (Cloudflare block) – Die LP21-Schnittstelle blockiert Anfragen vom Server. " +
+              "Bitte den Sync lokal ausführen: npm run lp21:sync -- --fachbereich SPR"
+            : ""
+        }`
       );
     }
 
