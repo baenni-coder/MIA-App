@@ -46,6 +46,20 @@ export type Stufe =
   | "8. Klasse"
   | "9. Klasse";
 
+// Alle Schulstufen in Reihenfolge (für Filter/Auswahl)
+export const ALLE_STUFEN: Stufe[] = [
+  "KiGa",
+  "1. Klasse",
+  "2. Klasse",
+  "3. Klasse",
+  "4. Klasse",
+  "5. Klasse",
+  "6. Klasse",
+  "7. Klasse",
+  "8. Klasse",
+  "9. Klasse",
+];
+
 // Kanban-Zeiträume
 export type Zeitraum =
   | "Sommerferien-Herbstferien"
@@ -323,6 +337,9 @@ export interface Lehrmittel {
   name: string;
   bildUrl?: string; // Firebase Storage URL (optional)
   beschreibung?: string;
+  // Kategorisierung (optional; sonst aus Themen/Vorlagen/Einheiten abgeleitet)
+  fachbereiche?: Fachbereich[];
+  stufen?: Stufe[];
   isSystemWide: boolean; // false = nur eigene Schule; true = alle Schulen (Admin-Freigabe)
   schuleId: string; // Schule des Erstellers
   createdBy: string;
