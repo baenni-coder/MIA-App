@@ -171,9 +171,57 @@ export interface VorlageEinheitPayload {
   lp21Codes: string[]; // werden serverseitig zu kompetenzenIds aufgelöst
 }
 
+/**
+ * Alle LP21-Codes eines Blocks: Block-Codes (z.B. Deutsch) plus die Codes der
+ * einzelnen Lernumgebungen (z.B. Zahlenbuch-Kompetenzraster), dedupliziert.
+ */
+export function blockCodes(block: LehrmittelVorlageBlock): string[] {
+  const out: string[] = [];
+  for (const c of [...(block.lp21Codes || []), ...block.kapitel.flatMap((k) => k.lp21Codes || [])]) {
+    if (!out.includes(c)) out.push(c);
+  }
+  return out.sort((a, b) => a.localeCompare(b, "de", { numeric: true }));
+}
+
+/**
+ * Schwerpunkt-Codes eines Blocks: Block-Codes vollständig (z.B. Deutsch) plus
+ * die Kompetenzen, die in mindestens der Hälfte der Lernumgebungen des Blocks
+ * vorkommen (Kompetenzraster). Hält Einheiten übersichtlich.
+ */
+export function schwerpunktCodes(block: LehrmittelVorlageBlock): string[] {
+  const out = [...(block.lp21Codes || [])];
+  const lus = block.kapitel.filter((k) => k.lp21Codes?.length);
+  if (lus.length > 0) {
+    const cnt = new Map<string, number>();
+    lus.forEach((k) => k.lp21Codes!.forEach((c) => cnt.set(c, (cnt.get(c) || 0) + 1)));
+    const min = Math.ceil(lus.length / 2);
+    cnt.forEach((n, c) => {
+      if (n >= min && !out.includes(c)) out.push(c);
+    });
+  }
+  return out.sort((a, b) => a.localeCompare(b, "de", { numeric: true }));
+}
+
+export type KompetenzModus = "schwerpunkte" | "alle" | "keine";
+
 /** MI-/IB-Codes eines Blocks (MIA-Bezug). */
 export function miaCodes(block: LehrmittelVorlageBlock): string[] {
-  return (block.lp21Codes || []).filter((c) => c.startsWith("MI.") || c.startsWith("IB."));
+  return blockCodes(block).filter((c) => c.startsWith("MI.") || c.startsWith("IB."));
+}
+
+/** Kompetenz-Code ohne Stufenbuchstaben (z.B. "MA.1.A.2", nicht "MA.1.A.2.c")? */
+export function istKompetenzCode(code: string): boolean {
+  return /^[A-Za-z0-9]+\.\d+\.[A-Z]\.\d+$/.test(code);
+}
+
+/** Zyklen einer Vorlage aus ihren Stufen (KiGa–2. → Z1, 3.–6. → Z2, 7.–9. → Z3). */
+export function vorlageZyklen(vorlage: LehrmittelVorlage): string[] {
+  const z = new Set<string>();
+  vorlage.stufen.forEach((s) => {
+    const n = s === "KiGa" ? 0 : parseInt(s, 10);
+    z.add(n <= 2 ? "Zyklus 1" : n <= 6 ? "Zyklus 2" : "Zyklus 3");
+  });
+  return Array.from(z);
 }
 
 function seitenBereich(block: LehrmittelVorlageBlock): string | null {
@@ -211,9 +259,16 @@ function lernzieleText(vorlage: LehrmittelVorlage, block: LehrmittelVorlageBlock
   if (mia.length > 0) {
     zeilen.push(`MIA-Bezug (Medien und Informatik): ${mia.join(", ")}`);
   }
-  const fach = (block.lp21Codes || []).filter((c) => !mia.includes(c));
+  const fach = blockCodes(block).filter((c) => !mia.includes(c));
   if (fach.length > 0) {
-    zeilen.push(`LP21-Bezüge: ${fach.join(", ")}`);
+    const kern = schwerpunktCodes(block).filter((c) => !mia.includes(c));
+    const weitere = fach.filter((c) => !kern.includes(c));
+    if (weitere.length > 0 && kern.length > 0) {
+      zeilen.push(`LP21-Schwerpunkte: ${kern.join(", ")}`);
+      zeilen.push(`Weitere LP21-Bezüge: ${weitere.join(", ")}`);
+    } else {
+      zeilen.push(`LP21-Bezüge: ${fach.join(", ")}`);
+    }
   }
   if (block.blitz && block.blitz.length > 0) {
     zeilen.push(`${uebungenLabel(vorlage)}: ${block.blitz.map((b) => `«${b}»`).join(", ")}`);
@@ -233,7 +288,8 @@ function lernzieleText(vorlage: LehrmittelVorlage, block: LehrmittelVorlageBlock
 
 export function vorlageZuEinheiten(
   vorlage: LehrmittelVorlage,
-  plan: GeplanterBlock[]
+  plan: GeplanterBlock[],
+  kompetenzModus: KompetenzModus = "schwerpunkte"
 ): VorlageEinheitPayload[] {
   const fb = findFachbereich(vorlage.fachbereichId);
   const fachbereichFarbe = fb?.farbe || getLp21FachbereichFarbe(vorlage.fachbereichId);
@@ -292,7 +348,13 @@ export function vorlageZuEinheiten(
           .map((x) => x.b),
         materialien: seiten ? [`${vorlage.lehrmittel}, ${seiten}`] : [],
         lehrmittel: vorlage.lehrmittel,
-        lp21Codes: block.lp21Codes || [],
+        // MIA-Bezüge immer mitnehmen (MIA-Abdeckung), Fach-Kompetenzen je nach Modus
+        lp21Codes:
+          kompetenzModus === "keine"
+            ? miaCodes(block)
+            : kompetenzModus === "alle"
+              ? blockCodes(block)
+              : Array.from(new Set([...schwerpunktCodes(block), ...miaCodes(block)])),
       });
     });
   }
@@ -307,29 +369,51 @@ export interface VorlagenBezug {
   vorlageId: string;
   lehrmittel: string;
   blockTitel: string;
+  zyklen: string[]; // Zyklen der Vorlage (für Kompetenz-Ebenen-Treffer)
 }
 
 const canonCode = (c: string) => c.trim().replace(/^IB\./i, "MI.").toLowerCase();
 
 let bezugIndex: Map<string, VorlagenBezug[]> | null = null;
 
-/** Alle Vorlagen-Blöcke, die einen LP21-Code referenzieren (MI ↔ IB gleichgesetzt). */
-export function getVorlagenBezuege(lpCode: string | undefined): VorlagenBezug[] {
+/**
+ * Alle Vorlagen-Blöcke, die einen LP21-Code referenzieren (MI ↔ IB gleichgesetzt).
+ * Für eine Kompetenzstufe (z.B. "MA.1.A.2.e") zählen auch Treffer auf die
+ * übergeordnete Kompetenz ("MA.1.A.2") – dann nur, wenn der Zyklus der Stufe
+ * zum Lehrmittel passt (falls `zyklus` übergeben wird).
+ */
+export function getVorlagenBezuege(lpCode: string | undefined, zyklus?: string[]): VorlagenBezug[] {
   if (!lpCode) return [];
   if (!bezugIndex) {
     bezugIndex = new Map();
     for (const v of VORLAGEN) {
       for (const b of v.bloecke) {
-        for (const c of b.lp21Codes || []) {
+        for (const c of blockCodes(b)) {
           const key = canonCode(c);
           const list = bezugIndex.get(key) || [];
           if (!list.some((x) => x.vorlageId === v.id && x.blockTitel === b.titel)) {
-            list.push({ vorlageId: v.id, lehrmittel: v.lehrmittel, blockTitel: b.titel });
+            list.push({
+              vorlageId: v.id,
+              lehrmittel: v.lehrmittel,
+              blockTitel: b.titel,
+              zyklen: vorlageZyklen(v),
+            });
           }
           bezugIndex.set(key, list);
         }
       }
     }
   }
-  return bezugIndex.get(canonCode(lpCode)) || [];
+  const direkt = bezugIndex.get(canonCode(lpCode)) || [];
+  const teile = lpCode.trim().split(".");
+  if (teile.length < 5) return direkt;
+  const kompetenz = teile.slice(0, -1).join(".");
+  const ueber = (bezugIndex.get(canonCode(kompetenz)) || []).filter(
+    (b) => !zyklus || zyklus.length === 0 || b.zyklen.some((z) => zyklus.includes(z))
+  );
+  const out = [...direkt];
+  ueber.forEach((b) => {
+    if (!out.some((x) => x.vorlageId === b.vorlageId && x.blockTitel === b.blockTitel)) out.push(b);
+  });
+  return out;
 }

@@ -746,6 +746,11 @@ export default function LehrmittelPage() {
                                           {k.beurteilungsanlass}
                                         </Badge>
                                       )}
+                                      {k.lp21Codes && k.lp21Codes.length > 0 && (
+                                        <span className="ml-2 font-mono text-[10px] text-muted-foreground/80">
+                                          {k.lp21Codes.join(" · ")}
+                                        </span>
+                                      )}
                                     </li>
                                   ))}
                                 </ul>
@@ -754,7 +759,9 @@ export default function LehrmittelPage() {
                                     Fokus: {b.fokus.join(", ")}
                                   </p>
                                 )}
-                                {b.lp21Codes && b.lp21Codes.length > 0 && (
+                                {/* Block-Codes nur zeigen, wenn nicht schon pro Lernumgebung aufgeführt */}
+                                {b.lp21Codes && b.lp21Codes.length > 0 &&
+                                  !b.kapitel.some((k) => k.lp21Codes?.length) && (
                                   <div className="mt-2 flex flex-wrap gap-1">
                                     {b.lp21Codes.map((c) => (
                                       <Badge

@@ -469,13 +469,13 @@ function LehrplanPageContent() {
                               )}
 
                               {/* Lehrmittel-Bezüge (aus Jahresplanungsvorlagen) */}
-                              {getVorlagenBezuege(k.lpCode).length > 0 && (
+                              {getVorlagenBezuege(k.lpCode, k.zyklus).length > 0 && (
                                 <div className="pt-2 border-t space-y-1">
                                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                     <Library className="h-3 w-3 shrink-0" />
                                     <span>In Lehrmitteln</span>
                                   </div>
-                                  {getVorlagenBezuege(k.lpCode).slice(0, 2).map((b) => (
+                                  {getVorlagenBezuege(k.lpCode, k.zyklus).slice(0, 2).map((b) => (
                                     <Link
                                       key={`${b.vorlageId}-${b.blockTitel}`}
                                       href="/dashboard/lehrmittel"
@@ -485,9 +485,9 @@ function LehrplanPageContent() {
                                       {b.lehrmittel} – {b.blockTitel}
                                     </Link>
                                   ))}
-                                  {getVorlagenBezuege(k.lpCode).length > 2 && (
+                                  {getVorlagenBezuege(k.lpCode, k.zyklus).length > 2 && (
                                     <span className="text-xs text-muted-foreground">
-                                      +{getVorlagenBezuege(k.lpCode).length - 2} weitere
+                                      +{getVorlagenBezuege(k.lpCode, k.zyklus).length - 2} weitere
                                     </span>
                                   )}
                                 </div>
@@ -759,7 +759,7 @@ function LehrplanPageContent() {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-primary">
-                        {lp21Kompetenzen.filter((k) => getVorlagenBezuege(k.lpCode).length > 0).length}
+                        {lp21Kompetenzen.filter((k) => getVorlagenBezuege(k.lpCode, k.zyklus).length > 0).length}
                       </div>
                       <div className="text-sm text-muted-foreground">In Lehrmitteln</div>
                     </div>
@@ -932,14 +932,14 @@ function LehrplanPageContent() {
                   )}
 
                   {/* Lehrmittel-Bezüge */}
-                  {getVorlagenBezuege(selectedKompetenz.lpCode).length > 0 && (
+                  {getVorlagenBezuege(selectedKompetenz.lpCode, selectedKompetenz.zyklus).length > 0 && (
                     <div>
                       <h4 className="font-semibold text-sm text-muted-foreground mb-2 flex items-center gap-2">
                         <Library className="h-4 w-4 text-primary" />
-                        In Lehrmitteln ({getVorlagenBezuege(selectedKompetenz.lpCode).length})
+                        In Lehrmitteln ({getVorlagenBezuege(selectedKompetenz.lpCode, selectedKompetenz.zyklus).length})
                       </h4>
                       <div className="space-y-2">
-                        {getVorlagenBezuege(selectedKompetenz.lpCode).map((b) => (
+                        {getVorlagenBezuege(selectedKompetenz.lpCode, selectedKompetenz.zyklus).map((b) => (
                           <Link
                             key={`${b.vorlageId}-${b.blockTitel}`}
                             href="/dashboard/lehrmittel"

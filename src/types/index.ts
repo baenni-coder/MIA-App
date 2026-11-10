@@ -375,6 +375,9 @@ export interface LehrmittelVorlageKapitel {
   titel: string;
   seiten?: string; // z.B. "8–9"
   beurteilungsanlass?: string; // z.B. "BA" (Lernprozessbeobachtung)
+  // LP21-Bezüge dieser Lernumgebung (z.B. Kompetenz "MA.1.A.2" aus dem
+  // Kompetenzraster des Verlags). Werden zum Block zusammengeführt.
+  lp21Codes?: string[];
 }
 
 export interface LehrmittelVorlageBlock {
