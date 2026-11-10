@@ -349,7 +349,9 @@ export type LehrmittelVorlagePhase =
   | "Weiterführung und Vertiefung"
   | "Vertiefung und Weiterführung"
   | "Mini-Projekte"
-  | "Projekte";
+  | "Projekte"
+  | "Themen"
+  | "Üben";
 
 export interface LehrmittelVorlageKapitel {
   nr: number | string; // Nummer der Lernumgebung / des Kapitels
@@ -368,6 +370,15 @@ export interface LehrmittelVorlageBlock {
   blitz?: string[]; // Begleitende Übungen (Blitzrechnen, Rechentraining …), Label via LehrmittelVorlage.uebungenLabel
   beurteilung?: string; // z.B. "LZK 1" → summative Beurteilung in der letzten Woche
   optional?: boolean; // standardmässig nicht ausgewählt (z.B. Vertiefung)
+  // Begleitend: belegt keine eigenen Wochen, sondern läuft parallel über den
+  // gesamten geplanten Zeitraum (z.B. „Üben" im Lehrmittel Deutsch).
+  begleitend?: boolean;
+  zeitraumHinweis?: string; // Empfehlung des Verlags, z.B. "Aug. bis Sept."
+  // LP21-Bezüge als Kompetenzstufen-Codes (z.B. "D.4.B.1.c", "MI.1.3.c").
+  // Werden beim Übernehmen serverseitig in system_kompetenzen-IDs aufgelöst
+  // (MI ↔ IB je nach Kanton), damit u.a. die MIA-Abdeckung greift.
+  lp21Codes?: string[];
+  fokus?: string[]; // fokussierte Kompetenzbereiche (Klartext, z.B. "Lesen")
 }
 
 export interface LehrmittelVorlage {
@@ -380,6 +391,7 @@ export interface LehrmittelVorlage {
   stufen: Stufe[];
   hinweis?: string; // z.B. "Die Angaben sind Richtwerte…"
   uebungenLabel?: string; // Bezeichnung der begleitenden Übungen (Default "Blitzrechnen")
+  bildUrl?: string; // Fallback-Bild (z.B. /lehrmittel/…png), falls das Register keines hat
   bloecke: LehrmittelVorlageBlock[];
 }
 

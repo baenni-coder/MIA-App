@@ -31,6 +31,7 @@ import type {
 import {
   getLehrmittelVorlagen,
   formatWochenRichtwert,
+  miaCodes,
   uebungenLabel,
 } from "@/lib/data/lehrmittel-vorlagen";
 import VorlageUebernehmenDialog from "@/components/jahresplanung/VorlageUebernehmenDialog";
@@ -175,7 +176,8 @@ export default function LehrmittelPage() {
       if (!g.bildUrl) {
         g.bildUrl =
           LEHRMITTEL_THUMBNAILS[g.displayName] ||
-          g.themen.find((t) => t.bildLehrmittel)?.bildLehrmittel;
+          g.themen.find((t) => t.bildLehrmittel)?.bildLehrmittel ||
+          g.vorlagen.find((v) => v.bildUrl)?.bildUrl;
       }
     });
     return arr.sort((a, b) => a.displayName.localeCompare(b.displayName));
@@ -397,6 +399,8 @@ export default function LehrmittelPage() {
                             {g.einheiten.length}{" "}
                             {g.einheiten.length === 1 ? "Einheit" : "Einheiten"}
                             {g.vorlagen.length > 0 && " · Jahresplanung verfügbar"}
+                            {g.vorlagen.some((v) => v.bloecke.some((b) => miaCodes(b).length > 0)) &&
+                              " · mit MIA-Bezug"}
                           </div>
                         </div>
                       </div>
@@ -483,11 +487,21 @@ export default function LehrmittelPage() {
                                       {b.beurteilung}
                                     </Badge>
                                   )}
+                                  {b.zeitraumHinweis && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {b.zeitraumHinweis}
+                                    </span>
+                                  )}
+                                  {miaCodes(b).length > 0 && (
+                                    <Badge className="text-xs bg-indigo-100 text-indigo-800 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-200">
+                                      MIA: {miaCodes(b).join(", ")}
+                                    </Badge>
+                                  )}
                                 </summary>
                                 <ul className="mt-2 space-y-0.5 text-sm text-muted-foreground">
                                   {b.kapitel.map((k) => (
                                     <li key={String(k.nr)}>
-                                      {k.nr} {k.titel}
+                                      {k.nr ? `${k.nr} ` : ""}{k.titel}
                                       {k.seiten && <> (S. {k.seiten})</>}
                                       {k.beurteilungsanlass && (
                                         <Badge variant="outline" className="ml-2 text-[10px]">
@@ -497,6 +511,28 @@ export default function LehrmittelPage() {
                                     </li>
                                   ))}
                                 </ul>
+                                {b.fokus && b.fokus.length > 0 && (
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    Fokus: {b.fokus.join(", ")}
+                                  </p>
+                                )}
+                                {b.lp21Codes && b.lp21Codes.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {b.lp21Codes.map((c) => (
+                                      <Badge
+                                        key={c}
+                                        variant="outline"
+                                        className={`text-[10px] font-mono ${
+                                          c.startsWith("MI.") || c.startsWith("IB.")
+                                            ? "border-indigo-300 text-indigo-700 dark:text-indigo-300"
+                                            : ""
+                                        }`}
+                                      >
+                                        {c}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
                                 {b.blitz && b.blitz.length > 0 && (
                                   <p className="mt-2 text-xs text-muted-foreground">
                                     {uebungenLabel(v)}: {b.blitz.map((x) => `«${x}»`).join(", ")}

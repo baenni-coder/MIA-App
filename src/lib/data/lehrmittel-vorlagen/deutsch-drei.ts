@@ -1,0 +1,106 @@
+import type { LehrmittelVorlage } from "@/types";
+
+/**
+ * Jahresplanung „Deutsch Drei“ (Lehrmittelverlag Zürich, 3. Klasse).
+ * Quelle: LMVZ, Bezüge zum Lehrplan 21, Zyklus 2 (Januar 2026) + Jahresübersicht.
+ * AUTOMATISCH aus der LP21-Bezugsmatrix extrahiert (Zellen = Kompetenzstufen,
+ * Rahmen = fokussierte Kompetenzbereiche, letzte Spalte = Medien und Informatik).
+ * Themen ≈ 2/3 der Deutschzeit (5 Kapitel à ca. 6 Wochen + Freibereich),
+ * Üben ≈ 1/3 begleitend (Reihenfolge frei).
+ */
+export const deutschDrei: LehrmittelVorlage = {
+  id: "deutsch-drei",
+  lehrmittel: "Deutsch Drei",
+  titel: "Jahresplanung Deutsch Drei",
+  verlag: "Lehrmittelverlag Zürich",
+  quelle: "© Lehrmittelverlag Zürich, Januar 2026 – Bezüge zum Lehrplan 21, Zyklus 2 (Grundlage: LP21 Kanton Zürich)",
+  fachbereichId: "D",
+  stufen: ["3. Klasse"],
+  bildUrl: "/lehrmittel/deutsch-drei.png",
+  hinweis:
+    "Themen (5 Kapitel à ca. 6 Wochen + Freibereich) beanspruchen etwa zwei Drittel, Üben etwa einen Drittel der Unterrichtszeit. Jedes Kapitel besteht aus einem Basismodul und drei Wahlmodulen. LP21-Bezüge gemäss Übersicht des Verlags; MIA-Bezüge werden beim Übernehmen als Kompetenzen eingetragen.",
+  bloecke: [
+    {
+      id: "kapitel-1",
+      titel: "Kapitel 1: Aussergewöhnlich",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "Aug. bis Sept.",
+      kapitel: [],
+      fokus: ["Hören", "Lesen", "Schreiben"],
+      lp21Codes: ["D.1.B.1.d", "D.1.B.1.e", "D.2.B.1.c", "D.2.B.1.e", "D.4.A.1.d", "D.4.B.1.c", "D.4.D.1.c", "D.4.E.1.c", "D.4.F.1.b", "D.4.G.1.c", "MI.1.2.c", "MI.1.3.a", "MI.1.3.c"],
+    },
+    {
+      id: "kapitel-2",
+      titel: "Kapitel 2: Rund um Schrift und Sprache",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "Okt. bis Dez.",
+      kapitel: [],
+      fokus: ["Sprechen", "Sprache(n) im Fokus"],
+      lp21Codes: ["D.3.A.1.c", "D.3.B.1.d", "D.5.A.1.b", "D.5.C.1.d", "MI.1.2.a", "MI.1.2.c", "MI.1.3.c"],
+    },
+    {
+      id: "kapitel-3",
+      titel: "Kapitel 3: Gedankenwelt",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "Jan. bis März",
+      kapitel: [],
+      fokus: ["Hören", "Schreiben"],
+      lp21Codes: ["D.1.C.1.d", "D.4.C.1.d", "D.4.E.1.b", "D.4.F.1.b", "D.4.F.1.c", "MI.1.3.c", "MI.1.4.a"],
+    },
+    {
+      id: "kapitel-4",
+      titel: "Kapitel 4: Literarischen Texten begegnen",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "März bis Mai",
+      kapitel: [],
+      fokus: ["Lesen", "Schreiben", "Literatur im Fokus"],
+      lp21Codes: ["D.2.A.1.e", "D.2.C.1.e", "D.2.D.1.c", "D.4.B.1.c", "D.4.D.1.d", "D.6.A.1.d", "D.6.A.2.d", "D.6.C.1.e", "MI.1.1.a", "MI.1.3.c"],
+    },
+    {
+      id: "kapitel-5",
+      titel: "Kapitel 5: Einfach mal anders",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "Mai bis Juni",
+      kapitel: [],
+      fokus: ["Lesen", "Sprechen"],
+      lp21Codes: ["D.2.C.1.e", "D.2.D.1.b", "D.3.A.1.c", "D.3.C.1.c", "D.3.C.1.d", "D.3.D.1.b", "MI.1.2.c", "MI.1.3.a", "MI.1.3.b"],
+    },
+    {
+      id: "freibereich",
+      titel: "Freibereich",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "Juni bis Juli",
+      kapitel: [],
+    },
+    {
+      id: "ueben",
+      titel: "Üben",
+      phase: "Üben",
+      wochenMin: 0,
+      wochenMax: 0,
+      begleitend: true,
+      zeitraumHinweis: "ca. ein Drittel der Deutschzeit",
+      kapitel: [
+        { nr: "", titel: "Lesen" },
+        { nr: "", titel: "Hören" },
+        { nr: "", titel: "Schreiben" },
+        { nr: "", titel: "Grammatik und Rechtschreibung" },
+        { nr: "", titel: "Handschrift" },
+      ],
+      fokus: ["Lesen", "Hören", "Schreiben", "Sprache(n) im Fokus"],
+      lp21Codes: ["D.1.A.1.e", "D.1.B.1.e", "D.1.C.1.d", "D.2.A.1.d", "D.2.A.1.e", "D.2.C.1.e", "D.4.A.1.e", "D.4.A.1.f", "D.4.F.1.b", "D.4.F.1.c", "D.5.A.1.a", "D.5.C.1.d", "D.5.D.1.b", "D.5.E.1.c"],
+    },
+  ],
+};

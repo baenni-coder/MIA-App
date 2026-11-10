@@ -1,0 +1,106 @@
+import type { LehrmittelVorlage } from "@/types";
+
+/**
+ * Jahresplanung „Deutsch Sechs“ (Lehrmittelverlag Zürich, 6. Klasse).
+ * Quelle: LMVZ, Bezüge zum Lehrplan 21, Zyklus 2 (Januar 2026) + Jahresübersicht.
+ * AUTOMATISCH aus der LP21-Bezugsmatrix extrahiert (Zellen = Kompetenzstufen,
+ * Rahmen = fokussierte Kompetenzbereiche, letzte Spalte = Medien und Informatik).
+ * Themen ≈ 2/3 der Deutschzeit (5 Kapitel à ca. 6 Wochen + Freibereich),
+ * Üben ≈ 1/3 begleitend (Reihenfolge frei).
+ */
+export const deutschSechs: LehrmittelVorlage = {
+  id: "deutsch-sechs",
+  lehrmittel: "Deutsch Sechs",
+  titel: "Jahresplanung Deutsch Sechs",
+  verlag: "Lehrmittelverlag Zürich",
+  quelle: "© Lehrmittelverlag Zürich, Januar 2026 – Bezüge zum Lehrplan 21, Zyklus 2 (Grundlage: LP21 Kanton Zürich)",
+  fachbereichId: "D",
+  stufen: ["6. Klasse"],
+  bildUrl: "/lehrmittel/deutsch-sechs.png",
+  hinweis:
+    "Themen (5 Kapitel à ca. 6 Wochen + Freibereich) beanspruchen etwa zwei Drittel, Üben etwa einen Drittel der Unterrichtszeit. Jedes Kapitel besteht aus einem Basismodul und drei Wahlmodulen. LP21-Bezüge gemäss Übersicht des Verlags; MIA-Bezüge werden beim Übernehmen als Kompetenzen eingetragen.",
+  bloecke: [
+    {
+      id: "kapitel-1",
+      titel: "Kapitel 1: Sachlich berichten",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "Aug. bis Sept.",
+      kapitel: [],
+      fokus: ["Hören", "Lesen", "Schreiben"],
+      lp21Codes: ["D.1.B.1.f", "D.2.A.1.g", "D.2.B.1.f", "D.2.B.1.g", "D.4.B.1.e", "D.4.B.1.f", "D.4.C.1.e", "D.4.C.1.f", "D.4.D.1.d", "D.4.E.1.d", "D.4.E.1.e", "D.4.F.1.e", "D.4.G.1.e"],
+    },
+    {
+      id: "kapitel-2",
+      titel: "Kapitel 2: Im Gespräch",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "Okt. bis Dez.",
+      kapitel: [],
+      fokus: ["Sprechen", "Sprache(n) im Fokus"],
+      lp21Codes: ["D.1.A.1.g", "D.1.C.1.e", "D.1.C.1.f", "D.1.D.1.c", "D.3.C.1.e", "D.3.C.1.f", "D.3.D.1.c", "D.3.D.1.d", "D.5.B.1.c", "D.5.C.1.d"],
+    },
+    {
+      id: "kapitel-3",
+      titel: "Kapitel 3: Spektakel fürs Ohr",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "Jan. bis März",
+      kapitel: [],
+      fokus: ["Hören", "Schreiben"],
+      lp21Codes: ["D.1.B.1.f", "D.2.C.1.f", "D.4.B.1.f", "D.4.C.1.d", "D.4.E.1.e", "D.4.F.1.d", "D.4.F.1.e", "D.4.G.1.d", "D.4.G.1.e", "D.6.A.1.e", "D.6.A.1.f", "D.6.B.1.d", "D.6.C.1.f"],
+    },
+    {
+      id: "kapitel-4",
+      titel: "Kapitel 4: Aus dem realen Leben erzählen",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "März bis Mai",
+      kapitel: [],
+      fokus: ["Lesen", "Schreiben", "Literatur im Fokus"],
+      lp21Codes: ["D.2.C.1.f", "D.2.C.1.g", "D.2.D.1.c", "D.4.B.1.e", "D.4.B.1.f", "D.4.C.1.e", "D.4.C.1.f", "D.4.D.1.d", "D.4.E.1.d", "D.4.E.1.e", "D.4.F.1.e", "D.4.G.1.d", "D.6.A.1.e", "D.6.A.1.f", "D.6.A.2.f", "D.6.A.2.g", "D.6.B.1.c", "D.6.B.1.d", "D.6.C.1.f", "D.6.C.1.g"],
+    },
+    {
+      id: "kapitel-5",
+      titel: "Kapitel 5: Film ab! Buch auf!",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "Mai bis Juni",
+      kapitel: [],
+      fokus: ["Lesen", "Sprechen"],
+      lp21Codes: ["D.2.A.1.g", "D.2.C.1.f", "D.2.C.1.g", "D.3.B.1.f", "D.3.B.1.g", "D.3.D.1.c", "D.6.A.1.e", "D.6.B.1.c", "D.6.C.1.g"],
+    },
+    {
+      id: "freibereich",
+      titel: "Freibereich",
+      phase: "Themen",
+      wochenMin: 6,
+      wochenMax: 6,
+      zeitraumHinweis: "Juni bis Juli",
+      kapitel: [],
+    },
+    {
+      id: "ueben",
+      titel: "Üben",
+      phase: "Üben",
+      wochenMin: 0,
+      wochenMax: 0,
+      begleitend: true,
+      zeitraumHinweis: "ca. ein Drittel der Deutschzeit",
+      kapitel: [
+        { nr: "", titel: "Hören und Lesen" },
+        { nr: "", titel: "Schreiben" },
+        { nr: "", titel: "Handschrift" },
+        { nr: "", titel: "Grammatik" },
+        { nr: "", titel: "Rechtschreibung" },
+      ],
+      fokus: ["Hören", "Lesen", "Schreiben", "Sprache(n) im Fokus"],
+      lp21Codes: ["D.1.A.1.e", "D.1.B.1.d", "D.1.B.1.e", "D.1.B.1.f", "D.2.A.1.e", "D.2.A.1.f", "D.2.A.1.g", "D.2.B.1.d", "D.2.B.1.e", "D.2.B.1.f", "D.2.C.1.e", "D.2.C.1.f", "D.4.A.1.g", "D.4.A.1.h", "D.4.B.1.e", "D.4.B.1.f", "D.4.C.1.e", "D.4.D.1.d", "D.5.A.1.b", "D.5.C.1.d", "D.5.D.1.c", "D.5.D.1.d", "D.5.E.1.d", "D.5.E.1.e"],
+    },
+  ],
+};
