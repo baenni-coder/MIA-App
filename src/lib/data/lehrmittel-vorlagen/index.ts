@@ -4,6 +4,10 @@ import type {
   LehrmittelVorlageBlock,
 } from "@/types";
 import { findFachbereich, getLp21FachbereichFarbe } from "@/lib/data/lp21-data";
+import { deutschDrei } from "./deutsch-drei";
+import { deutschVier } from "./deutsch-vier";
+import { deutschFuenf } from "./deutsch-fuenf";
+import { deutschSechs } from "./deutsch-sechs";
 import { schweizerZahlenbuch3 } from "./schweizer-zahlenbuch-3";
 import { schweizerZahlenbuch4 } from "./schweizer-zahlenbuch-4";
 import { schweizerZahlenbuch5 } from "./schweizer-zahlenbuch-5";
@@ -18,6 +22,10 @@ const VORLAGEN: LehrmittelVorlage[] = [
   schweizerZahlenbuch4,
   schweizerZahlenbuch5,
   schweizerZahlenbuch6,
+  deutschDrei,
+  deutschVier,
+  deutschFuenf,
+  deutschSechs,
 ];
 
 export function getLehrmittelVorlagen(): LehrmittelVorlage[] {
@@ -42,6 +50,7 @@ export function uebungenLabel(vorlage: LehrmittelVorlage): string {
 }
 
 export function formatWochenRichtwert(block: LehrmittelVorlageBlock): string {
+  if (block.begleitend) return "begleitend";
   return block.wochenMin === block.wochenMax
     ? `${block.wochenMin} ${block.wochenMin === 1 ? "Woche" : "Wochen"}`
     : `${block.wochenMin}–${block.wochenMax} Wochen`;
@@ -75,11 +84,30 @@ export interface GeplanterBlock {
   teile: GeplanterTeil[]; // >1, wenn der Block über den Jahreswechsel geht
 }
 
+/** Teilt eine Wochenfolge am Jahreswechsel in zusammenhängende Teile. */
+function inTeile(wochen: Schulwoche[]): GeplanterTeil[] {
+  const teile: GeplanterTeil[] = [];
+  for (const w of wochen) {
+    const last = teile[teile.length - 1];
+    if (last && last.wochen[0].jahr === w.jahr) {
+      last.wochen.push(w);
+      last.zeitraumEnde = w.kw;
+    } else {
+      teile.push({ zeitraumStart: w.kw, zeitraumEnde: w.kw, wochen: [w] });
+    }
+  }
+  return teile;
+}
+
 /**
  * Verteilt die ausgewählten Blöcke nacheinander auf die Schulwochen ab
  * `startKW`. Ferienwochen werden übersprungen. Da die Jahresplanung
  * Zeiträume innerhalb eines Kalenderjahres speichert (KW-Start ≤ KW-Ende),
  * wird ein Block, der über den Jahreswechsel läuft, in zwei Teile getrennt.
+ *
+ * Begleitende Blöcke (`begleitend`) belegen keine eigenen Wochen, sondern
+ * laufen parallel von der ersten bis zur letzten verplanten Woche (bzw. über
+ * die ganze Restzeit, wenn nur begleitende Blöcke gewählt sind).
  */
 export function planeVorlage(
   vorlage: LehrmittelVorlage,
@@ -95,7 +123,7 @@ export function planeVorlage(
   // Reihenfolge der Vorlage beibehalten
   for (const block of vorlage.bloecke) {
     const a = auswahl.find((x) => x.blockId === block.id);
-    if (!a) continue;
+    if (!a || block.begleitend) continue;
     const n = Math.max(1, Math.floor(a.wochen));
     const wochen = unterricht.slice(idx, idx + n);
     if (wochen.length < n) {
@@ -104,20 +132,25 @@ export function planeVorlage(
       continue;
     }
     idx += n;
-
-    const teile: GeplanterTeil[] = [];
-    for (const w of wochen) {
-      const last = teile[teile.length - 1];
-      if (last && last.wochen[0].jahr === w.jahr) {
-        last.wochen.push(w);
-        last.zeitraumEnde = w.kw;
-      } else {
-        teile.push({ zeitraumStart: w.kw, zeitraumEnde: w.kw, wochen: [w] });
-      }
-    }
-    result.push({ block, wochen: n, passt: true, teile });
+    result.push({ block, wochen: n, passt: true, teile: inTeile(wochen) });
   }
-  return result;
+
+  // Begleitende Blöcke über den verplanten Zeitraum legen
+  const genutzt = Math.min(idx, unterricht.length);
+  const spanne = unterricht.slice(0, genutzt > 0 ? genutzt : unterricht.length);
+  for (const block of vorlage.bloecke) {
+    if (!block.begleitend) continue;
+    if (!auswahl.some((x) => x.blockId === block.id)) continue;
+    result.push({
+      block,
+      wochen: spanne.length,
+      passt: spanne.length > 0,
+      teile: inTeile(spanne),
+    });
+  }
+  // Begleitende Blöcke in Vorlagen-Reihenfolge einsortieren
+  const order = new Map(vorlage.bloecke.map((b, i) => [b.id, i]));
+  return result.sort((x, y) => (order.get(x.block.id)! - order.get(y.block.id)!));
 }
 
 // ============================================
@@ -135,6 +168,12 @@ export interface VorlageEinheitPayload {
   beurteilungen: Beurteilung[];
   materialien: string[];
   lehrmittel: string;
+  lp21Codes: string[]; // werden serverseitig zu kompetenzenIds aufgelöst
+}
+
+/** MI-/IB-Codes eines Blocks (MIA-Bezug). */
+export function miaCodes(block: LehrmittelVorlageBlock): string[] {
+  return (block.lp21Codes || []).filter((c) => c.startsWith("MI.") || c.startsWith("IB."));
 }
 
 function seitenBereich(block: LehrmittelVorlageBlock): string | null {
@@ -149,18 +188,46 @@ function seitenBereich(block: LehrmittelVorlageBlock): string | null {
 }
 
 function lernzieleText(vorlage: LehrmittelVorlage, block: LehrmittelVorlageBlock): string {
-  const zeilen: string[] = [`Lernumgebungen (${vorlage.lehrmittel}):`];
-  block.kapitel.forEach((k) => {
+  const zeilen: string[] = [];
+  if (block.kapitel.length > 0) {
     zeilen.push(
-      `• ${k.nr} ${k.titel}${k.seiten ? ` (S. ${k.seiten})` : ""}${
-        k.beurteilungsanlass ? ` – ${k.beurteilungsanlass}` : ""
-      }`
+      block.begleitend
+        ? `Bereiche (${vorlage.lehrmittel}, Reihenfolge frei):`
+        : `Lernumgebungen (${vorlage.lehrmittel}):`
     );
-  });
-  if (block.blitz && block.blitz.length > 0) {
-    zeilen.push("", `${uebungenLabel(vorlage)}: ${block.blitz.map((b) => `«${b}»`).join(", ")}`);
+    block.kapitel.forEach((k) => {
+      zeilen.push(
+        `• ${k.nr ? `${k.nr} ` : ""}${k.titel}${k.seiten ? ` (S. ${k.seiten})` : ""}${
+          k.beurteilungsanlass ? ` – ${k.beurteilungsanlass}` : ""
+        }`
+      );
+    });
+    zeilen.push("");
   }
-  zeilen.push("", `Richtwert gemäss Verlag: ${formatWochenRichtwert(block)}`);
+  if (block.fokus && block.fokus.length > 0) {
+    zeilen.push(`Fokussierte Kompetenzbereiche: ${block.fokus.join(", ")}`);
+  }
+  const mia = miaCodes(block);
+  if (mia.length > 0) {
+    zeilen.push(`MIA-Bezug (Medien und Informatik): ${mia.join(", ")}`);
+  }
+  const fach = (block.lp21Codes || []).filter((c) => !mia.includes(c));
+  if (fach.length > 0) {
+    zeilen.push(`LP21-Bezüge: ${fach.join(", ")}`);
+  }
+  if (block.blitz && block.blitz.length > 0) {
+    zeilen.push(`${uebungenLabel(vorlage)}: ${block.blitz.map((b) => `«${b}»`).join(", ")}`);
+  }
+  if (zeilen.length > 0 && zeilen[zeilen.length - 1] !== "") zeilen.push("");
+  zeilen.push(
+    block.begleitend
+      ? `Läuft begleitend über das ganze Schuljahr${
+          block.zeitraumHinweis ? ` (${block.zeitraumHinweis})` : ""
+        }.`
+      : `Richtwert gemäss Verlag: ${formatWochenRichtwert(block)}${
+          block.zeitraumHinweis ? ` (${block.zeitraumHinweis})` : ""
+        }`
+  );
   return zeilen.join("\n");
 }
 
@@ -225,6 +292,7 @@ export function vorlageZuEinheiten(
           .map((x) => x.b),
         materialien: seiten ? [`${vorlage.lehrmittel}, ${seiten}`] : [],
         lehrmittel: vorlage.lehrmittel,
+        lp21Codes: block.lp21Codes || [],
       });
     });
   }

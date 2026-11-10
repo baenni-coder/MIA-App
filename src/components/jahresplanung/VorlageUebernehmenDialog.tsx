@@ -25,6 +25,7 @@ import {
 import {
   defaultWochen,
   formatWochenRichtwert,
+  miaCodes,
   planeVorlage,
   type VorlageAuswahl,
 } from "@/lib/data/lehrmittel-vorlagen";
@@ -110,7 +111,9 @@ export default function VorlageUebernehmenDialog({
     [vorlage, JSON.stringify(auswahlListe), schulwochen, startKW]
   );
   const anzahlNichtPlatziert = plan.filter((p) => !p.passt).length;
-  const summeWochen = auswahlListe.reduce((s, a) => s + a.wochen, 0);
+  const summeWochen = vorlage.bloecke
+    .filter((b) => auswahl[b.id]?.aktiv && !b.begleitend)
+    .reduce((s, b) => s + auswahl[b.id].wochen, 0);
   const verfuegbareWochen = schulwochen
     .slice(Math.max(0, schulwochen.findIndex((w) => w.kw === startKW)))
     .filter((w) => !w.istFerien).length;
@@ -144,6 +147,12 @@ export default function VorlageUebernehmenDialog({
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || "Fehler beim Übernehmen");
       let msg = `${d.count} Einheiten wurden in die Jahresplanung ${schuljahr} übernommen.`;
+      if (d.miaZugeordnet > 0) {
+        msg += `\n\n${d.miaZugeordnet} MIA-Kompetenz(en) wurden zugeordnet – sie zählen in der MIA-Abdeckung.`;
+      }
+      if (d.unaufgeloesteCodes?.length) {
+        msg += `\n\n${d.unaufgeloesteCodes.length} LP21-Code(s) sind in der App (noch) nicht als Kompetenz vorhanden und stehen nur im Lernziel-Text.`;
+      }
       if (d.nichtPlatziert?.length) {
         msg += `\n\nNicht mehr ins Schuljahr gepasst: ${d.nichtPlatziert.join(", ")}`;
       }
@@ -249,12 +258,19 @@ export default function VorlageUebernehmenDialog({
                             {b.beurteilung}
                           </Badge>
                         )}
+                        {miaCodes(b).length > 0 && (
+                          <Badge className="text-xs bg-indigo-100 text-indigo-800 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-200">
+                            MIA: {miaCodes(b).join(", ")}
+                          </Badge>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Richtwert {formatWochenRichtwert(b)}
+                        {b.begleitend ? "Läuft begleitend" : <>Richtwert {formatWochenRichtwert(b)}</>}
+                        {b.zeitraumHinweis && <> ({b.zeitraumHinweis})</>}
                         {state.aktiv && <> · {zeitraumLabel(b.id)}</>}
                       </div>
                     </div>
+                    {!b.begleitend && (
                     <div className="flex items-center gap-1.5">
                       <Input
                         type="number"
@@ -276,6 +292,7 @@ export default function VorlageUebernehmenDialog({
                       />
                       <span className="text-xs text-muted-foreground">Wo.</span>
                     </div>
+                    )}
                   </div>
                 </div>
               );
