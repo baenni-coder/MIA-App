@@ -1,5 +1,6 @@
 "use client";
 
+import { gruppiereKompetenzen, kompakteCodeListe } from "@/lib/kompetenz-codes";
 import {
   Document,
   Page,
@@ -140,6 +141,11 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontFamily: "Helvetica-Bold",
     flex: 1,
+  },
+  einheitCodes: {
+    fontSize: 6,
+    fontFamily: "Helvetica",
+    color: colors.textSecondary,
   },
   einheitFachbereich: {
     fontSize: 7,
@@ -400,10 +406,8 @@ export function QuartalsplanungPDF({ schuljahr, quartal, wochen, einheiten, lehr
                           woche.kw >= b.kalenderwoche &&
                           woche.kw <= (b.kalenderwocheEnde ?? b.kalenderwoche)
                       );
-                    const kompetenzLabel =
-                      einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
-                        ? einheit.kompetenzenNamen[0]
-                        : einheit.fachbereichName || einheit.fachbereichId;
+                    const kompetenzLabel = einheit.fachbereichName || einheit.fachbereichId;
+                    const codes = kompakteCodeListe(einheit.kompetenzenNamen, 6);
 
                     return (
                       <View key={einheit.id} style={{ marginBottom: 2 }}>
@@ -417,7 +421,10 @@ export function QuartalsplanungPDF({ schuljahr, quartal, wochen, einheiten, lehr
                           <Text style={styles.einheitFachbereich}>
                             {kompetenzLabel}
                           </Text>
-                          <Text style={styles.einheitTitle}>{einheit.titel}</Text>
+                          <Text style={styles.einheitTitle}>
+                            {einheit.titel}
+                            {codes ? <Text style={styles.einheitCodes}>{"  " + codes}</Text> : null}
+                          </Text>
                           <Text
                             style={[
                               styles.statusBadge,
@@ -570,7 +577,7 @@ export function WochenplanungPDF({
                 {/* Card Body */}
                 <View style={styles.detailBody}>
                   {/* Lernziele */}
-                  {einheit.lernziele && (
+                  {!!einheit.lernziele && (
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionLabel}>Lernziele</Text>
                       <Text style={styles.detailSectionText}>{einheit.lernziele}</Text>
@@ -582,9 +589,9 @@ export function WochenplanungPDF({
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionLabel}>LP21-Kompetenzen</Text>
                       <View style={styles.badgeRow}>
-                        {einheit.kompetenzenNamen.map((name, i) => (
-                          <Text key={i} style={styles.kompetenzBadge}>
-                            {name}
+                        {gruppiereKompetenzen(einheit.kompetenzenNamen).map((g) => (
+                          <Text key={g.label} style={styles.kompetenzBadge}>
+                            {g.label}
                           </Text>
                         ))}
                       </View>
@@ -634,7 +641,7 @@ export function WochenplanungPDF({
                   )}
 
                   {/* Notizen */}
-                  {einheit.notizen && (
+                  {!!einheit.notizen && (
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionLabel}>Reflexion / Notizen</Text>
                       <Text style={styles.notizenBox}>{einheit.notizen}</Text>
@@ -642,7 +649,7 @@ export function WochenplanungPDF({
                   )}
 
                   {/* Verknüpftes MIA-Thema */}
-                  {einheit.linkedMiaThemeName && (
+                  {!!einheit.linkedMiaThemeName && (
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionLabel}>Verknüpftes MIA-Thema</Text>
                       <Text style={styles.detailSectionText}>{einheit.linkedMiaThemeName}</Text>
@@ -743,10 +750,8 @@ export function JahresplanungPDF({ schuljahr, wochen, einheiten, lehrerName, kla
                               woche.kw >= b.kalenderwoche &&
                               woche.kw <= (b.kalenderwocheEnde ?? b.kalenderwoche)
                           );
-                        const kompetenzLabel =
-                          einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
-                            ? einheit.kompetenzenNamen[0]
-                            : einheit.fachbereichName || einheit.fachbereichId;
+                        const kompetenzLabel = einheit.fachbereichName || einheit.fachbereichId;
+                        const codes = kompakteCodeListe(einheit.kompetenzenNamen, 6);
 
                         return (
                           <View key={einheit.id} style={{ marginBottom: 2 }}>
@@ -760,7 +765,10 @@ export function JahresplanungPDF({ schuljahr, wochen, einheiten, lehrerName, kla
                               <Text style={styles.einheitFachbereich}>
                                 {kompetenzLabel}
                               </Text>
-                              <Text style={styles.einheitTitle}>{einheit.titel}</Text>
+                              <Text style={styles.einheitTitle}>
+                            {einheit.titel}
+                            {codes ? <Text style={styles.einheitCodes}>{"  " + codes}</Text> : null}
+                          </Text>
                               <Text
                                 style={[
                                   styles.statusBadge,

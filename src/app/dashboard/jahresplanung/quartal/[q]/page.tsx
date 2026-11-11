@@ -1,5 +1,6 @@
 "use client";
 
+import { kompakteCodeListe } from "@/lib/kompetenz-codes";
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -303,11 +304,12 @@ export default function QuartalsansichtPage() {
 
   // Einheiten-Chip (Listenansicht); fullWidth für Team-Spalten
   const renderEinheitChip = (einheit: JahresplanEinheit, fullWidth = false) => {
-    // Kompetenzbereich oder Fachbereich anzeigen
-    const kompetenzLabel =
-      einheit.kompetenzenNamen && einheit.kompetenzenNamen.length > 0
-        ? einheit.kompetenzenNamen[0]
-        : einheit.fachbereichName || einheit.fachbereichId;
+    // Fachbereich + kompakte Kompetenz-Codes (voller Text als Tooltip)
+    const codes = kompakteCodeListe(einheit.kompetenzenNamen, 3);
+    const kompetenzLabel = [einheit.fachbereichName || einheit.fachbereichId, codes]
+      .filter(Boolean)
+      .join(" · ");
+    const kompetenzTooltip = (einheit.kompetenzenNamen || []).join("\n");
 
     return (
       <div
@@ -323,6 +325,7 @@ export default function QuartalsansichtPage() {
         <p
           className="text-[10px] leading-tight truncate"
           style={{ color: einheit.fachbereichFarbe || "#6b7280" }}
+          title={kompetenzTooltip || undefined}
         >
           {einheit.istSpezialwoche && (
             <Sparkles className="h-2.5 w-2.5 inline-block mr-0.5 -mt-0.5" />
