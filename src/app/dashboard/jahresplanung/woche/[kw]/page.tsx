@@ -1,5 +1,6 @@
 "use client";
 
+import KompetenzCodes from "@/components/jahresplanung/KompetenzCodes";
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -466,13 +467,7 @@ export default function WochenansichtPage() {
                           <h4 className="text-sm font-medium text-gray-700 mb-1">
                             LP21-Kompetenzen
                           </h4>
-                          <div className="flex flex-wrap gap-1">
-                            {einheit.kompetenzenNamen.map((name, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs">
-                                {name}
-                              </Badge>
-                            ))}
-                          </div>
+                          <KompetenzCodes namen={einheit.kompetenzenNamen} ausklappbar />
                         </div>
                       )}
 

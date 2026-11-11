@@ -90,6 +90,13 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - `src/components/jahresplanung/VorlageUebernehmenDialog.tsx`, `src/app/dashboard/lehrmittel/page.tsx`
 - `src/app/dashboard/jahresplanung/page.tsx` – Button „Aus Lehrmittel", `?schuljahr=`-Parameter
 
+**NEU (2026-11)** – Kompakte Kompetenz-Codes in der Jahresplanung:
+- Einheiten aus Lehrmittel-Vorlagen tragen viele Kompetenzstufen; Ansichten und PDFs zeigen sie jetzt **nur als Codes**, Stufen derselben Kompetenz gebündelt (`MA.1.A.1.c, d, e` → `MA.1.A.1.c–e`).
+- `src/lib/kompetenz-codes.ts`: `parseKompetenzName()` („CODE: Text"), `gruppiereKompetenzen()`, `kompakteCodeListe(namen, max)`, `gruppenTooltip()`.
+- `src/components/jahresplanung/KompetenzCodes.tsx`: Code-Chips mit vollem Text als Tooltip (Mouse-Over) und optional „Ausschreiben" (Touch-Geräte) – genutzt in der Wochenansicht.
+- Quartalsansicht (Liste): Label = Fachbereich · max. 3 Code-Gruppen, Tooltip mit allen Kompetenzen (vorher stand dort der volle Text der ersten Kompetenz).
+- PDFs: Quartals-/Jahres-PDF zeigen Fach + Titel + kleine Code-Zeile (max. 6 Gruppen), Wochen-PDF Code-Chips statt ausgeschriebener Kompetenzen. Der Einheit-Editor zeigt weiterhin die vollen Texte.
+
 **NEU (2026-11)** – Ganzer Lehrplan & Lehrmittel-Kategorisierung:
 - **Lehrplan für alle Fächer** (`/dashboard/lehrplan`): Fach-Auswahl oben („Medien und Informatik" = bisherige MIA-Ansicht mit Unterrichtsideen, Default) plus alle per LP21-Sync geladenen Fachbereiche (`/api/kompetenzen/lp21/struktur`, MI/IB ausgeblendet). Nicht-MIA-Fächer laden `/api/kompetenzen/lp21?fachbereich=` + Struktur und gliedern Kompetenzbereich (Akkordeon, standardmässig zu) → Kompetenz (Überschrift mit Code + Text) → Kompetenzstufen (gleiche Kacheln via `renderCard()`). Suche/Zyklus-Filter gelten für beide Ansichten; `?fach=D` ist teilbar, `?search=D.4.B.1.c` wechselt Fach und öffnet die Stufe.
 - **„In Lehrmitteln"**: Kacheln und Detail-Dialog zeigen, in welchen Jahresplanungsvorlagen eine Kompetenzstufe vorkommt (`getVorlagenBezuege(lpCode)` in `lehrmittel-vorlagen/index.ts`, MI ↔ IB gleichgesetzt).
