@@ -319,9 +319,9 @@ export default function LehrmittelPage() {
   const filterAktiv = filterFach !== "alle" || filterStufe !== "alle" || !!filterText.trim();
 
   // Dialog öffnen (neu / bearbeiten)
-  const openCreate = () => {
+  const openCreate = (name = "") => {
     setEditingId(null);
-    setFormName("");
+    setFormName(name);
     setFormBeschreibung("");
     setFormBildUrl("");
     setFormFachbereiche([]);
@@ -460,7 +460,7 @@ export default function LehrmittelPage() {
                 sammeln
               </p>
             </div>
-            <Button onClick={openCreate}>
+            <Button onClick={() => openCreate()}>
               <Plus className="h-4 w-4 mr-2" />
               Lehrmittel hinzufügen
             </Button>
@@ -662,6 +662,23 @@ export default function LehrmittelPage() {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
+                      {/* Gruppe ohne Register-Eintrag (z.B. nur Verlags-Vorlage):
+                          im Register erfassen, um Bild/Beschreibung zu ergänzen */}
+                      {!reg && (
+                        <div className="flex flex-wrap items-center gap-2 pb-3 mb-3 border-b">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openCreate(g.displayName)}
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" />
+                            Im Register erfassen
+                          </Button>
+                          <span className="text-xs text-muted-foreground">
+                            Noch kein Register-Eintrag – erfassen, um Bild und Beschreibung zu ergänzen.
+                          </span>
+                        </div>
+                      )}
                       {/* Verwaltungs-Aktionen für Register-Einträge */}
                       {canManage && (
                         <div className="flex flex-wrap gap-2 pb-3 mb-3 border-b">
