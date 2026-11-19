@@ -12,6 +12,7 @@ import { schweizerZahlenbuch3 } from "./schweizer-zahlenbuch-3";
 import { schweizerZahlenbuch4 } from "./schweizer-zahlenbuch-4";
 import { schweizerZahlenbuch5 } from "./schweizer-zahlenbuch-5";
 import { schweizerZahlenbuch6 } from "./schweizer-zahlenbuch-6";
+import { natech1, natech2, natech3, natech4, natech5, natech6 } from "./natech";
 
 /**
  * Registry aller Lehrmittel-Jahresplanungsvorlagen.
@@ -26,6 +27,12 @@ const VORLAGEN: LehrmittelVorlage[] = [
   deutschVier,
   deutschFuenf,
   deutschSechs,
+  natech1,
+  natech2,
+  natech3,
+  natech4,
+  natech5,
+  natech6,
 ];
 
 export function getLehrmittelVorlagen(): LehrmittelVorlage[] {
@@ -41,8 +48,32 @@ export function getLehrmittelVorlageById(id: string): LehrmittelVorlage | undefi
  * (lässt Luft für Vertiefung/Projekte; die Lehrperson kann erhöhen).
  */
 export function defaultWochen(block: LehrmittelVorlageBlock): number {
-  if (block.optional && block.wochenMin === 0) return Math.max(1, Math.ceil(block.wochenMax / 2));
-  return Math.max(1, block.wochenMin, Math.floor((block.wochenMin + block.wochenMax) / 2));
+  if (!hatRichtwert(block)) return Math.max(1, block.vorschlagWochen ?? 3);
+  const min = block.wochenMin!;
+  const max = block.wochenMax!;
+  if (block.optional && min === 0) return Math.max(1, Math.ceil(max / 2));
+  return Math.max(1, min, Math.floor((min + max) / 2));
+}
+
+/** Hat der Block einen Wochen-Richtwert des Verlags? (Themenübersichten nicht) */
+export function hatRichtwert(block: LehrmittelVorlageBlock): boolean {
+  return typeof block.wochenMin === "number" && typeof block.wochenMax === "number";
+}
+
+/** Reine Themenübersicht ohne Verlags-Jahresplanung (z.B. NaTech)? */
+export function istThemenuebersicht(vorlage: LehrmittelVorlage): boolean {
+  return vorlage.art === "themenuebersicht";
+}
+
+/** Alle Vorlagen einer Reihe (Spiralprinzip), sortiert nach Stufe. */
+export function getVorlagenReihe(reihe: string): LehrmittelVorlage[] {
+  const n = (v: LehrmittelVorlage) => parseInt(v.stufen[0], 10) || 0;
+  return VORLAGEN.filter((v) => v.reihe === reihe).sort((a, b) => n(a) - n(b));
+}
+
+/** Alle Namen, unter denen eine Vorlage im Lehrmittel-Register stehen kann. */
+export function vorlageNamen(vorlage: LehrmittelVorlage): string[] {
+  return [vorlage.lehrmittel, ...(vorlage.lehrmittelAliase || [])];
 }
 
 export function uebungenLabel(vorlage: LehrmittelVorlage): string {
@@ -51,6 +82,7 @@ export function uebungenLabel(vorlage: LehrmittelVorlage): string {
 
 export function formatWochenRichtwert(block: LehrmittelVorlageBlock): string {
   if (block.begleitend) return "begleitend";
+  if (!hatRichtwert(block)) return "Dauer frei";
   return block.wochenMin === block.wochenMax
     ? `${block.wochenMin} ${block.wochenMin === 1 ? "Woche" : "Wochen"}`
     : `${block.wochenMin}–${block.wochenMax} Wochen`;
@@ -211,7 +243,8 @@ export function miaCodes(block: LehrmittelVorlageBlock): string[] {
 
 /** Kompetenz-Code ohne Stufenbuchstaben (z.B. "MA.1.A.2", nicht "MA.1.A.2.c")? */
 export function istKompetenzCode(code: string): boolean {
-  return /^[A-Za-z0-9]+\.\d+\.[A-Z]\.\d+$/.test(code);
+  // Mit Kompetenzbereich-Buchstabe (MA.1.A.2, D.4.B.1) oder ohne (NMG.1.2)
+  return /^[A-Za-z0-9]+\.\d+(\.[A-Z])?\.\d+$/.test(code);
 }
 
 /** Zyklen einer Vorlage aus ihren Stufen (KiGa–2. → Z1, 3.–6. → Z2, 7.–9. → Z3). */
@@ -252,6 +285,11 @@ function lernzieleText(vorlage: LehrmittelVorlage, block: LehrmittelVorlageBlock
     });
     zeilen.push("");
   }
+  if (block.strang) {
+    zeilen.push(
+      `Themenstrang: ${block.strang}${vorlage.reihe ? ` (Spiralprinzip ${vorlage.reihe}, ${vorlage.lehrmittel})` : ""}`
+    );
+  }
   if (block.fokus && block.fokus.length > 0) {
     zeilen.push(`Fokussierte Kompetenzbereiche: ${block.fokus.join(", ")}`);
   }
@@ -279,9 +317,11 @@ function lernzieleText(vorlage: LehrmittelVorlage, block: LehrmittelVorlageBlock
       ? `Läuft begleitend über das ganze Schuljahr${
           block.zeitraumHinweis ? ` (${block.zeitraumHinweis})` : ""
         }.`
-      : `Richtwert gemäss Verlag: ${formatWochenRichtwert(block)}${
-          block.zeitraumHinweis ? ` (${block.zeitraumHinweis})` : ""
-        }`
+      : !hatRichtwert(block)
+        ? `Kein Richtwert des Verlags – Dauer und Reihenfolge frei (${vorlage.lehrmittel}).`
+        : `Richtwert gemäss Verlag: ${formatWochenRichtwert(block)}${
+            block.zeitraumHinweis ? ` (${block.zeitraumHinweis})` : ""
+          }`
   );
   return zeilen.join("\n");
 }
@@ -406,7 +446,9 @@ export function getVorlagenBezuege(lpCode: string | undefined, zyklus?: string[]
   }
   const direkt = bezugIndex.get(canonCode(lpCode)) || [];
   const teile = lpCode.trim().split(".");
-  if (teile.length < 5) return direkt;
+  // Nur Kompetenzstufen (letzter Teil = Buchstabe) haben eine übergeordnete
+  // Kompetenz: MA.1.A.2.e → MA.1.A.2, NMG.1.2.a → NMG.1.2
+  if (teile.length < 4 || !/^[a-z]$/i.test(teile[teile.length - 1])) return direkt;
   const kompetenz = teile.slice(0, -1).join(".");
   const ueber = (bezugIndex.get(canonCode(kompetenz)) || []).filter(
     (b) => !zyklus || zyklus.length === 0 || b.zyklen.some((z) => zyklus.includes(z))

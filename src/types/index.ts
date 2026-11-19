@@ -384,8 +384,15 @@ export interface LehrmittelVorlageBlock {
   id: string; // stabil innerhalb der Vorlage
   titel: string; // z.B. "Die Zahlen bis 1 000 000"
   phase: LehrmittelVorlagePhase;
-  wochenMin: number; // Richtwert untere Grenze
-  wochenMax: number; // Richtwert obere Grenze
+  // Richtwert des Verlags in Wochen. Fehlt bei reinen Themenübersichten
+  // (z.B. NaTech) – dann plant die Lehrperson frei (Vorschlag: vorschlagWochen).
+  wochenMin?: number; // Richtwert untere Grenze
+  wochenMax?: number; // Richtwert obere Grenze
+  vorschlagWochen?: number; // Vorschlag der App, wenn kein Richtwert existiert
+  // Spiralprinzip: Themenstrang, der sich über mehrere Bände wiederholt
+  // (z.B. "Stoffe" in NaTech 1|2, 3|4, 5|6). strangNr ordnet die Zeilen.
+  strang?: string;
+  strangNr?: number;
   kapitel: LehrmittelVorlageKapitel[];
   blitz?: string[]; // Begleitende Übungen (Blitzrechnen, Rechentraining …), Label via LehrmittelVorlage.uebungenLabel
   beurteilung?: string; // z.B. "LZK 1" → summative Beurteilung in der letzten Woche
@@ -412,6 +419,16 @@ export interface LehrmittelVorlage {
   hinweis?: string; // z.B. "Die Angaben sind Richtwerte…"
   uebungenLabel?: string; // Bezeichnung der begleitenden Übungen (Default "Blitzrechnen")
   bildUrl?: string; // Fallback-Bild (z.B. /lehrmittel/…png), falls das Register keines hat
+  // "jahresplanung" (Default): Verlags-Jahresplanung mit Richtwerten.
+  // "themenuebersicht": nur Themen + LP21-Bezüge, Zeitraum frei planbar.
+  art?: "jahresplanung" | "themenuebersicht";
+  // Alternative Namen im Lehrmittel-Register (z.B. "NaTech 1/2", "NaTech").
+  // Der erste registrierte Name (lehrmittel, dann Aliase) bestimmt die Gruppe.
+  lehrmittelAliase?: string[];
+  // Reihe für das Spiralprinzip (z.B. "NaTech"): Vorlagen derselben Reihe
+  // werden in einer Strang × Band-Matrix nebeneinander dargestellt.
+  reihe?: string;
+  lp21Texte?: Record<string, string>; // Klartext zu Kompetenz-Codes (Tooltips)
   bloecke: LehrmittelVorlageBlock[];
 }
 
