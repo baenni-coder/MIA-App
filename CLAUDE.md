@@ -81,6 +81,10 @@ Die MIA-App ist eine Webanwendung für Lehrpersonen zur Verwaltung ihres Jahresp
 - **Begleitende Blöcke** (`begleitend: true`, z.B. „Üben" ≈ 1/3 der Deutschzeit): belegen keine eigenen Wochen, sondern laufen parallel über den gesamten verplanten Zeitraum (am Jahreswechsel geteilt).
 - **Cover**: `LehrmittelVorlage.bildUrl` (statisch unter `public/lehrmittel/`) als Fallback, wenn das Register kein Bild hat.
 - **Deutsch-Generator**: `scripts/lehrmittel-vorlagen/` (Extraktor aus dem Verlags-PDF + TS-Generator, siehe README).
+- **Themenübersichten ohne Jahresplanung (NaTech 1|2, 3|4, 5|6)**: `LehrmittelVorlage.art = "themenuebersicht"` – Blöcke ohne `wochenMin/wochenMax` (Anzeige „Dauer frei", Vorschlag `vorschlagWochen` = 4), Übernahme wie gewohnt (sequenziell, Wochen frei wählbar). Pro Schuljahr eine Vorlage (`natech-1` … `natech-6`, je 5 Themen), LP21-Bezüge auf Kompetenz-Ebene (`NMG.3.3`; `istKompetenzCode()` akzeptiert jetzt auch Codes ohne Kompetenzbereich-Buchstaben) → Auflösung wie beim Zahlenbuch. `getVorlagenBezuege()` findet die übergeordnete Kompetenz auch bei 4-teiligen Stufen (`NMG.3.3.a` → `NMG.3.3`).
+- **Spiralprinzip**: `reihe` (z.B. „NaTech") + `strang`/`strangNr` pro Block → `SpiralprinzipDialog` (Lehrmittel-Seite, Button „Spiralprinzip"): Matrix Themenstrang × Band, Codes, die im selben Strang in mehreren Bänden vorkommen, hervorgehoben; „Kompetenz verfolgen" markiert alle Themen mit einem Code. Klartexte via `lp21Texte`.
+- **Register-Aliase**: `lehrmittelAliase` (z.B. „NaTech 1/2", „NaTech") – die Lehrmittel-Übersicht ordnet Vorlagen, Themen und Einheiten dem ersten im Register erfassten Namen zu.
+- **NaTech-Generator**: `scripts/lehrmittel-vorlagen/natech-generate.py` (liest das Verlags-PDF, prüft gegen die „Anzahl"-Zeile).
 - **Neue Vorlage hinzufügen**: Datei `src/lib/data/lehrmittel-vorlagen/<id>.ts` (Typ `LehrmittelVorlage`) anlegen und im Array `VORLAGEN` in `index.ts` registrieren. `lehrmittel` muss dem Namen im Lehrmittel-Register entsprechen (case-insensitiv), damit Bild/Beschreibung zusammenfallen.
 
 **Wichtige Dateien:**

@@ -42,10 +42,13 @@ import {
 import {
   getLehrmittelVorlagen,
   formatWochenRichtwert,
+  istThemenuebersicht,
   miaCodes,
   uebungenLabel,
+  vorlageNamen,
 } from "@/lib/data/lehrmittel-vorlagen";
 import VorlageUebernehmenDialog from "@/components/jahresplanung/VorlageUebernehmenDialog";
+import SpiralprinzipDialog from "@/components/jahresplanung/SpiralprinzipDialog";
 import {
   BookOpen,
   FileText,
@@ -59,6 +62,7 @@ import {
   CalendarDays,
   CalendarPlus,
   ClipboardCheck,
+  Repeat,
   Search,
 } from "lucide-react";
 import Link from "next/link";
@@ -116,6 +120,7 @@ export default function LehrmittelPage() {
   const [aktiveVorlage, setAktiveVorlage] = useState<LehrmittelVorlage | null>(
     null
   );
+  const [spirale, setSpirale] = useState<{ reihe: string; lehrmittel: string } | null>(null);
   const [formFachbereiche, setFormFachbereiche] = useState<Fachbereich[]>([]);
   const [formStufen, setFormStufen] = useState<Stufe[]>([]);
 
@@ -198,20 +203,31 @@ export default function LehrmittelPage() {
       if (l.bildUrl) g.bildUrl = l.bildUrl;
     });
 
-    // Jahresplanungsvorlagen der Verlage (statisch im Code gepflegt)
+    // Jahresplanungsvorlagen der Verlage (statisch im Code gepflegt).
+    // Gruppe = erster im Register erfasster Name (lehrmittel, dann Aliase,
+    // z.B. "NaTech 1|2" → "NaTech 1/2" → "NaTech"), sonst lehrmittel.
+    // Themen/Einheiten mit einem dieser Namen landen in derselben Gruppe.
+    const aliasZiel = new Map<string, string>();
     getLehrmittelVorlagen().forEach((v) => {
-      ensure(v.lehrmittel).vorlagen.push(v);
+      const namen = vorlageNamen(v);
+      const ziel = namen.find((n) => map.get(normalizeKey(n))?.register) || v.lehrmittel;
+      ensure(ziel).vorlagen.push(v);
+      namen.forEach((n) => {
+        const k = normalizeKey(n);
+        if (!map.get(k)?.register && !aliasZiel.has(k)) aliasZiel.set(k, ziel);
+      });
     });
+    const ensureAlias = (name: string) => ensure(aliasZiel.get(normalizeKey(name)) || name);
 
     allThemen.forEach((t) => {
       if (!t.lehrmittel) return;
-      const g = ensure(t.lehrmittel);
+      const g = ensureAlias(t.lehrmittel);
       g.themen.push(t);
     });
 
     einheiten.forEach((e) => {
       if (!e.lehrmittel) return;
-      const g = ensure(e.lehrmittel);
+      const g = ensureAlias(e.lehrmittel);
       g.einheiten.push(e);
     });
 
@@ -614,7 +630,9 @@ export default function LehrmittelPage() {
                             {g.themen.length === 1 ? "Thema" : "Themen"} ·{" "}
                             {g.einheiten.length}{" "}
                             {g.einheiten.length === 1 ? "Einheit" : "Einheiten"}
-                            {g.vorlagen.length > 0 && " · Jahresplanung verfügbar"}
+                            {g.vorlagen.some((v) => !istThemenuebersicht(v)) && " · Jahresplanung verfügbar"}
+                            {g.vorlagen.length > 0 && g.vorlagen.every(istThemenuebersicht) &&
+                              " · Themen mit LP21-Bezügen"}
                             {g.vorlagen.some((v) => v.bloecke.some((b) => miaCodes(b).length > 0)) &&
                               " · mit MIA-Bezug"}
                           </div>
@@ -701,10 +719,22 @@ export default function LehrmittelPage() {
                                 {v.verlag && <> · {v.verlag}</>}
                               </div>
                             </div>
-                            <Button size="sm" onClick={() => setAktiveVorlage(v)}>
-                              <CalendarPlus className="h-4 w-4 mr-1.5" />
-                              In meine Jahresplanung übernehmen
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                              {v.reihe && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setSpirale({ reihe: v.reihe!, lehrmittel: v.lehrmittel })}
+                                >
+                                  <Repeat className="h-4 w-4 mr-1.5" />
+                                  Spiralprinzip
+                                </Button>
+                              )}
+                              <Button size="sm" onClick={() => setAktiveVorlage(v)}>
+                                <CalendarPlus className="h-4 w-4 mr-1.5" />
+                                In meine Jahresplanung übernehmen
+                              </Button>
+                            </div>
                           </div>
                           <div className="space-y-1.5">
                             {v.bloecke.map((b) => (
@@ -713,9 +743,12 @@ export default function LehrmittelPage() {
                                 className="rounded-md border bg-background px-3 py-2"
                               >
                                 <summary className="cursor-pointer text-sm flex flex-wrap items-center gap-2">
+                                  {b.strangNr && (
+                                    <span className="text-xs text-muted-foreground">{b.strangNr}</span>
+                                  )}
                                   <span className="font-medium">{b.titel}</span>
                                   <Badge variant="outline" className="text-xs">
-                                    {b.phase}
+                                    {b.strang || b.phase}
                                   </Badge>
                                   <Badge variant="secondary" className="text-xs">
                                     {formatWochenRichtwert(b)}
@@ -766,6 +799,7 @@ export default function LehrmittelPage() {
                                     {b.lp21Codes.map((c) => (
                                       <Badge
                                         key={c}
+                                        title={v.lp21Texte?.[c] ? `${c}: ${v.lp21Texte[c]}` : undefined}
                                         variant="outline"
                                         className={`text-[10px] font-mono ${
                                           c.startsWith("MI.") || c.startsWith("IB.")
@@ -936,6 +970,17 @@ export default function LehrmittelPage() {
                 acc[e.schuljahr] = (acc[e.schuljahr] || 0) + 1;
                 return acc;
               }, {})}
+          />
+        )}
+
+        {spirale && (
+          <SpiralprinzipDialog
+            reihe={spirale.reihe}
+            aktivesLehrmittel={spirale.lehrmittel}
+            open={!!spirale}
+            onOpenChange={(o) => {
+              if (!o) setSpirale(null);
+            }}
           />
         )}
 

@@ -38,3 +38,22 @@ python3 scripts/lehrmittel-vorlagen/zahlenbuch-kompetenzraster-apply.py raster.j
 - Beim Übernehmen löst der Server Kompetenz-Codes in Kompetenzstufen auf
   (`src/lib/data/lehrmittel-vorlagen/resolve.ts`): Zyklus der Vorlage; in Zyklus 2
   3./4. Klasse bis und mit Orientierungspunkt, 5./6. Klasse danach.
+
+# NaTech 1|2, 3|4, 5|6: Themenübersicht + LP21-Bezüge (Spiralprinzip)
+
+Die einseitige A3-Übersicht „Bezüge zum Lehrplan 21 – Natur und Technik
+Primarstufe" (LMVZ, November 2017) ist **keine Jahresplanung**: pro Band 10 Themen
+(Themen 1–5 = 1. Schuljahr, 6–10 = 2. Schuljahr) mit Punkten bei den
+Schwerpunkt-Kompetenzen (NMG.x.y).
+
+```bash
+pip install pdfplumber
+python3 -I scripts/lehrmittel-vorlagen/natech-generate.py Natech_Primar_LP21_Uebersicht.pdf \
+  > src/lib/data/lehrmittel-vorlagen/natech.ts
+```
+
+- Spalten = Kompetenz-Codes (`NMG.x.y`), Punkte = Glyph „•" (kein Bild), Kontrolle:
+  Punkte pro Spalte = Zeile „Anzahl" (wird auf stderr ausgegeben).
+- Erzeugt 6 Vorlagen (`natech-1` … `natech-6`, je 5 Themen) mit `art: "themenuebersicht"`
+  (kein Richtwert, Vorschlag 4 Wochen), `reihe: "NaTech"` und `strang`/`strangNr`
+  für die Spiralprinzip-Matrix. Kompetenz-Texte für Tooltips stehen im Skript.

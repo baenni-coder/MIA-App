@@ -27,6 +27,8 @@ import {
   defaultWochen,
   type KompetenzModus,
   formatWochenRichtwert,
+  hatRichtwert,
+  istThemenuebersicht,
   miaCodes,
   planeVorlage,
   type VorlageAuswahl,
@@ -181,10 +183,21 @@ export default function VorlageUebernehmenDialog({
         <DialogHeader>
           <DialogTitle>{vorlage.titel} übernehmen</DialogTitle>
           <DialogDescription>
-            Jeder ausgewählte Block wird als Einheit ({vorlage.fachbereichId}) in Ihre
-            Jahresplanung eingetragen – nacheinander ab der Start-KW, Ferienwochen werden
-            übersprungen. Lernzielkontrollen werden als summative Beurteilung in der
-            letzten Woche gesetzt. Alles bleibt danach frei anpassbar.
+            {istThemenuebersicht(vorlage) ? (
+              <>
+                Jedes ausgewählte Thema wird als Einheit ({vorlage.fachbereichId}) in Ihre
+                Jahresplanung eingetragen – nacheinander ab der Start-KW, Ferienwochen werden
+                übersprungen. Der Verlag gibt keine Dauer vor: Wählen Sie die Wochen pro
+                Thema selbst. Alles bleibt danach frei anpassbar.
+              </>
+            ) : (
+              <>
+                Jeder ausgewählte Block wird als Einheit ({vorlage.fachbereichId}) in Ihre
+                Jahresplanung eingetragen – nacheinander ab der Start-KW, Ferienwochen werden
+                übersprungen. Lernzielkontrollen werden als summative Beurteilung in der
+                letzten Woche gesetzt. Alles bleibt danach frei anpassbar.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -296,7 +309,11 @@ export default function VorlageUebernehmenDialog({
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {b.begleitend ? "Läuft begleitend" : <>Richtwert {formatWochenRichtwert(b)}</>}
+                        {b.begleitend
+                          ? "Läuft begleitend"
+                          : hatRichtwert(b)
+                            ? <>Richtwert {formatWochenRichtwert(b)}</>
+                            : <>{b.strang ? `${b.strang} · ` : ""}kein Richtwert, Dauer frei</>}
                         {b.zeitraumHinweis && <> ({b.zeitraumHinweis})</>}
                         {state.aktiv && <> · {zeitraumLabel(b.id)}</>}
                       </div>
